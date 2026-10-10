@@ -1,0 +1,70 @@
+/* HeroCover */
+.hero {
+  position: relative; height: var(--h-hero); border-radius: var(--radius-md); overflow: hidden;
+  background: var(--color-tile-bg); display: flex; align-items: center; justify-content: center;
+}
+.heroImg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.heroShade { position: absolute; inset: 0; background: var(--hero-gradient); }
+.heroPlaceholder { color: var(--color-primary); opacity: var(--opacity-placeholder-icon); }
+.heroBottom {
+  position: absolute; left: var(--space-4); right: var(--space-3); bottom: var(--space-3);
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-2);
+}
+.heroDate { font-size: var(--fs-body); font-weight: 600; color: var(--color-surface); font-variant-numeric: tabular-nums; }
+.heroDateDark { color: var(--color-text); }
+
+/* DayTile */
+.tiles {
+  display: flex; gap: var(--space-2); overflow-x: auto; scrollbar-width: none;
+  margin: var(--space-4) calc(-1 * var(--page-x)) 0; padding: 0 var(--page-x);
+}
+.tiles::-webkit-scrollbar { display: none; }
+.tile {
+  flex: 0 0 var(--w-day); height: var(--h-day); border-radius: var(--radius-sm);
+  border: var(--border-w) solid var(--color-border); background: var(--color-surface);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.2;
+}
+.tileNum { font-size: var(--fs-day); font-weight: 700; color: var(--color-text); font-variant-numeric: tabular-nums; }
+.tileMonth { font-size: var(--fs-caption); color: var(--color-text-2); font-weight: 400; }
+.tileOn { background: var(--color-primary); border-color: var(--color-primary); }
+.tileOn .tileNum, .tileOn .tileMonth { color: var(--color-surface); }
+
+/* Day 标题 */
+.dayTitle { font-size: var(--fs-title); font-weight: var(--fw-title); margin-top: var(--space-5); }
+.daySub { font-size: var(--fs-body); color: var(--color-text-3); margin-top: var(--space-1); margin-bottom: var(--space-4); }
+
+/* TimelineRow */
+.rows { display: flex; flex-direction: column; }
+.row { display: grid; grid-template-columns: var(--w-time) var(--w-dot-col) 1fr; column-gap: var(--space-2); position: relative; }
+.row + .row { padding-top: var(--space-2); }
+.time {
+  font-size: var(--fs-small); font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; color: var(--color-text);
+  margin-top: var(--space-3); line-height: var(--size-icon-sm);
+}
+.rail { position: relative; }
+.line { position: absolute; left: 50%; transform: translateX(-50%); width: var(--w-rail); background: var(--color-rail); top: 0; bottom: 0; }
+.row + .row .line { top: calc(-1 * var(--space-2)); }
+.firstLine { top: calc(var(--space-3) + var(--size-icon-sm) / 2) !important; }
+.dot {
+  position: absolute; left: 0; width: var(--size-dot); height: var(--size-dot); border-radius: var(--radius-full);
+  top: calc(var(--space-3) + (var(--size-icon-sm) - var(--size-dot)) / 2); background: var(--color-dot-pending);
+}
+.dotDone { background: var(--color-success); }
+.dotCurrent { background: var(--color-primary); }
+
+/* ItemCard */
+.card {
+  position: relative; background: var(--color-surface); border: var(--border-w) solid var(--color-border);
+  border-radius: var(--radius-md); padding: var(--space-3); min-height: var(--h-card-min); overflow: hidden;
+  display: flex; flex-direction: column; justify-content: center; cursor: pointer; text-align: left; width: 100%;
+}
+.current::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: var(--w-current-bar); background: var(--color-primary); }
+.cardMain { display: flex; align-items: center; gap: var(--space-3); }
+.cardIcon { color: var(--color-primary); display: flex; }
+.cardText { flex: 1; min-width: 0; }
+.cardTitle {
+  font-size: var(--fs-card); font-weight: var(--fw-card); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.cardSub { font-size: var(--fs-small); color: var(--color-text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.slot { display: flex; align-items: center; gap: var(--space-1); flex-shrink: 0; color: var(--color-icon); }
+.actions { display: flex; gap: var(--space-2); margin-top: var(--space-3); }

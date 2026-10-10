@@ -1,0 +1,76 @@
+/* Button */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2);
+  font-weight: 600; border-radius: var(--radius-sm); white-space: nowrap;
+  border: var(--border-w) solid transparent; line-height: 1;
+}
+.btn:disabled { opacity: var(--opacity-disabled); }
+.lg { height: var(--h-btn-lg); font-size: var(--fs-card); padding: 0 var(--space-4); }
+.sm { height: var(--h-btn-sm); font-size: var(--fs-small); padding: 0 var(--space-3); }
+.block { width: 100%; }
+.primary { background: var(--color-primary); color: var(--color-surface); }
+.outline { background: var(--color-surface); border-color: var(--color-primary); color: var(--color-primary); }
+.danger { background: var(--color-warning-ink); color: var(--color-surface); }
+.link { background: none; color: var(--color-primary); padding: 0; height: auto; gap: var(--space-1); font-size: var(--fs-body); min-height: var(--size-hit); }
+
+/* IconButton */
+.iconBtn {
+  width: var(--size-icon-btn); height: var(--size-icon-btn); border-radius: var(--radius-full);
+  border: var(--border-w) solid var(--color-border); background: var(--color-surface);
+  display: inline-flex; align-items: center; justify-content: center; color: var(--color-primary); flex-shrink: 0;
+}
+
+/* StatusChip */
+.chip {
+  display: inline-flex; align-items: center; gap: var(--space-1); height: var(--h-chip); padding: 0 var(--space-2);
+  border-radius: var(--radius-sm); font-size: var(--fs-caption); font-weight: var(--fw-caption); white-space: nowrap; flex-shrink: 0;
+}
+.chip-success { background: var(--color-success-soft); color: var(--color-success-ink); }
+.chip-info { background: var(--color-primary-soft); color: var(--color-primary-ink); }
+.chip-neutral { background: var(--color-neutral-soft); color: var(--color-text-2); }
+
+/* FilterChips */
+.filters { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-2); }
+.filter {
+  height: var(--h-filter); border-radius: var(--radius-sm); font-size: var(--fs-body);
+  border: var(--border-w) solid var(--color-border); background: var(--color-surface); color: var(--color-text);
+}
+.filterOn { background: var(--color-primary); border-color: var(--color-primary); color: var(--color-surface); font-weight: 600; }
+
+/* InfoBanner */
+.banner {
+  display: flex; align-items: center; gap: var(--space-2); min-height: var(--h-banner);
+  border-radius: var(--radius-md); padding: var(--space-2) var(--space-3); font-size: var(--fs-body);
+}
+.banner-success { background: var(--color-success-soft); color: var(--color-success-ink); font-weight: 500; }
+.banner-info { background: var(--color-info-bg); color: var(--color-text-2); font-size: var(--fs-small); }
+.banner-warning { background: var(--color-warning-soft); color: var(--color-warning-ink); font-weight: 600; }
+.bannerText { flex: 1; min-width: 0; }
+
+/* SectionTitle / NoteBox */
+.section { font-size: var(--fs-section); font-weight: var(--fw-section); margin: var(--space-6) 0 var(--space-2); }
+.note {
+  background: var(--color-surface-muted); border-radius: var(--radius-sm); padding: var(--pad-note) var(--space-3);
+  font-size: var(--fs-body); color: var(--color-text-2); white-space: pre-wrap; word-break: break-word;
+}
+
+/* IconTile */
+.tile {
+  width: var(--size-tile); height: var(--size-tile); border-radius: var(--radius-sm); background: var(--color-tile-bg);
+  display: flex; align-items: center; justify-content: center; color: var(--color-primary); flex-shrink: 0;
+}
+.tileWarn { background: var(--color-warning-soft); color: var(--color-warning-ink); }
+.tileLg { width: var(--size-thumb); height: var(--size-thumb); }
+
+/* Card */
+.card { background: var(--color-surface); border: var(--border-w) solid var(--color-border); border-radius: var(--radius-md); }
+
+/* EmptyState */
+.empty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: var(--space-2); padding: var(--space-6) var(--page-x); margin-top: 20vh; }
+.emptyCompact { margin-top: var(--space-2); }
+.emptyTitle { font-size: var(--fs-card); font-weight: 600; margin-top: var(--space-2); }
+.emptyText { font-size: var(--fs-body); color: var(--color-text-2); }
+.emptyLine { text-align: center; color: var(--color-text-2); padding: var(--space-6) 0; }
+
+/* Caption */
+.caption { font-size: var(--fs-caption); color: var(--color-text-2); }

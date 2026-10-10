@@ -1,0 +1,39 @@
+import { create } from 'zustand';
+import type { ParseResult } from '../importer/parseMd';
+
+interface ImportDraft {
+  md: string;
+  result: ParseResult;
+  targetTripId?: string;
+  from: 'file' | 'paste';
+}
+
+interface UIState {
+  toast: { id: number; text: string } | null;
+  showToast: (text: string) => void;
+  draft: ImportDraft | null;
+  setDraft: (d: ImportDraft | null) => void;
+  pasteText: string;
+  setPasteText: (t: string) => void;
+  selectedDay: Record<string, string>; // tripId → dayId
+  selectDay: (tripId: string, dayId: string) => void;
+}
+
+let timer: ReturnType<typeof setTimeout> | undefined;
+
+export const useUI = create<UIState>((set) => ({
+  toast: null,
+  showToast: (text) => {
+    clearTimeout(timer);
+    set({ toast: { id: Date.now(), text } });
+    timer = setTimeout(() => set({ toast: null }), 2000);
+  },
+  draft: null,
+  setDraft: (draft) => set({ draft }),
+  pasteText: '',
+  setPasteText: (pasteText) => set({ pasteText }),
+  selectedDay: {},
+  selectDay: (tripId, dayId) => set((s) => ({ selectedDay: { ...s.selectedDay, [tripId]: dayId } })),
+}));
+
+export const toast = (text: string) => useUI.getState().showToast(text);

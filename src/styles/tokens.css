@@ -1,0 +1,113 @@
+/* 全站唯一的设计令牌文件。组件里只能引用这里的变量，不写死色值和像素值。
+   来源：docs「旅程 Rundown — 设计参考 v0.1」·「风格与设计令牌」 */
+:root {
+  /* 颜色 */
+  --color-primary: #0B68F3;
+  --color-primary-soft: #E0EEFE;
+  --color-primary-ink: #0A57D6;
+  --color-info-bg: #E8F2FE;
+  --color-tile-bg: #ECF4FC;
+  --color-tag-bg: #E6EFF9;
+  --color-success: #138245;
+  --color-success-soft: #E5F7EC;
+  --color-success-ink: #1E7541;
+  --color-warning: #FEBA0A;
+  --color-warning-soft: #FEF6DE;
+  --color-warning-ink: #DC5A14;
+  --color-pdf: #EF3E40;
+  --color-text: #0F1D3A;
+  --color-text-2: #64789A;
+  --color-text-3: #8392AA;
+  --color-icon: #5C7094;
+  --color-border: #E6ECF3;
+  --color-rail: #D6DEE8;
+  --color-dot-pending: #92A6BD;
+  --color-neutral-soft: #ECF0F4;
+  --color-surface: #FFFFFF;
+  --color-surface-muted: #F2F4F8;
+  --color-surface-subtle: #F8FAFC;
+  --color-viewer-bg: #DEE3E8;
+
+  --font-sans: -apple-system, "PingFang SC", "Noto Sans SC", "Noto Sans CJK SC", "Microsoft YaHei", system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* 字号 / 字重，行高统一 1.4；时间和数字加 font-variant-numeric: tabular-nums */
+  --fs-h1: 26px;       --fw-h1: 700;       /* 02 行程项标题 */
+  --fs-page: 22px;     --fw-page: 700;     /* 03 页面大标题 */
+  --fs-title: 20px;    --fw-title: 700;    /* 旅程名、Day 标题、04 页头标题 */
+  --fs-nav: 18px;      --fw-nav: 600;      /* 返回型页头的居中标题 */
+  --fs-section: 16px;  --fw-section: 700;  /* 区块标题 */
+  --fs-card: 15px;     --fw-card: 600;     /* 卡片标题、大按钮文字 */
+  --fs-body: 14px;     --fw-body: 400;     /* 正文、副标题、筛选项 */
+  --fs-small: 13px;    --fw-small: 400;    /* 说明、时间、小按钮文字（600） */
+  --fs-caption: 12px;  --fw-caption: 500;  /* 芯片、Tab 标签、辅助提示 */
+  --lh: 1.4;
+
+  /* 间距：4 的倍数 */
+  --space-1: 4px;  --space-2: 8px;  --space-3: 12px;
+  --space-4: 16px; --space-5: 20px; --space-6: 24px;
+  --page-x: 16px;
+
+  /* 圆角 */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-full: 999px;
+
+  /* 尺寸 */
+  --border-w: 1px;
+  --h-header: 56px;    --h-tabbar: 64px;
+  --h-btn-lg: 44px;    --h-btn-sm: 32px;
+  --h-chip: 24px;      --h-filter: 36px;
+  --w-day: 64px;       --h-day: 56px;
+  --h-hero: 120px;     --h-row: 44px;      --h-file-row: 40px;
+  --size-tile: 40px;   --size-dot: 12px;
+  --size-icon: 24px;   --size-icon-sm: 20px;
+  --icon-stroke: 1.75;
+  --max-w: 430px;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-top: env(safe-area-inset-top, 0px);
+
+  /* 组件专用尺寸：设计参考「组件库」「状态与文案」里写明的数值，集中放在这里 */
+  --size-icon-xs: 16px;      /* 小按钮图标、link 箭头 */
+  --size-icon-chip: 14px;    /* 芯片里的勾圆 */
+  --size-icon-lg: 40px;      /* 封面占位山峰 */
+  --size-icon-xl: 48px;      /* 导入卡片图标、空状态 Logo */
+  --size-icon-btn: 36px;     /* IconButton */
+  --size-hit: 44px;          /* 页头图标点击区 */
+  --size-thumb: 56px;        /* 旅程缩略图 */
+  --size-file-thumb: 24px;   /* FileRow 图片缩略图 */
+  --size-zoom-btn: 28px;
+  --w-time: 48px;            /* 时间轴左列 */
+  --w-dot-col: 12px;         /* 时间轴中列 */
+  --w-rail: 2px;             /* 时间轴竖线 */
+  --w-current-bar: 4px;      /* 当前项左侧竖条 */
+  --w-skip: 112px;           /* 「跳过」按钮固定宽 */
+  --w-dialog: 320px;
+  --w-handle: 36px;  --h-handle: 4px;
+  --h-tag: 28px;             /* 02 类型标签 */
+  --h-card-min: 64px;        /* ItemCard 最小高 */
+  --h-compact-card: 72px;    /* TripCard 紧凑 */
+  --h-cover: 76px;           /* TripCard 大卡封面 */
+  --h-banner: 40px;          /* InfoBanner 最小高 */
+  --h-zoom: 40px;            /* 缩放条 */
+  --h-textarea: 240px;       /* 粘贴框最小高、提示词最大高 */
+  --pad-note: 10px;          /* NoteBox 上下内边距 */
+  --pad-location: 14px;      /* LocationCard 上下内边距 */
+  --pad-dialog: 20px;
+  --pad-ref-y: 2px;          /* 预订编号底的上下内边距 */
+  --h-menu-item: 44px;
+  --fs-day: 18px;            /* DayTile 日期数字 */
+  --fs-mono: 12px;  --fs-mono-input: 13px;
+  --fs-pdf-badge: 7px;
+  --radius-xs: 4px;          /* 文件缩略图 */
+  --radius-code: 6px;        /* 预订编号底 */
+  --radius-sheet: 16px;      /* 底部弹层顶部圆角 */
+  --opacity-disabled: 0.4;
+  --opacity-placeholder-icon: 0.4;
+  --duration: 200ms;
+
+  /* 叠加层 */
+  --hero-gradient: linear-gradient(to top, rgba(10, 25, 50, 0.55), rgba(10, 25, 50, 0) 60%);
+  --scrim: rgba(15, 29, 58, 0.4);
+  --shadow-overlay: 0 4px 24px rgba(15, 29, 58, 0.08);  /* 仅弹层、菜单使用 */
+}
