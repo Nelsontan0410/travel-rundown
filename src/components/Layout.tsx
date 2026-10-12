@@ -1,9 +1,10 @@
-import { useEffect, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
 import s from './Layout.module.css';
 import { Icon, Logo, TabIconFilled, type IconKey } from './Icon';
 import { useUI } from '../store/ui';
+import { useOverlay } from '../hooks/layout';
 
 export type TabKey = 'trips' | 'itinerary' | 'docs';
 
@@ -140,26 +141,15 @@ export function Toast() {
   );
 }
 
-function useLockScroll(open: boolean) {
-  useEffect(() => {
-    if (!open) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, [open]);
-}
-
 export function Sheet({ open, onClose, title, children }: { open: boolean; onClose: () => void; title?: string; children: ReactNode }) {
-  useLockScroll(open);
+  const { panelRef, backdropRef, titleId, dismiss } = useOverlay(open, onClose);
   if (!open) return null;
   return createPortal(
     <>
-      <div className={s.scrim} onClick={onClose} />
-      <div className={`${s.fixedCol} ${s.sheet}`} role="dialog" aria-modal="true">
+      <div ref={backdropRef} className={s.scrim} onClick={dismiss} />
+      <div ref={panelRef} className={`${s.fixedCol} ${s.sheet}`} role="dialog" aria-modal="true" aria-labelledby={title ? titleId : undefined} tabIndex={-1}>
         <div className={s.handle} />
-        {title && <h2 className={s.sheetTitle}>{title}</h2>}
+        {title && <h2 id={titleId} className={s.sheetTitle}>{title}</h2>}
         {children}
       </div>
     </>,
@@ -169,22 +159,24 @@ export function Sheet({ open, onClose, title, children }: { open: boolean; onClo
 
 export function Dialog({
   open,
+  onClose,
   title,
   text,
   actions,
 }: {
   open: boolean;
+  onClose: () => void;
   title: string;
   text?: string;
   actions: ReactNode;
 }) {
-  useLockScroll(open);
+  const { panelRef, backdropRef, titleId, dismiss } = useOverlay(open, onClose);
   if (!open) return null;
   return createPortal(
-    <div className={s.dialogWrap}>
-      <div className={s.dialog} role="alertdialog" aria-modal="true">
+    <div ref={backdropRef} className={s.dialogWrap} onClick={(event) => { if (event.target === event.currentTarget) dismiss(); }}>
+      <div ref={panelRef} className={s.dialog} role="alertdialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}>
         <div className={s.handle} />
-        <h2 className={s.dialogTitle}>{title}</h2>
+        <h2 id={titleId} className={s.dialogTitle}>{title}</h2>
         {text && <p className={s.dialogText}>{text}</p>}
         <div className={s.dialogBtns}>{actions}</div>
       </div>
@@ -194,12 +186,13 @@ export function Dialog({
 }
 
 export function Menu({ open, onClose, items }: { open: boolean; onClose: () => void; items: { label: string; onClick: () => void }[] }) {
+  const { panelRef, backdropRef, dismiss } = useOverlay(open, onClose);
   if (!open) return null;
   return createPortal(
     <>
-      <div className={s.menuScrim} onClick={onClose} />
+      <div ref={backdropRef} className={s.menuScrim} onClick={dismiss} />
       <div className={`${s.fixedCol} ${s.menuPosition}`}>
-      <div className={s.menu} role="menu">
+      <div ref={panelRef} className={s.menu} role="menu" tabIndex={-1}>
         <div className={s.handle} />
         {items.map((it) => (
           <button

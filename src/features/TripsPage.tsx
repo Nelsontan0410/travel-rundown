@@ -91,6 +91,7 @@ export default function TripsPage() {
       />
       <Dialog
         open={about}
+        onClose={() => setAbout(false)}
         title="旅程 Rundown"
         text="V1 · 所有行程和证明只保存在这台设备上。"
         actions={

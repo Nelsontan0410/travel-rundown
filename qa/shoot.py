@@ -1,6 +1,6 @@
 # 视觉验收：逐页截图；--width 390/768/1280（先构建并启动 4173 预览服务）
 import argparse, datetime, json, os, tempfile
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import sync_playwright, expect
 BASE = 'http://localhost:4173'
 parser = argparse.ArgumentParser()
 parser.add_argument('out')
@@ -54,7 +54,12 @@ def check_shell(page):
         assert abs(bottom['y'] + bottom['height'] - target) <= 1, result
     shell_checks.append({'kind': 'shell', **result})
 
-def check_overlay(page, role, kind):
+def check_cleanup(page):
+    assert page.evaluate('!document.getElementById("root").inert')
+    assert page.evaluate('document.body.style.overflow === window.__baseBodyOverflow')
+    assert page.evaluate('JSON.stringify(window.__overlayListeners()) === JSON.stringify(window.__baseOverlayListeners)')
+
+def check_overlay(page, role, kind, reopen, trigger):
     overlay = page.get_by_role(role).last
     box = overlay.bounding_box()
     width, height = page.viewport_size['width'], page.viewport_size['height']
@@ -65,14 +70,38 @@ def check_overlay(page, role, kind):
     else:
         assert abs(box['width'] - width) <= 1, box
         assert abs(box['y'] + box['height'] - height) <= 1, box
-    # 只记录当前交互结果；Esc/焦点陷阱需范围例外确认，不伪报为通过。
+    assert overlay.evaluate('(el) => el.contains(document.activeElement)')
+    assert page.evaluate('document.getElementById("root").inert && document.body.style.overflow === "hidden"')
     overlay.locator('button').last.focus()
     page.keyboard.press('Tab')
     trapped = overlay.evaluate('(el) => el.contains(document.activeElement)')
+    assert trapped
+    expect(overlay.locator('button').first).to_be_focused()
+    page.keyboard.press('Shift+Tab')
+    expect(overlay.locator('button').last).to_be_focused()
+    page.evaluate('document.getElementById("root").querySelector("button").focus()')
+    assert overlay.evaluate('(el) => el.contains(document.activeElement)')
+    if role == 'alertdialog':
+        overlay.locator('h2').click()
+        expect(page.get_by_role(role)).to_have_count(1)
+    page.evaluate('window.__overlayPanel = document.querySelector(\'[role="' + role + '"]\')')
+    for resized in [767, 768, 1023, 1024, 1280, 390, args.width]:
+        page.set_viewport_size({'width': resized, 'height': HEIGHT})
+        assert overlay.evaluate('(el) => el === window.__overlayPanel && el.contains(document.activeElement)')
     page.keyboard.press('Escape')
-    dismissed = page.get_by_role(role).count() == 0
+    expect(page.get_by_role(role)).to_have_count(0)
+    expect(trigger).to_be_focused()
+    check_cleanup(page)
+    reopen()
+    expect(page.get_by_role(role)).to_have_count(1)
+    page.mouse.click(2, 2)
+    expect(page.get_by_role(role)).to_have_count(0)
+    expect(trigger).to_be_focused()
+    check_cleanup(page)
     shell_checks.append({'kind': kind, 'geometry': 'passed', 'box': box,
-                         'focusTrap': trapped, 'escapeDismiss': dismissed})
+                         'focusTrap': trapped, 'escapeDismiss': True, 'backdropDismiss': True,
+                         'focusRestore': True, 'backgroundInert': True, 'liveResizePreserved': True,
+                         'listenerCleanup': True})
 
 def capture(page, name, full_page=False):
     metrics = page.evaluate('''() => {
@@ -106,25 +135,41 @@ with tempfile.TemporaryDirectory() as temp, sync_playwright() as p:
     pg.close()
 
     ctx = b.new_context(viewport={'width': args.width, 'height': HEIGHT}, device_scale_factor=2, locale='zh-CN', timezone_id='Asia/Singapore')
+    if args.shell_checks:
+        ctx.add_init_script('''(() => {
+            const listeners = {keydown: new Set(), focusin: new Set()};
+            const add = document.addEventListener, remove = document.removeEventListener;
+            const capture = options => options === true || !!options?.capture;
+            document.addEventListener = function(type, listener, options) {
+                if (listeners[type] && capture(options)) listeners[type].add(listener);
+                return add.call(this, type, listener, options);
+            };
+            document.removeEventListener = function(type, listener, options) {
+                if (listeners[type] && capture(options)) listeners[type].delete(listener);
+                return remove.call(this, type, listener, options);
+            };
+            window.__overlayListeners = () => ({keydown: listeners.keydown.size, focusin: listeners.focusin.size});
+        })()''')
     page = ctx.new_page()
     page.clock.install(time=datetime.datetime(2027, 1, 13, 6, 30, tzinfo=datetime.timezone.utc))  # 15:30 JST
     page.goto(BASE + '/trips'); page.wait_for_timeout(800)
     capture(page, '04-empty')
     if args.shell_checks:
-        page.get_by_label('更多').click(); page.wait_for_timeout(300)
+        page.evaluate('''() => {
+            window.__baseBodyOverflow = document.body.style.overflow;
+            window.__baseOverlayListeners = window.__overlayListeners();
+        }''')
+        def open_menu():
+            page.get_by_label('更多').click(); page.wait_for_timeout(300)
+        def open_about():
+            open_menu()
+            page.get_by_role('menuitem', name='关于').click(); page.wait_for_timeout(300)
+        open_menu()
         capture(page, 'menu')
-        check_overlay(page, 'menu', 'Menu')
-        if page.get_by_role('menu').count():
-            page.mouse.click(2, 2)
-        shell_checks.append({'kind': 'Menu-backdrop', 'dismissed': page.get_by_role('menu').count() == 0})
-        page.get_by_label('更多').click()
-        page.get_by_role('menuitem', name='关于').click(); page.wait_for_timeout(300)
+        check_overlay(page, 'menu', 'Menu', open_menu, page.get_by_label('更多'))
+        open_about()
         capture(page, 'dialog')
-        check_overlay(page, 'alertdialog', 'Dialog')
-        page.mouse.click(2, 2)
-        shell_checks.append({'kind': 'Dialog-backdrop', 'dismissed': page.get_by_role('alertdialog').count() == 0})
-        if page.get_by_role('alertdialog').count():
-            page.get_by_text('知道了', exact=True).click()
+        check_overlay(page, 'alertdialog', 'Dialog', open_about, page.get_by_label('更多'))
     page.get_by_text('粘贴行程文字').click()
     page.locator('textarea').fill(md)
     if args.shell_checks:
@@ -154,16 +199,41 @@ with tempfile.TemporaryDirectory() as temp, sync_playwright() as p:
         fc.value.set_files(pdf_path); page.wait_for_timeout(500)
         page.get_by_text('关联行程项').click(); page.wait_for_timeout(200)
         page.locator('[role=dialog]').last.get_by_text(target, exact=True).click()
+        if args.shell_checks and target == '温泉酒店入住':
+            picker = page.get_by_role('dialog', name='关联行程项')
+            selected = picker.get_by_text(target, exact=True).evaluate('(el) => el.closest("button").innerHTML')
+            page.evaluate('window.__nestedPanel = [...document.querySelectorAll("[role=dialog]")].at(-1)')
+            for resized in [767, 768, 1023, 1024, 1280, 390, args.width]:
+                page.set_viewport_size({'width': resized, 'height': HEIGHT})
+                assert picker.evaluate('(el) => el === window.__nestedPanel && el.contains(document.activeElement)')
+                assert picker.get_by_text(target, exact=True).evaluate('(el) => el.closest("button").innerHTML') == selected
+            page.keyboard.press('Escape')
+            expect(page.get_by_role('dialog', name='关联行程项')).to_have_count(0)
+            parent = page.get_by_role('dialog', name='添加预订证明')
+            expect(parent).to_be_visible()
+            expect(parent.get_by_text(os.path.basename(pdf_path), exact=True)).to_be_visible()
+            assert parent.get_by_text('关联行程项', exact=True).evaluate('(el) => el.closest("button") === document.activeElement')
+            assert page.evaluate('document.body.style.overflow === "hidden" && document.getElementById("root").inert')
+            assert page.evaluate('''() => {
+                const current = window.__overlayListeners(), base = window.__baseOverlayListeners;
+                return current.keydown === base.keydown + 1 && current.focusin === base.focusin + 1;
+            }''')
+            shell_checks.append({'kind': 'nested-Sheet', 'topOnlyEscape': True, 'filePreserved': True,
+                                 'selectionPreservedOnResize': True, 'parentFocusRestore': True,
+                                 'parentScrollLockPreserved': True, 'singleListenerSet': True})
+            page.get_by_text('关联行程项', exact=True).click()
+            page.get_by_role('dialog', name='关联行程项').get_by_text(target, exact=True).click()
         page.get_by_text('完成', exact=True).click(); page.wait_for_timeout(200)
         page.get_by_text('保存', exact=True).click(); page.wait_for_timeout(500)
+        if args.shell_checks:
+            check_cleanup(page)
     capture(page, '03', full_page=True)
     if args.shell_checks:
-        page.get_by_text('添加', exact=True).click(); page.wait_for_timeout(300)
+        def open_sheet():
+            page.get_by_text('添加', exact=True).click(); page.wait_for_timeout(300)
+        open_sheet()
         capture(page, 'sheet')
-        check_overlay(page, 'dialog', 'Sheet')
-        if page.get_by_role('dialog').count():
-            page.mouse.click(2, 2)
-        shell_checks.append({'kind': 'Sheet-backdrop', 'dismissed': page.get_by_role('dialog').count() == 0})
+        check_overlay(page, 'dialog', 'Sheet', open_sheet, page.get_by_role('button', name='添加', exact=True))
     # 航班标记完成
     page.get_by_text('行程', exact=True).click(); page.wait_for_timeout(400)
     page.get_by_text('抵达新千岁机场').click(); page.wait_for_timeout(300)
@@ -173,14 +243,60 @@ with tempfile.TemporaryDirectory() as temp, sync_playwright() as p:
     page.get_by_text('温泉酒店入住').click(); page.wait_for_timeout(500)
     capture(page, '02')
     capture(page, '02-full', full_page=True)
+    if args.shell_checks:
+        page.get_by_label('更多').click()
+        page.get_by_role('menuitem', name='查看原文').click(); page.wait_for_timeout(300)
+        source = page.get_by_role('dialog', name='原文')
+        capture(page, 'source-sheet')
+        assert source.locator('button').count() == 0
+        for key in ['Tab', 'Shift+Tab']:
+            page.keyboard.press(key)
+            expect(source).to_be_focused()
+        page.keyboard.press('Escape')
+        expect(source).to_have_count(0)
+        expect(page.get_by_label('更多')).to_be_focused()
+        check_cleanup(page)
+        shell_checks.append({'kind': 'readonly-Sheet', 'panelFocusFallback': True,
+                             'focusTrap': True, 'escapeDismiss': True, 'focusRestore': True})
     page.get_by_text('查看证明').click(); page.wait_for_timeout(2500)
     capture(page, '06')
     page.get_by_label('返回').click(); page.wait_for_timeout(300)
     page.get_by_label('返回').click(); page.wait_for_timeout(300)
     page.get_by_label('旅程设置').click(); page.wait_for_timeout(1500)
     capture(page, '05', full_page=True)
+    if args.shell_checks:
+        for dismiss in ['Escape', 'backdrop']:
+            page.get_by_text('删除这个旅程', exact=True).click()
+            expect(page.get_by_role('alertdialog', name='删除这个旅程？')).to_be_visible()
+            if dismiss == 'Escape':
+                page.keyboard.press('Escape')
+            else:
+                page.mouse.click(2, 2)
+            expect(page.get_by_role('alertdialog')).to_have_count(0)
+            expect(page.get_by_role('heading', name='旅程设置', exact=True)).to_be_visible()
+            check_cleanup(page)
+        shell_checks.append({'kind': 'delete-Dialog', 'escapeDismiss': True,
+                             'backdropDismiss': True, 'settingsPreserved': True})
     page.get_by_text('旅程', exact=True).click(); page.wait_for_timeout(500)
     capture(page, '04', full_page=True)
+    if args.shell_checks:
+        unexpected_choosers = []
+        def record_chooser(chooser):
+            unexpected_choosers.append(chooser)
+        page.on('filechooser', record_chooser)
+        for dismiss in ['Escape', 'backdrop']:
+            page.get_by_text('恢复备份', exact=True).first.click()
+            expect(page.get_by_role('alertdialog', name='恢复备份？')).to_be_visible()
+            if dismiss == 'Escape':
+                page.keyboard.press('Escape')
+            else:
+                page.mouse.click(2, 2)
+            expect(page.get_by_role('alertdialog')).to_have_count(0)
+            check_cleanup(page)
+        page.remove_listener('filechooser', record_chooser)
+        assert not unexpected_choosers
+        shell_checks.append({'kind': 'restore-Dialog', 'escapeDismiss': True,
+                             'backdropDismiss': True, 'fileChooserNotOpened': True})
     page.get_by_text('获取导入模板').first.click(); page.wait_for_timeout(300)
     capture(page, 'template')
     b.close()

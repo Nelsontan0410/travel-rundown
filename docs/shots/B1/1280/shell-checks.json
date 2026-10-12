@@ -48,12 +48,13 @@
       "width": 480,
       "height": 90
     },
-    "focusTrap": false,
-    "escapeDismiss": false
-  },
-  {
-    "kind": "Menu-backdrop",
-    "dismissed": true
+    "focusTrap": true,
+    "escapeDismiss": true,
+    "backdropDismiss": true,
+    "focusRestore": true,
+    "backgroundInert": true,
+    "liveResizePreserved": true,
+    "listenerCleanup": true
   },
   {
     "kind": "shell",
@@ -84,12 +85,13 @@
       "width": 480,
       "height": 153.984375
     },
-    "focusTrap": false,
-    "escapeDismiss": false
-  },
-  {
-    "kind": "Dialog-backdrop",
-    "dismissed": false
+    "focusTrap": true,
+    "escapeDismiss": true,
+    "backdropDismiss": true,
+    "focusRestore": true,
+    "backgroundInert": true,
+    "liveResizePreserved": true,
+    "listenerCleanup": true
   },
   {
     "kind": "shell",
@@ -342,6 +344,15 @@
     "active": 1
   },
   {
+    "kind": "nested-Sheet",
+    "topOnlyEscape": true,
+    "filePreserved": true,
+    "selectionPreservedOnResize": true,
+    "parentFocusRestore": true,
+    "parentScrollLockPreserved": true,
+    "singleListenerSet": true
+  },
+  {
     "kind": "shell",
     "width": 1280,
     "height": 800,
@@ -390,12 +401,13 @@
       "width": 480,
       "height": 208.390625
     },
-    "focusTrap": false,
-    "escapeDismiss": false
-  },
-  {
-    "kind": "Sheet-backdrop",
-    "dismissed": true
+    "focusTrap": true,
+    "escapeDismiss": true,
+    "backdropDismiss": true,
+    "focusRestore": true,
+    "backgroundInert": true,
+    "liveResizePreserved": true,
+    "listenerCleanup": true
   },
   {
     "kind": "shell",
@@ -483,9 +495,21 @@
     },
     "sidebar": 240,
     "contentMax": 960,
-    "bottom": null,
+    "bottom": {
+      "x": 280,
+      "y": 739,
+      "width": 960,
+      "height": 61
+    },
     "entries": 3,
     "active": 1
+  },
+  {
+    "kind": "readonly-Sheet",
+    "panelFocusFallback": true,
+    "focusTrap": true,
+    "escapeDismiss": true,
+    "focusRestore": true
   },
   {
     "kind": "shell",
@@ -506,6 +530,38 @@
     "bottom": null,
     "entries": 3,
     "active": 1
+  },
+  {
+    "kind": "delete-Dialog",
+    "escapeDismiss": true,
+    "backdropDismiss": true,
+    "settingsPreserved": true
+  },
+  {
+    "kind": "shell",
+    "width": 1280,
+    "height": 800,
+    "nav": {
+      "x": 0,
+      "y": 0,
+      "width": 240,
+      "height": 800
+    },
+    "main": {
+      "x": 280,
+      "width": 960
+    },
+    "sidebar": 240,
+    "contentMax": 960,
+    "bottom": null,
+    "entries": 3,
+    "active": 1
+  },
+  {
+    "kind": "restore-Dialog",
+    "escapeDismiss": true,
+    "backdropDismiss": true,
+    "fileChooserNotOpened": true
   },
   {
     "kind": "shell",
