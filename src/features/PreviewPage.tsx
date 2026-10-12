@@ -7,6 +7,8 @@ import { KeyValueCard } from '../components/Cards';
 import { useUI } from '../store/ui';
 import { saveImport, loadDiffOld } from '../db/repo';
 import SourceSheet from '../components/SourceSheet';
+import CheckList from '../components/CheckList';
+import { checkTrip } from '../domain/check';
 import DiffSection from '../components/DiffSection';
 import { diffImport, flattenParsed, type ImportDiff } from '../importer/diff';
 import { fmtDateRange, tripDays } from '../domain/format';
@@ -38,6 +40,17 @@ export default function PreviewPage() {
       live = false;
     };
   }, [target, newFlat]);
+  const issues = useMemo(
+    () =>
+      parsed
+        ? checkTrip(
+            parsed.days.flatMap((d) =>
+              d.items.map((i) => ({ key: i.key, type: i.type, title: i.title, date: d.date, dayIndex: d.index, start: i.start, fixed: i.fixed, place: i.place, navUrl: i.navUrl, bookingStatus: i.bookingStatus })),
+            ),
+          )
+        : [],
+    [parsed],
+  );
   if (!draft) return <Navigate to="/trips" replace />;
   const { result } = draft;
   const empty = result.itemCount === 0;
@@ -94,6 +107,10 @@ export default function PreviewPage() {
                 ['行程项数', String(result.itemCount)],
               ]}
             />
+          </div>
+          <div className={p.mt12}>
+            <h3 style={{ fontSize: 'var(--fs-body)', fontWeight: 600, margin: '0 0 var(--space-2)' }}>准备检查</h3>
+            <CheckList issues={issues} />
           </div>
           {diff && (
             <div className={p.mt12}>

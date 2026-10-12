@@ -9,6 +9,7 @@ import { fmtDateRange, fmtMonthDay, SEP, utcOffsetLabel } from '../domain/format
 import { currentItemId, defaultDay, docsForItem, itemIcon, itemSubtitle, placeCopyText, rightSlot } from '../domain/rules';
 import { openExternal } from '../links/openLink';
 import { setLastTrip } from '../db/repo';
+import PhaseCard from '../components/PhaseCard';
 
 /** 01 每日行程（行程 Tab 的首页） */
 export default function ItineraryPage() {
@@ -74,6 +75,7 @@ export default function ItineraryPage() {
       header={<RootHeader title={trip.title} icon="Settings" iconLabel="旅程设置" onIcon={() => nav(`/trip/${trip.id}/settings`)} />}
     >
       <HeroCover coverUrl={cover} dateRange={fmtDateRange(trip.startDate, trip.endDate)} offline={ready.allGreen} />
+      <PhaseCard td={td} now={now} />
       <DayTiles days={td.days} selectedId={day?.id} onSelect={(id) => selectDay(trip.id, id)} />
       {day && <DayHeading title={dayTitle} sub={daySub} />}
       {items.length === 0 ? (

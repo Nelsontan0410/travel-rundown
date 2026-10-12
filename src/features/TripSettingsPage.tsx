@@ -13,6 +13,9 @@ import { downloadBlob, pickFile, prepareFile } from '../lib/files';
 import { restoreFromFile } from './importFlow';
 import { ChoiceSheet } from './Sheets';
 import { useUI } from '../store/ui';
+import CheckList from '../components/CheckList';
+import { checkTrip } from '../domain/check';
+import { docsForItem } from '../domain/rules';
 import type { TranslateLang } from '../domain/types';
 
 /** 05 旅程设置（从 01 的设置图标进入） */
@@ -34,6 +37,16 @@ export default function TripSettingsPage() {
   const navApps = navAppsUsed(td.items.map((i) => i.navUrl));
   const lang = TRANSLATE_LANGS.find((l) => l.code === trip.translate.to) ?? TRANSLATE_LANGS[0];
   const filesOk = r.filesSaved === r.filesTotal;
+  const issues = checkTrip(
+    td.items.map((i) => {
+      const d = td.dayById.get(i.dayId);
+      return {
+        key: i.key, id: i.id, type: i.type, title: i.title, date: d?.date ?? '', dayIndex: d?.index ?? 0,
+        start: i.start, fixed: i.fixed, place: i.place, navUrl: i.navUrl, bookingStatus: i.bookingStatus,
+        docCount: docsForItem(td.docs, i.key).length,
+      };
+    }),
+  );
 
   const pickCover = async () => {
     const f = await pickFile('image/*');
@@ -87,6 +100,11 @@ export default function TripSettingsPage() {
           text={`${r.filesSaved} / ${r.filesTotal} 已保存`}
         />
       </SettingsGroup>
+
+      <h2 className={p.mt24} style={{ fontSize: 'var(--fs-section)', fontWeight: 'var(--fw-section)', marginBottom: 'var(--space-2)' }}>
+        准备检查
+      </h2>
+      <CheckList issues={issues} onPick={(i) => i.itemId && nav(`/item/${i.itemId}`)} />
 
       <h2 className={p.mt24} style={{ fontSize: 'var(--fs-section)', fontWeight: 'var(--fw-section)', marginBottom: 'var(--space-2)' }}>
         备份与恢复

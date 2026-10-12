@@ -1,10 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
+import md from '../../qa/fixtures/hokkaido.md?raw';
 import { parseMd } from '../importer/parseMd';
 import { diffImport, flattenParsed } from '../importer/diff';
 
 // A0：北海道行程（qa/fixtures/hokkaido.md，订单号已打码）整条链路
-const md = readFileSync('qa/fixtures/hokkaido.md', 'utf8');
 const r = parseMd(md);
 
 describe('A0 hokkaido fixture', () => {
