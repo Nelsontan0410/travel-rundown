@@ -32,6 +32,15 @@ UI 全权交给 B 线，但**数据结构和底层逻辑一律不得触碰**。�
 ### 想要的数据 UI 拿不到怎么办（升级路径）
 需要新字段、新派生值、新 props、改交互行为 → **不要自己改**：在 PR「给另一条线」写清「想要什么、用在哪个组件」，A 线实现后再接。UI 可以先用现有字段实现。
 
+### 🚢 禁区不是不交付的理由（同样最高优先级）
+禁区只限制「怎么改」，不限制「要交付什么」。UI 必须照常 push → merge → deploy 并在线上呈现出来。
+1. **不得以规则为由交付空壳或半成品**：想要的数据拿不到时，先用现有字段把界面做完整（缺的信息可省略或用现有字段组合），再在 PR「给另一条线」登记需求。不要留 TODO、占位、隐藏区块。
+2. **guard 只在本地和 PR 检查时跑，不进 Netlify 构建**（构建命令仍是 `npm run build` = tsc + vite build）。严禁把 guard 接进 build/deploy，严禁为了通过 guard 而回退界面改动。
+3. **guard 误报时**：不要绕过、也不要因此不提交；在 PR 写明误报行与原因，照常提交，由 A 线裁决。界面改动不得被卡住。
+4. **合并前必须确认线上可见**：Netlify deploy preview 构建成功，并在 preview 上用 390/768/1280 实际看到改动（附截图）。看不到改动就是没完成。
+5. **PWA 缓存**：应用是 Service Worker 缓存的，旧版本会继续显示直到点「更新」。验证时用无痕窗口，或在 DevTools → Application → Service Workers 勾选 Update on reload / Unregister 后再看。不得因为「缓存还是旧的」就判定完成。
+6. 构建失败（tsc 错误）优先级最高：先修好再谈别的，不得合并会让 deploy 变红的 PR。
+
 ### 机械护栏（完成前必跑）
 `npm run guard`：①锁定区哈希与 `.guard/protected.lock.json` 一致；②B 线分支的 TSX diff 里无逻辑行。失败即不得提交，**不得修改 guard 脚本或 lock 来绕过**。只有 A 线可以 `node scripts/guard.mjs --update`。
 数据结构与流程全貌见 `docs/architecture.md`。
@@ -45,4 +54,4 @@ UI 全权交给 B 线，但**数据结构和底层逻辑一律不得触碰**。�
 2. 只用 tokens.css 变量；不新增颜色/阴影/渐变；仅浅色主题。
 3. 不改现有界面文案；不往 package.json 加依赖（需先在 PR 说明理由）。
 4. 每个阶段一个 PR，合并前 rebase main；发现对方范围问题写进 PR「给另一条线」。
-5. 完成前：`npm run guard`、`npm run build`、`npm test` 全部通过；B 线附 390/768/1280 截图。
+5. 完成前：`npm run guard`、`npm run build`、`npm test` 全部通过，且 deploy preview 上肉眼确认改动已呈现；B 线附 390/768/1280 截图。
