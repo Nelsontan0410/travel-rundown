@@ -1,11 +1,13 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import p from './Page.module.css';
 import { Screen, BackHeader } from '../components/Layout';
 import { Button, InfoBanner } from '../components/Basics';
 import { KeyValueCard } from '../components/Cards';
 import { useUI } from '../store/ui';
-import { saveImport } from '../db/repo';
+import { saveImport, loadDiffOld } from '../db/repo';
+import DiffSection from '../components/DiffSection';
+import { diffImport, flattenParsed, type ImportDiff } from '../importer/diff';
 import { fmtDateRange, tripDays } from '../domain/format';
 
 /** 导入预览页 */
@@ -16,6 +18,24 @@ export default function PreviewPage() {
   const setPaste = useUI((s) => s.setPasteText);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [diff, setDiff] = useState<ImportDiff | null>(null);
+  const [accepted, setAccepted] = useState<Set<string>>(new Set());
+  const target = draft?.targetTripId;
+  const parsed = draft?.result;
+  const newFlat = useMemo(() => (parsed ? flattenParsed(parsed.days) : []), [parsed]);
+  useEffect(() => {
+    if (!target) return;
+    let live = true;
+    void loadDiffOld(target).then((old) => {
+      if (!live) return;
+      const d = diffImport(old, newFlat);
+      setDiff(d);
+      setAccepted(new Set(d.renamed.map((r) => r.oldKey)));
+    });
+    return () => {
+      live = false;
+    };
+  }, [target, newFlat]);
   if (!draft) return <Navigate to="/trips" replace />;
   const { result } = draft;
   const empty = result.itemCount === 0;
@@ -29,7 +49,9 @@ export default function PreviewPage() {
   const confirm = async () => {
     setBusy(true);
     try {
-      const id = await saveImport(result, draft.md, draft.targetTripId);
+      const renames: Record<string, string> = {};
+      for (const r of diff?.renamed ?? []) if (accepted.has(r.oldKey)) renames[r.oldKey] = r.newKey;
+      const id = await saveImport(result, draft.md, draft.targetTripId, renames);
       nav(`/itinerary/${id}`, { replace: true });
       setTimeout(() => {
         setDraft(null);
@@ -71,6 +93,22 @@ export default function PreviewPage() {
               ]}
             />
           </div>
+          {diff && (
+            <div className={p.mt12}>
+              <DiffSection
+                diff={diff}
+                accepted={accepted}
+                onToggleRename={(k) =>
+                  setAccepted((cur) => {
+                    const n = new Set(cur);
+                    if (n.has(k)) n.delete(k);
+                    else n.add(k);
+                    return n;
+                  })
+                }
+              />
+            </div>
+          )}
           {result.warnings.length > 0 && (
             <div className={p.mt12}>
               <InfoBanner variant="warning" onClick={() => setOpen((o) => !o)}>

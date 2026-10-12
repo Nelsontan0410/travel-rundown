@@ -2,6 +2,7 @@ import { zipSync, unzipSync, strToU8, strFromU8 } from 'fflate';
 import { db } from './schema';
 import { uuid } from './uuid';
 import type { ParseResult } from '../importer/parseMd';
+import type { DiffOldItem } from '../importer/diff';
 import {
   DEFAULT_SETTINGS,
   DEFAULT_TRANSLATE,
@@ -32,7 +33,13 @@ export async function setLastTrip(tripId: string): Promise<void> {
 }
 
 /** 保存导入结果。targetTripId 有值时为重新导入：覆盖 Day 和 Item，按 Item.key 保留状态和证明绑定。 */
-export async function saveImport(result: ParseResult, sourceMd: string, targetTripId?: string): Promise<string> {
+export async function saveImport(
+  result: ParseResult,
+  sourceMd: string,
+  targetTripId?: string,
+  /** 用户确认的「疑似改名」：旧 key → 新 key，状态和证明绑定随之迁移 */
+  renames: Record<string, string> = {},
+): Promise<string> {
   const ts = now();
   return db.transaction('rw', [db.trips, db.days, db.items, db.docs, db.itemStates, db.settings], async () => {
     const existing = targetTripId ? await db.trips.get(targetTripId) : undefined;
@@ -73,16 +80,51 @@ export async function saveImport(result: ParseResult, sourceMd: string, targetTr
 
     if (existing) {
       const keys = new Set(items.map((i) => i.key));
+      for (const [oldKey, newKey] of Object.entries(renames)) {
+        if (!keys.has(newKey) || oldKey === newKey) continue;
+        const st = await db.itemStates.get([tripId, oldKey]);
+        if (st) {
+          await db.itemStates.delete([tripId, oldKey]);
+          await db.itemStates.put({ ...st, itemKey: newKey, updatedAt: ts });
+        }
+      }
       // 匹配不上的证明回到「未关联」，不会被删除
       const docs = await db.docs.where('tripId').equals(tripId).toArray();
       for (const doc of docs) {
-        const kept = doc.itemKeys.filter((k) => keys.has(k));
+        const mapped = doc.itemKeys.map((k) => renames[k] ?? k);
+        const kept = Array.from(new Set(mapped.filter((k) => keys.has(k))));
         if (kept.length !== doc.itemKeys.length) await db.docs.update(doc.id, { itemKeys: kept, updatedAt: ts });
       }
     }
     await updateSettings({ lastTripId: tripId });
     return tripId;
   });
+}
+
+/** 重新导入预览用：读出旧行程每一项，并标记是否带有用户数据 */
+export async function loadDiffOld(tripId: string): Promise<DiffOldItem[]> {
+  const [days, items, states, docs] = await Promise.all([
+    db.days.where('tripId').equals(tripId).toArray(),
+    db.items.where('tripId').equals(tripId).toArray(),
+    db.itemStates.where('tripId').equals(tripId).toArray(),
+    db.docs.where('tripId').equals(tripId).toArray(),
+  ]);
+  const dateOf = new Map(days.map((d) => [d.id, d.date]));
+  const withState = new Set(states.filter((s) => s.status !== 'todo').map((s) => s.itemKey));
+  const withDoc = new Set(docs.flatMap((d) => d.itemKeys));
+  return items.map((i) => ({
+    key: i.key,
+    type: i.type,
+    title: i.title,
+    start: i.start,
+    end: i.end,
+    navUrl: i.navUrl,
+    note: i.note,
+    bookingRef: i.bookingRef,
+    placeName: i.place?.name,
+    date: dateOf.get(i.dayId) ?? '',
+    hasUserData: withState.has(i.key) || withDoc.has(i.key),
+  }));
 }
 
 export async function setItemStatus(tripId: string, itemKey: string, status: ItemStatus): Promise<void> {
