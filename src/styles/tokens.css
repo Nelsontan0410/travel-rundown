@@ -86,7 +86,7 @@
   --w-rail: 2px;             /* 时间轴竖线 */
   --w-current-bar: 4px;      /* 当前项左侧竖条 */
   --w-skip: 112px;           /* 「跳过」按钮固定宽 */
-  --w-dialog: 320px;
+  --w-dialog: 480px;         /* B1：平板与电脑弹层最大宽度 */
   --w-handle: 36px;  --h-handle: 4px;
   --h-tag: 28px;             /* 02 类型标签 */
   --h-card-min: 64px;        /* ItemCard 最小高 */

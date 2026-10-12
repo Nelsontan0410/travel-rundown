@@ -6,6 +6,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('out')
 parser.add_argument('cover')
 parser.add_argument('--width', type=int, choices=[390, 768, 1280], default=390)
+parser.add_argument('--shell-checks', action='store_true')
 args = parser.parse_args()
 OUT = args.out
 COVER = args.cover
@@ -14,6 +15,64 @@ HERE = os.path.dirname(__file__)
 os.makedirs(OUT, exist_ok=True)
 md = open(os.path.join(HERE, 'sample.md'), encoding='utf-8').read()
 checks = []
+shell_checks = []
+
+def check_shell(page):
+    result = page.evaluate('''() => {
+        const nav = document.querySelector('nav[aria-label="主导航"]');
+        if (!nav) return null;
+        const box = nav.getBoundingClientRect();
+        const mainEl = document.querySelector('main');
+        const main = mainEl.getBoundingClientRect();
+        const bottom = mainEl.nextElementSibling?.getBoundingClientRect();
+        const side = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sidebar-w'));
+        const max = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--content-max'));
+        const links = [...nav.querySelectorAll('a')];
+        return {width: innerWidth, height: innerHeight, nav: {x: box.x, y: box.y, width: box.width, height: box.height},
+            main: {x: main.x, width: main.width}, sidebar: side, contentMax: max,
+            bottom: bottom ? {x: bottom.x, y: bottom.y, width: bottom.width, height: bottom.height} : null,
+            entries: links.length, active: links.filter(a => a.getAttribute('aria-current') === 'page').length};
+    }''')
+    if not result:
+        return
+    nav, main = result['nav'], result['main']
+    assert result['entries'] == 3 and result['active'] == 1, result
+    if result['width'] >= 1024:
+        assert abs(nav['x']) <= 1 and abs(nav['width'] - result['sidebar']) <= 1, result
+        assert abs(nav['height'] - result['height']) <= 1, result
+        available = result['width'] - result['sidebar']
+        assert main['width'] <= result['contentMax'], result
+        assert abs(main['x'] + main['width'] / 2 - (result['sidebar'] + available / 2)) <= 1, result
+    else:
+        assert abs(nav['y'] + nav['height'] - result['height']) <= 1, result
+        assert abs(nav['width'] - main['width']) <= 1, result
+        assert abs(main['x'] + main['width'] / 2 - result['width'] / 2) <= 1, result
+    if result['bottom']:
+        bottom = result['bottom']
+        assert abs(bottom['x'] - main['x']) <= 1 and abs(bottom['width'] - main['width']) <= 1, result
+        target = result['height'] if result['width'] >= 1024 else nav['y']
+        assert abs(bottom['y'] + bottom['height'] - target) <= 1, result
+    shell_checks.append({'kind': 'shell', **result})
+
+def check_overlay(page, role, kind):
+    overlay = page.get_by_role(role).last
+    box = overlay.bounding_box()
+    width, height = page.viewport_size['width'], page.viewport_size['height']
+    assert box and box['width'] <= (480 if width >= 768 else width), box
+    assert abs(box['x'] + box['width'] / 2 - width / 2) <= 1, box
+    if width >= 768:
+        assert abs(box['y'] + box['height'] / 2 - height / 2) <= 1, box
+    else:
+        assert abs(box['width'] - width) <= 1, box
+        assert abs(box['y'] + box['height'] - height) <= 1, box
+    # 只记录当前交互结果；Esc/焦点陷阱需范围例外确认，不伪报为通过。
+    overlay.locator('button').last.focus()
+    page.keyboard.press('Tab')
+    trapped = overlay.evaluate('(el) => el.contains(document.activeElement)')
+    page.keyboard.press('Escape')
+    dismissed = page.get_by_role(role).count() == 0
+    shell_checks.append({'kind': kind, 'geometry': 'passed', 'box': box,
+                         'focusTrap': trapped, 'escapeDismiss': dismissed})
 
 def capture(page, name, full_page=False):
     metrics = page.evaluate('''() => {
@@ -34,6 +93,8 @@ def capture(page, name, full_page=False):
     assert metrics['document'] <= metrics['viewport'], f'{name}: 页面横向溢出 {metrics}'
     assert not metrics['overflow'], f'{name}: 元素横向溢出 {metrics}'
     page.screenshot(path=os.path.join(OUT, name + '.png'), full_page=full_page)
+    if args.shell_checks:
+        check_shell(page)
 
 with tempfile.TemporaryDirectory() as temp, sync_playwright() as p:
     b = p.chromium.launch(executable_path=os.environ.get('PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH'))
@@ -49,8 +110,31 @@ with tempfile.TemporaryDirectory() as temp, sync_playwright() as p:
     page.clock.install(time=datetime.datetime(2027, 1, 13, 6, 30, tzinfo=datetime.timezone.utc))  # 15:30 JST
     page.goto(BASE + '/trips'); page.wait_for_timeout(800)
     capture(page, '04-empty')
+    if args.shell_checks:
+        page.get_by_label('更多').click(); page.wait_for_timeout(300)
+        capture(page, 'menu')
+        check_overlay(page, 'menu', 'Menu')
+        if page.get_by_role('menu').count():
+            page.mouse.click(2, 2)
+        shell_checks.append({'kind': 'Menu-backdrop', 'dismissed': page.get_by_role('menu').count() == 0})
+        page.get_by_label('更多').click()
+        page.get_by_role('menuitem', name='关于').click(); page.wait_for_timeout(300)
+        capture(page, 'dialog')
+        check_overlay(page, 'alertdialog', 'Dialog')
+        page.mouse.click(2, 2)
+        shell_checks.append({'kind': 'Dialog-backdrop', 'dismissed': page.get_by_role('alertdialog').count() == 0})
+        if page.get_by_role('alertdialog').count():
+            page.get_by_text('知道了', exact=True).click()
     page.get_by_text('粘贴行程文字').click()
     page.locator('textarea').fill(md)
+    if args.shell_checks:
+        page.evaluate('window.__shellTextarea = document.querySelector("textarea")')
+        for width in [767, 768, 1023, 1024, 1280, 390, args.width]:
+            page.set_viewport_size({'width': width, 'height': HEIGHT})
+            assert page.locator('textarea').input_value() == md
+            assert page.evaluate('window.__shellTextarea === document.querySelector("textarea")')
+            check_shell(page)
+        shell_checks.append({'kind': 'live-resize', 'draftPreserved': True, 'sameTextarea': True})
     capture(page, 'paste')
     page.get_by_text('解析并预览').click(); page.wait_for_timeout(300)
     capture(page, 'preview')
@@ -73,6 +157,13 @@ with tempfile.TemporaryDirectory() as temp, sync_playwright() as p:
         page.get_by_text('完成', exact=True).click(); page.wait_for_timeout(200)
         page.get_by_text('保存', exact=True).click(); page.wait_for_timeout(500)
     capture(page, '03', full_page=True)
+    if args.shell_checks:
+        page.get_by_text('添加', exact=True).click(); page.wait_for_timeout(300)
+        capture(page, 'sheet')
+        check_overlay(page, 'dialog', 'Sheet')
+        if page.get_by_role('dialog').count():
+            page.mouse.click(2, 2)
+        shell_checks.append({'kind': 'Sheet-backdrop', 'dismissed': page.get_by_role('dialog').count() == 0})
     # 航班标记完成
     page.get_by_text('行程', exact=True).click(); page.wait_for_timeout(400)
     page.get_by_text('抵达新千岁机场').click(); page.wait_for_timeout(300)
@@ -95,4 +186,7 @@ with tempfile.TemporaryDirectory() as temp, sync_playwright() as p:
     b.close()
 with open(os.path.join(OUT, 'layout-checks.json'), 'w', encoding='utf-8') as f:
     json.dump(checks, f, ensure_ascii=False, indent=2)
+if args.shell_checks:
+    with open(os.path.join(OUT, 'shell-checks.json'), 'w', encoding='utf-8') as f:
+        json.dump(shell_checks, f, ensure_ascii=False, indent=2)
 print(f'{args.width}×{HEIGHT}: {len(checks)} 页截图与横向溢出检查通过')

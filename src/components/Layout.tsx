@@ -16,21 +16,22 @@ interface ScreenProps {
   children: ReactNode;
 }
 
-/** 页面骨架：页头 + 内容 + 可选的底部操作栏 + TabBar；内容区最大 430 居中 */
+/** 页面骨架：页头 + 内容 + 可选的底部操作栏 + 同一套响应式导航 */
 export function Screen({ header, tab, bottom, bottomStyle = 'action', full, children }: ScreenProps) {
   const pad = tab ? (bottom ? s.withTabBottom : s.withTab) : bottom ? s.withBottom : '';
   return (
-    <div className={s.screen}>
+    <div className={`${s.screen} ${tab ? s.withSidebar : ''}`}>
+      <div className={s.contentColumn}>
       {header}
       <main className={`${s.main} ${full ? s.full : ''} ${pad}`}>{children}</main>
       {bottom && (
         <div
-          className={`${s.fixedCol} ${bottomStyle === 'action' ? s.actionBar : s.plainBottom}`}
-          style={{ bottom: tab ? 'calc(var(--h-tabbar) + var(--safe-bottom))' : 0 }}
+          className={`${s.fixedCol} ${s.shellBottom} ${tab ? s.bottomWithTab : ''} ${bottomStyle === 'action' ? s.actionBar : s.plainBottom}`}
         >
           {bottom}
         </div>
       )}
+      </div>
       {tab && <TabBar active={tab} />}
     </div>
   );
@@ -115,6 +116,7 @@ const TABS: { key: TabKey; label: string; to: string; icon: 'Home' | 'CalendarDa
 export function TabBar({ active }: { active: TabKey }) {
   return (
     <nav className={`${s.fixedCol} ${s.tabbar}`} aria-label="主导航">
+      <span className={s.navLogo} aria-hidden="true"><Logo /></span>
       {TABS.map((t) => {
         const on = t.key === active;
         return (
@@ -181,6 +183,7 @@ export function Dialog({
   return createPortal(
     <div className={s.dialogWrap}>
       <div className={s.dialog} role="alertdialog" aria-modal="true">
+        <div className={s.handle} />
         <h2 className={s.dialogTitle}>{title}</h2>
         {text && <p className={s.dialogText}>{text}</p>}
         <div className={s.dialogBtns}>{actions}</div>
@@ -195,8 +198,9 @@ export function Menu({ open, onClose, items }: { open: boolean; onClose: () => v
   return createPortal(
     <>
       <div className={s.menuScrim} onClick={onClose} />
-      <div className={s.fixedCol} style={{ top: 0, height: 0, zIndex: 31 }}>
+      <div className={`${s.fixedCol} ${s.menuPosition}`}>
       <div className={s.menu} role="menu">
+        <div className={s.handle} />
         {items.map((it) => (
           <button
             key={it.label}
