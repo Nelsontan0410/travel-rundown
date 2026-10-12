@@ -11,6 +11,8 @@ import DocPage from './features/DocPage';
 import TemplatePage from './features/TemplatePage';
 import PastePage from './features/PastePage';
 import PreviewPage from './features/PreviewPage';
+import RestoreConfirm from './components/RestoreConfirm';
+import UpdateBanner from './components/UpdateBanner';
 
 function Home() {
   const trips = useTrips();
@@ -28,6 +30,8 @@ export default function App() {
   return (
     <>
       <ScrollTop />
+      <UpdateBanner />
+      <RestoreConfirm />
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/trips" element={<TripsPage />} />

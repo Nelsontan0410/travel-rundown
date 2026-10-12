@@ -1,6 +1,6 @@
 // 逐行解析固定格式的行程 md（PRD「导入逻辑」）。不引入 md 语法树。
 // 单个行程项出错不会让整份解析失败，只记警告。
-import type { BookingStatus, ItemType, Place } from '../domain/types';
+import type { BookingStatus, ItemType, Place, SourceRange } from '../domain/types';
 import { deviceTz, isIsoDate, isValidTz, addDays } from '../domain/format';
 import { makeItemKey } from '../domain/itemKey';
 
@@ -24,6 +24,10 @@ export interface ItemDraft {
   bookingStatus?: BookingStatus;
   note?: string;
   meta?: Record<string, string>;
+  src?: SourceRange;
+  alt?: string;
+  fixed?: boolean;
+  timeNote?: string;
 }
 
 export interface DayDraft {
@@ -208,6 +212,17 @@ export function parseMd(input: string): ParseResult {
         case '备注':
           it.note = value;
           break;
+        case '备选':
+          it.alt = value;
+          break;
+        case '固定':
+          if (/^(是|true|yes|y)$/i.test(value)) it.fixed = true;
+          else if (/^(否|false|no|n)$/i.test(value)) it.fixed = undefined;
+          else warnings.push({ line: ln, message: `第 ${ln} 行：「固定」只能是「是」或「否」，已忽略` });
+          break;
+        case '时间说明':
+          it.timeNote = value;
+          break;
         default:
           it.meta = { ...(it.meta ?? {}), [key]: value };
       }
@@ -234,6 +249,21 @@ export function parseMd(input: string): ParseResult {
   });
   void curDayLine;
   void rawDayTz;
+
+  // 行程项的原文行号：从自己的 ### 行，到下一个标题行的前一个非空行
+  const headingLines: number[] = [];
+  lines.forEach((l, i) => {
+    if (/^#/.test(l.trim())) headingLines.push(i + 1);
+  });
+  for (const d of days) {
+    for (const it of d.items) {
+      const from = (it as ItemDraft & { _line: number })._line;
+      const nextHead = headingLines.find((h) => h > from) ?? lines.length + 1;
+      let to = nextHead - 1;
+      while (to > from && !lines[to - 1].trim()) to--;
+      it.src = { from, to };
+    }
+  }
 
   // 出发地时区
   if (rawTripTz && isValidTz(rawTripTz)) trip.homeTz = rawTripTz;

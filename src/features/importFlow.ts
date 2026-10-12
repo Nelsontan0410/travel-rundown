@@ -18,7 +18,12 @@ export async function importMdFile(): Promise<boolean> {
   return true;
 }
 
-export async function restoreFromFile(): Promise<void> {
+/** 恢复备份入口：先弹确认（RestoreConfirm），确认后才选文件 */
+export function restoreFromFile(): void {
+  useUI.setState({ restoreAsk: true });
+}
+
+export async function pickAndRestore(): Promise<void> {
   const f = await pickFile('.zip,application/zip');
   if (!f) return;
   try {

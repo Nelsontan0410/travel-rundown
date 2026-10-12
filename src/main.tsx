@@ -6,12 +6,26 @@ import './styles/tokens.css';
 import './styles/global.css';
 import App from './App';
 
-registerSW({ immediate: true });
+import { useUI } from './store/ui';
+import { db } from './db/schema';
+import DbErrorPage from './features/DbErrorPage';
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <BrowserRouter>
-      <App />
-    </BrowserRouter>
-  </StrictMode>,
-);
+const updateSW = registerSW({
+  immediate: true,
+  onNeedRefresh() {
+    useUI.setState({ updateSW: () => void updateSW(true) });
+  },
+});
+
+const root = createRoot(document.getElementById('root')!);
+db.open()
+  .then(() =>
+    root.render(
+      <StrictMode>
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>
+      </StrictMode>,
+    ),
+  )
+  .catch((e: unknown) => root.render(<DbErrorPage message={e instanceof Error ? e.message : String(e)} />));

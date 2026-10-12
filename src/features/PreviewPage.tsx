@@ -1,11 +1,16 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import p from './Page.module.css';
 import { Screen, BackHeader } from '../components/Layout';
 import { Button, InfoBanner } from '../components/Basics';
 import { KeyValueCard } from '../components/Cards';
-import { useUI } from '../store/ui';
-import { saveImport } from '../db/repo';
+import { toast, useUI } from '../store/ui';
+import { saveImport, loadDiffOld } from '../db/repo';
+import SourceSheet from '../components/SourceSheet';
+import CheckList from '../components/CheckList';
+import { checkTrip } from '../domain/check';
+import DiffSection from '../components/DiffSection';
+import { diffImport, flattenParsed, type ImportDiff } from '../importer/diff';
 import { fmtDateRange, tripDays } from '../domain/format';
 
 /** 导入预览页 */
@@ -15,7 +20,37 @@ export default function PreviewPage() {
   const setDraft = useUI((s) => s.setDraft);
   const setPaste = useUI((s) => s.setPasteText);
   const [open, setOpen] = useState(false);
+  const [srcLine, setSrcLine] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
+  const [diff, setDiff] = useState<ImportDiff | null>(null);
+  const [accepted, setAccepted] = useState<Set<string>>(new Set());
+  const target = draft?.targetTripId;
+  const parsed = draft?.result;
+  const newFlat = useMemo(() => (parsed ? flattenParsed(parsed.days) : []), [parsed]);
+  useEffect(() => {
+    if (!target) return;
+    let live = true;
+    void loadDiffOld(target).then((old) => {
+      if (!live) return;
+      const d = diffImport(old, newFlat);
+      setDiff(d);
+      setAccepted(new Set(d.renamed.map((r) => r.oldKey)));
+    });
+    return () => {
+      live = false;
+    };
+  }, [target, newFlat]);
+  const issues = useMemo(
+    () =>
+      parsed
+        ? checkTrip(
+            parsed.days.flatMap((d) =>
+              d.items.map((i) => ({ key: i.key, type: i.type, title: i.title, date: d.date, dayIndex: d.index, start: i.start, fixed: i.fixed, place: i.place, navUrl: i.navUrl, bookingStatus: i.bookingStatus })),
+            ),
+          )
+        : [],
+    [parsed],
+  );
   if (!draft) return <Navigate to="/trips" replace />;
   const { result } = draft;
   const empty = result.itemCount === 0;
@@ -29,12 +64,16 @@ export default function PreviewPage() {
   const confirm = async () => {
     setBusy(true);
     try {
-      const id = await saveImport(result, draft.md, draft.targetTripId);
+      const renames: Record<string, string> = {};
+      for (const r of diff?.renamed ?? []) if (accepted.has(r.oldKey)) renames[r.oldKey] = r.newKey;
+      const id = await saveImport(result, draft.md, draft.targetTripId, renames);
       nav(`/itinerary/${id}`, { replace: true });
       setTimeout(() => {
         setDraft(null);
         setPaste('');
       }, 0);
+    } catch {
+      toast('保存失败：本机存储不可用或空间不足');
     } finally {
       setBusy(false);
     }
@@ -71,6 +110,26 @@ export default function PreviewPage() {
               ]}
             />
           </div>
+          <div className={p.mt12}>
+            <h3 style={{ fontSize: 'var(--fs-body)', fontWeight: 600, margin: '0 0 var(--space-2)' }}>准备检查</h3>
+            <CheckList issues={issues} />
+          </div>
+          {diff && (
+            <div className={p.mt12}>
+              <DiffSection
+                diff={diff}
+                accepted={accepted}
+                onToggleRename={(k) =>
+                  setAccepted((cur) => {
+                    const n = new Set(cur);
+                    if (n.has(k)) n.delete(k);
+                    else n.add(k);
+                    return n;
+                  })
+                }
+              />
+            </div>
+          )}
           {result.warnings.length > 0 && (
             <div className={p.mt12}>
               <InfoBanner variant="warning" onClick={() => setOpen((o) => !o)}>
@@ -79,7 +138,17 @@ export default function PreviewPage() {
               {open && (
                 <ul className={p.warnList}>
                   {result.warnings.map((w, i) => (
-                    <li key={i}>{w.message}</li>
+                    <li key={i}>
+                      {w.message}
+                      {w.line ? (
+                        <>
+                          {' '}
+                          <button type="button" onClick={() => setSrcLine(w.line!)} style={{ color: 'var(--color-primary)', background: 'none', border: 0, padding: 0, font: 'inherit' }}>
+                            查看原文
+                          </button>
+                        </>
+                      ) : null}
+                    </li>
                   ))}
                 </ul>
               )}
@@ -87,6 +156,7 @@ export default function PreviewPage() {
           )}
         </>
       )}
+      {srcLine != null && <SourceSheet open onClose={() => setSrcLine(null)} md={draft.md} from={srcLine} to={srcLine} context={2} />}
     </Screen>
   );
 }

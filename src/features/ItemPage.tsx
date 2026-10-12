@@ -25,6 +25,7 @@ import {
 import { copyWithToast, openExternal } from '../links/openLink';
 import { translateUrl } from '../links/linkLabel';
 import { AddDocSheet } from './AddDoc';
+import SourceSheet from '../components/SourceSheet';
 import type { Item, Place } from '../domain/types';
 
 function placeLines(pl: Place, city?: string): string[] {
@@ -59,6 +60,7 @@ export default function ItemPage() {
   const td = useTripData(item?.tripId);
   const [menu, setMenu] = useState(false);
   const [add, setAdd] = useState(false);
+  const [srcOpen, setSrcOpen] = useState(false);
 
   if (item === null) return <Navigate to="/itinerary" replace />;
   if (!item || !td) return <Screen tab="itinerary" header={<BackHeader title="行程详情" />}>{null}</Screen>;
@@ -101,6 +103,7 @@ export default function ItemPage() {
         {TYPE_LABEL[item.type]}
       </span>
       <h1 className={p.h1}>{item.title}</h1>
+      {item.fixed && <span className={p.tag}>固定时间</span>}
       <div className={p.metaRow}>
         <span>{dateLine}</span>
         <StatusChip variant={chip.variant}>{chip.label}</StatusChip>
@@ -154,6 +157,13 @@ export default function ItemPage() {
         </>
       )}
 
+      {item.alt && (
+        <>
+          <SectionTitle>备选方案</SectionTitle>
+          <NoteBox>{item.alt}</NoteBox>
+        </>
+      )}
+
       {item.note && (
         <>
           <SectionTitle>行程备注</SectionTitle>
@@ -174,8 +184,10 @@ export default function ItemPage() {
         items={[
           { label: '改为待完成', onClick: () => set('todo') },
           { label: '复制全部文字', onClick: () => void copyWithToast(allText(item, dateLine)) },
+          ...(item.src ? [{ label: '查看原文', onClick: () => setSrcOpen(true) }] : []),
         ]}
       />
+      {item.src && <SourceSheet open={srcOpen} onClose={() => setSrcOpen(false)} md={td.trip.sourceMd} from={item.src.from} to={item.src.to} />}
       <AddDocSheet open={add} onClose={() => setAdd(false)} td={td} presetKeys={[item.key]} presetType={item.type} />
     </Screen>
   );

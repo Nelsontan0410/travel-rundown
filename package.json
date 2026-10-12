@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "e2e": "npm run build && python3 qa/e2e.py"
   },
   "dependencies": {
     "dexie": "^4.0.10",
