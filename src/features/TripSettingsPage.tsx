@@ -153,6 +153,7 @@ export default function TripSettingsPage() {
       />
       <Dialog
         open={confirmDel}
+        onClose={() => setConfirmDel(false)}
         title="删除这个旅程？"
         text="行程、证明文件和完成状态都会从本机删除，无法恢复。建议先导出备份。"
         actions={

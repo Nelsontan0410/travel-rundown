@@ -10,6 +10,7 @@ export default function RestoreConfirm() {
   return (
     <Dialog
       open={open}
+      onClose={close}
       title="恢复备份？"
       text="备份里的旅程会合并到本机：同一个旅程会被备份里的版本更新，本机其他旅程不会被删除。"
       actions={
