@@ -1,0 +1,14 @@
+# 数据与逻辑归 A 线（Claude）。B 线（Codex）的 PR 触碰这些路径需 A 线审核。
+/src/domain/      @Nelsontan0410
+/src/db/          @Nelsontan0410
+/src/importer/    @Nelsontan0410
+/src/store/       @Nelsontan0410
+/src/links/       @Nelsontan0410
+/src/lib/         @Nelsontan0410
+/src/hooks/       @Nelsontan0410
+/src/__tests__/   @Nelsontan0410
+/qa/fixtures/     @Nelsontan0410
+/package.json     @Nelsontan0410
+/vite.config.ts   @Nelsontan0410
+/.guard/          @Nelsontan0410
+/scripts/guard.mjs @Nelsontan0410

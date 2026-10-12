@@ -8,7 +8,8 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "e2e": "npm run build && python3 qa/e2e.py"
+    "e2e": "npm run build && python3 qa/e2e.py",
+    "guard": "node scripts/guard.mjs"
   },
   "dependencies": {
     "dexie": "^4.0.10",

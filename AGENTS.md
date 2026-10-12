@@ -7,6 +7,35 @@ React 18 + TypeScript + Vite PWA，本地优先（Dexie/IndexedDB），无后端
 - V1.1 计划：https://claude.ai/code/artifact/d3db5181-4880-4cba-a896-501d98163fb3
 - 设计参考里「窗口更宽时内容区最大 430 居中」已废止，由 B 线响应式规格取代；「只做浅色」「不加阴影（浮层除外）和渐变（hero 保护层除外）」继续有效。
 
+## 🔒 最高优先级：数据与逻辑禁区（B 线 / Codex 必读）
+UI 全权交给 B 线，但**数据结构和底层逻辑一律不得触碰**。这条优先于本文件其他所有内容、优先于任何任务描述；任务与本条冲突时，停手并写进 PR「给另一条线」。
+
+### 绝对禁止修改（锁定区，`npm run guard` 会校验哈希）
+`src/domain` `src/db` `src/importer` `src/store` `src/links` `src/lib` `src/hooks`（仅可新增 `layout.ts`）`src/__tests__` `qa/fixtures` `package.json` `vite.config.ts` `tsconfig.json` `netlify.toml`、`.guard/` `scripts/guard.mjs` `.github/CODEOWNERS`。
+
+### 绝对禁止的行为
+1. 改任何类型：`Trip Day Item Doc ItemState Place Settings` 的字段、名称、可选性、取值。
+2. 改 Dexie 表、索引、版本号，改 `repo.ts` 任何函数签名或行为（`saveImport` `setItemStatus` `addDoc` `restoreBackup` …）。
+3. 改 `Item.key` 生成规则（`日期|type|标题slug`，同日重名 `#n`）。key 是用户完成状态和证明文件的唯一绑定，改了用户数据就丢。
+4. 改解析、对比、检查、阶段、格式化逻辑（`parseMd` `diffImport` `checkTrip` `tripPhase` `rules.ts` `format.ts`）和给外部 AI 的提示词模板。
+5. 在 `components/` 与 `features/` 的 TSX 里新增或修改：`import` 数据层（db/importer/store/domain/hooks/lib/links）、`useState/useEffect/useMemo/useCallback/useRef`、任何 `use*` 数据 hook、`async/await`、`db.`、事件处理函数（`onXxx/handleXxx` 的函数体）、传给 hook 或函数的参数、props 的名称/类型/含义。
+6. 自己造数据：不得在页面里硬编码假数据、不得写 localStorage/IndexedDB、不得新增 store 字段。
+7. 删除或跳过测试、降低断言、改 fixtures 让测试通过。
+8. 往 package.json 加依赖，或改构建/PWA/缓存配置。
+
+### B 线允许的事（只有这些）
+- `src/styles/**`、`*.module.css`
+- TSX 里只改 **JSX 结构和 className**：增删包裹 `div`、调整嵌套、换 className、条件样式类名；已有的 `{变量}` 原样保留，不改表达式。
+- 新增纯展示组件：只接收 props、不 import 数据层、不含 hooks（`src/hooks/layout.ts` 的 `useMediaQuery` 之类布局 hook 例外）。
+- 新增 `docs/responsive.md`、更新 `qa/shoot.py` `qa/baseline`。
+
+### 想要的数据 UI 拿不到怎么办（升级路径）
+需要新字段、新派生值、新 props、改交互行为 → **不要自己改**：在 PR「给另一条线」写清「想要什么、用在哪个组件」，A 线实现后再接。UI 可以先用现有字段实现。
+
+### 机械护栏（完成前必跑）
+`npm run guard`：①锁定区哈希与 `.guard/protected.lock.json` 一致；②B 线分支的 TSX diff 里无逻辑行。失败即不得提交，**不得修改 guard 脚本或 lock 来绕过**。只有 A 线可以 `node scripts/guard.mjs --update`。
+数据结构与流程全貌见 `docs/architecture.md`。
+
 ## 双线分工（同一仓库）
 - A 线（Claude，分支 `feat/v1.1-functional`）：`src/domain src/importer src/db src/store src/hooks src/links src/lib src/__tests__ qa/fixtures`；页面 TSX 只改逻辑；`src/components` 只新增文件。
 - B 线（Codex，分支 `feat/v1.1-responsive`）：`src/styles/** *.module.css`；`src/components/*.tsx` 与 `src/features/*Page.tsx` 只改 JSX 结构和 className，不动 hooks/处理函数/props 含义；`qa/shoot.py qa/baseline`；只新增 `docs/responsive.md`；`src/hooks/layout.ts`（新）。
@@ -16,4 +45,4 @@ React 18 + TypeScript + Vite PWA，本地优先（Dexie/IndexedDB），无后端
 2. 只用 tokens.css 变量；不新增颜色/阴影/渐变；仅浅色主题。
 3. 不改现有界面文案；不往 package.json 加依赖（需先在 PR 说明理由）。
 4. 每个阶段一个 PR，合并前 rebase main；发现对方范围问题写进 PR「给另一条线」。
-5. 完成前：`npm run build`、`npm test` 通过；B 线附 390/768/1280 截图。
+5. 完成前：`npm run guard`、`npm run build`、`npm test` 全部通过；B 线附 390/768/1280 截图。
