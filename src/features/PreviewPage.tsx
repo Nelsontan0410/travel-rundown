@@ -4,7 +4,7 @@ import p from './Page.module.css';
 import { Screen, BackHeader } from '../components/Layout';
 import { Button, InfoBanner } from '../components/Basics';
 import { KeyValueCard } from '../components/Cards';
-import { useUI } from '../store/ui';
+import { toast, useUI } from '../store/ui';
 import { saveImport, loadDiffOld } from '../db/repo';
 import SourceSheet from '../components/SourceSheet';
 import CheckList from '../components/CheckList';
@@ -72,6 +72,8 @@ export default function PreviewPage() {
         setDraft(null);
         setPaste('');
       }, 0);
+    } catch {
+      toast('保存失败：本机存储不可用或空间不足');
     } finally {
       setBusy(false);
     }
