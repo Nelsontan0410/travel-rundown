@@ -230,7 +230,7 @@ export function SettingsRow({
         </span>
       )}
       <span className={s.srowLabel} style={danger ? { color: 'var(--color-warning-ink)' } : undefined}>
-        {label}
+        <span>{label}</span>
       </span>
       {value && <span className={s.srowValue}>{value}</span>}
       {arrow && <Icon name="ChevronRight" size="sm" color="var(--color-icon)" />}

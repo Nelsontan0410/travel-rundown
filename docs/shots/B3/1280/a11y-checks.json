@@ -1,0 +1,208 @@
+[
+  {
+    "kind": "targets-and-copy",
+    "page": "04-empty",
+    "small": [],
+    "contrastCount": 11,
+    "minContrast": 4.896739152959248,
+    "failures": []
+  },
+  {
+    "kind": "targets-and-copy",
+    "page": "menu",
+    "small": [],
+    "contrastCount": 2,
+    "minContrast": 16.704381280553356,
+    "failures": []
+  },
+  {
+    "kind": "targets-and-copy",
+    "page": "dialog",
+    "small": [],
+    "contrastCount": 3,
+    "minContrast": 4.999578504536808,
+    "failures": []
+  },
+  {
+    "kind": "targets-and-copy",
+    "page": "paste",
+    "small": [],
+    "contrastCount": 6,
+    "minContrast": 4.896739152959248,
+    "failures": []
+  },
+  {
+    "kind": "targets-and-copy",
+    "page": "preview",
+    "small": [],
+    "contrastCount": 21,
+    "minContrast": 4.896739152959248,
+    "failures": []
+  },
+  {
+    "kind": "targets-and-copy",
+    "page": "keyboard-date-focus",
+    "small": [],
+    "contrastCount": 43,
+    "minContrast": 4.896739152959248,
+    "failures": []
+  },
+  {
+    "kind": "targets-and-copy",
+    "page": "keyboard-card-focus",
+    "small": [],
+    "contrastCount": 43,
+    "minContrast": 4.896739152959248,
+    "failures": []
+  },
+  {
+    "kind": "keyboard-only-import-browse-open-return",
+    "passed": true,
+    "rovingTab": true,
+    "arrowsAndWrap": true,
+    "homeEnd": true,
+    "enterAndSpace": true
+  },
+  {
+    "kind": "targets-and-copy",
+    "page": "01-nocover",
+    "small": [],
+    "contrastCount": 43,
+    "minContrast": 4.896739152959248,
+    "failures": []
+  },
+  {
+    "kind": "targets-and-copy",
+    "page": "pointer-active",
+    "small": [],
+    "contrastCount": 43,
+    "minContrast": 4.896739152959248,
+    "failures": []
+  },
+  {
+    "kind": "pointer-feedback",
+    "hoverUnderline": true,
+    "activeOutline": true
+  },
+  {
+    "kind": "targets-and-copy",
+    "page": "03",
+    "small": [],
+    "contrastCount": 33,
+    "minContrast": 4.896739152959248,
+    "failures": []
+  },
+  {
+    "kind": "targets-and-copy",
+    "page": "03-filtered",
+    "small": [],
+    "contrastCount": 19,
+    "minContrast": 4.896739152959248,
+    "failures": []
+  },
+  {
+    "kind": "targets-and-copy",
+    "page": "03-unlinked",
+    "small": [],
+    "contrastCount": 36,
+    "minContrast": 4.896739152959248,
+    "failures": []
+  },
+  {
+    "kind": "targets-and-copy",
+    "page": "sheet",
+    "small": [],
+    "contrastCount": 4,
+    "minContrast": 16.704381280553356,
+    "failures": []
+  },
+  {
+    "kind": "targets-and-copy",
+    "page": "01",
+    "small": [],
+    "contrastCount": 44,
+    "minContrast": 4.896739152959248,
+    "failures": []
+  },
+  {
+    "kind": "nested-card-keyboard-action",
+    "onlyProofOpened": true
+  },
+  {
+    "kind": "targets-and-copy",
+    "page": "02",
+    "small": [],
+    "contrastCount": 33,
+    "minContrast": 4.540375486678628,
+    "failures": []
+  },
+  {
+    "kind": "targets-and-copy",
+    "page": "02-full",
+    "small": [],
+    "contrastCount": 33,
+    "minContrast": 4.540375486678628,
+    "failures": []
+  },
+  {
+    "kind": "targets-and-copy",
+    "page": "source-sheet",
+    "small": [],
+    "contrastCount": 19,
+    "minContrast": 4.999578504536808,
+    "failures": []
+  },
+  {
+    "kind": "targets-and-copy",
+    "page": "06",
+    "small": [],
+    "contrastCount": 8,
+    "minContrast": 4.778451804416148,
+    "failures": []
+  },
+  {
+    "kind": "targets-and-copy",
+    "page": "06-scrolled",
+    "small": [],
+    "contrastCount": 8,
+    "minContrast": 4.778451804416148,
+    "failures": []
+  },
+  {
+    "kind": "targets-and-copy",
+    "page": "06-zoomed",
+    "small": [],
+    "contrastCount": 8,
+    "minContrast": 4.778451804416148,
+    "failures": []
+  },
+  {
+    "kind": "targets-and-copy",
+    "page": "05",
+    "small": [],
+    "contrastCount": 39,
+    "minContrast": 4.896739152959248,
+    "failures": []
+  },
+  {
+    "kind": "targets-and-copy",
+    "page": "04",
+    "small": [],
+    "contrastCount": 24,
+    "minContrast": 4.896739152959248,
+    "failures": []
+  },
+  {
+    "kind": "targets-and-copy",
+    "page": "template",
+    "small": [],
+    "contrastCount": 12,
+    "minContrast": 4.540375486678628,
+    "failures": []
+  },
+  {
+    "kind": "reduced-motion-and-escape",
+    "animation": "none",
+    "focusReturned": true
+  }
+]

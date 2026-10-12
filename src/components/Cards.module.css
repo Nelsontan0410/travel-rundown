@@ -3,8 +3,8 @@
 .bHead { display: flex; align-items: flex-start; gap: var(--space-3); }
 .bText { flex: 1; min-width: 0; }
 .bTitle { font-size: var(--fs-card); font-weight: var(--fw-card); }
-.bSub { font-size: var(--fs-small); color: var(--color-text-2); font-variant-numeric: tabular-nums; }
-.refRow { display: flex; align-items: center; gap: var(--space-2); font-size: var(--fs-small); color: var(--color-text-2); }
+.bSub { font-size: var(--fs-small); color: var(--color-icon); font-variant-numeric: tabular-nums; }
+.refRow { display: flex; align-items: center; gap: var(--space-2); font-size: var(--fs-small); color: var(--color-icon); }
 .ref {
   font-size: var(--fs-small); font-weight: 500; color: var(--color-text); background: var(--color-surface-muted);
   border-radius: var(--radius-code); padding: var(--pad-ref-y) var(--space-2); font-variant-numeric: tabular-nums;
@@ -31,9 +31,9 @@
 }
 .locText { flex: 1; min-width: 0; }
 .locName { font-size: var(--fs-card); font-weight: var(--fw-card); }
-.locSub { font-size: var(--fs-small); color: var(--color-text-2); word-break: break-word; }
+.locSub { font-size: var(--fs-small); color: var(--color-icon); word-break: break-word; }
 .locCopy { display: flex; flex-direction: column; align-items: center; gap: var(--space-1); color: var(--color-icon); font-size: var(--fs-caption); flex-shrink: 0; }
-.locCopy span { color: var(--color-text-2); }
+.locCopy span { color: var(--color-icon); }
 
 /* TripCard */
 .trip { overflow: hidden; width: 100%; text-align: left; }
@@ -41,32 +41,36 @@
 .tripBody { padding: var(--space-3); display: flex; flex-direction: column; gap: var(--space-1); }
 .tripTop { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
 .tripName { font-size: var(--fs-section); font-weight: var(--fw-section); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tripDate { font-size: var(--fs-body); color: var(--color-text-2); font-variant-numeric: tabular-nums; }
+.tripDate { font-size: var(--fs-body); color: var(--color-icon); font-variant-numeric: tabular-nums; }
 .tripBottom { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
-.tripMeta { font-size: var(--fs-small); color: var(--color-text-3); }
+.tripMeta { font-size: var(--fs-small); color: var(--color-icon); }
 .compact { display: flex; align-items: center; gap: var(--space-3); min-height: var(--h-compact-card); padding: var(--space-2) var(--space-3); width: 100%; text-align: left; }
 .compactName { font-size: var(--fs-card); font-weight: var(--fw-card); }
-.compactSub { font-size: var(--fs-small); color: var(--color-text-2); font-variant-numeric: tabular-nums; }
-.compactMeta { font-size: var(--fs-small); color: var(--color-text-3); }
+.compactSub { font-size: var(--fs-small); color: var(--color-icon); font-variant-numeric: tabular-nums; }
+.compactMeta { font-size: var(--fs-small); color: var(--color-icon); }
 .chev { color: var(--color-icon); display: flex; }
 
 /* Settings */
 .groupTitle { font-size: var(--fs-section); font-weight: var(--fw-section); margin: var(--space-6) 0 var(--space-2); }
 .group { overflow: hidden; }
-.groupNote { font-size: var(--fs-caption); color: var(--color-text-2); margin-top: var(--space-2); }
+.groupNote { font-size: var(--fs-caption); color: var(--color-icon); margin-top: var(--space-2); }
 .srow {
   display: flex; align-items: center; gap: var(--space-3); height: var(--h-row); padding: 0 var(--space-3); width: 100%; text-align: left;
 }
 .srow + .srow { border-top: var(--border-w) solid var(--color-border); }
 .srowIcon { color: var(--color-primary); display: flex; }
 .srowLabel { flex: 1; font-size: var(--fs-body); font-weight: 500; white-space: nowrap; }
-.srowValue { font-size: var(--fs-body); color: var(--color-text-2); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.srowValue { font-size: var(--fs-body); color: var(--color-icon); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .srowOk { color: var(--color-success-ink); display: flex; align-items: center; gap: var(--space-2); font-size: var(--fs-body); }
-.srowWarn { color: var(--color-warning-ink); }
-.srowGrey { color: var(--color-text-2); }
+.srowWarn { color: var(--color-text); }
+.srowGrey { color: var(--color-icon); }
 
 /* 键值行（02 详细信息、导入预览） */
 .kv { display: flex; align-items: flex-start; gap: var(--space-3); padding: var(--space-3); font-size: var(--fs-body); }
 .kv + .kv { border-top: var(--border-w) solid var(--color-border); }
-.kvKey { color: var(--color-text-2); flex-shrink: 0; }
+.kvKey { color: var(--color-icon); flex-shrink: 0; }
 .kvVal { color: var(--color-text); flex: 1; text-align: right; word-break: break-word; }
+
+.copyBtn { min-width: var(--size-hit); min-height: var(--size-hit); align-items: center; justify-content: center; }
+.file { min-height: var(--size-hit); }
+.srowLabel > span { color: var(--color-text); }

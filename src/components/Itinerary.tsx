@@ -45,9 +45,20 @@ export function DayTiles({
             type="button"
             role="tab"
             aria-selected={on}
+            tabIndex={on || (!days.some((day) => day.id === selectedId) && d === days[0]) ? 0 : -1}
             data-day={d.id}
             className={`${s.tile} ${on ? s.tileOn : ''}`}
             onClick={() => onSelect(d.id)}
+            onKeyDown={(e) => {
+              if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return;
+              e.preventDefault();
+              const tabs = Array.from(e.currentTarget.parentElement!.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
+              const index = tabs.indexOf(e.currentTarget);
+              const next = e.key === 'Home' ? 0 : e.key === 'End' ? tabs.length - 1 :
+                (index + (e.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+              tabs[next].focus();
+              tabs[next].click();
+            }}
           >
             <span className={s.tileNum}>{dd}</span>
             <span className={s.tileMonth}>{m}月</span>
@@ -99,7 +110,11 @@ export function TimelineRow({ first, time, dot, icon, title, subtitle, slot, cur
         <span className={`${s.line} ${first ? s.firstLine : ''}`} />
         <span className={`${s.dot} ${dot === 'done' ? s.dotDone : dot === 'current' ? s.dotCurrent : ''}`} />
       </div>
-      <div className={`${s.card} ${current ? s.current : ''}`} role="button" tabIndex={0} onClick={onOpen} onKeyDown={(e) => e.key === 'Enter' && onOpen()}>
+      <div className={`${s.card} ${current ? s.current : ''}`} role="button" tabIndex={0} onClick={onOpen} onKeyDown={(e) => {
+        if (e.target !== e.currentTarget || !['Enter', ' '].includes(e.key)) return;
+        e.preventDefault();
+        if (!e.repeat) onOpen();
+      }}>
         <div className={s.cardMain}>
           <span className={s.cardIcon} style={{ color: iconColor }}>
             <Icon name={icon} />

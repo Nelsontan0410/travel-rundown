@@ -23,5 +23,23 @@ svg { flex-shrink: 0; }
 #root { min-height: 100dvh; }
 html :focus-visible {
   outline: calc(var(--border-w) * 2) solid var(--color-primary);
-  outline-offset: var(--space-1);
+  outline-offset: calc(-1 * var(--space-1));
+}
+
+/* B3: inset rings remain visible inside scrolling and clipped containers. */
+html :is(button, a[href], [role="button"], input, textarea):focus-visible {
+  outline-color: var(--color-text);
+}
+html :is(button, a[href], [role="button"]):not(:disabled):active {
+  outline: calc(var(--border-w) * 2) solid var(--color-text);
+  outline-offset: calc(-1 * var(--space-1));
+}
+@media (hover: hover) {
+  html :is(button, a[href], [role="button"]):not(:disabled):hover {
+    text-decoration: underline;
+    text-underline-offset: var(--space-1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
