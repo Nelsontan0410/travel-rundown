@@ -1,0 +1,287 @@
+[
+  {
+    "kind": "shell",
+    "width": 1280,
+    "height": 800,
+    "nav": {
+      "x": 0,
+      "y": 0,
+      "width": 240,
+      "height": 800
+    },
+    "main": {
+      "x": 280,
+      "width": 960
+    },
+    "sidebar": 240,
+    "contentMax": 960,
+    "bottom": null,
+    "entries": 3,
+    "active": 1
+  },
+  {
+    "kind": "shell",
+    "width": 1280,
+    "height": 800,
+    "nav": {
+      "x": 0,
+      "y": 0,
+      "width": 240,
+      "height": 800
+    },
+    "main": {
+      "x": 280,
+      "width": 960
+    },
+    "sidebar": 240,
+    "contentMax": 960,
+    "bottom": {
+      "x": 280,
+      "y": 739,
+      "width": 960,
+      "height": 61
+    },
+    "entries": 3,
+    "active": 1
+  },
+  {
+    "kind": "shell",
+    "width": 1280,
+    "height": 800,
+    "nav": {
+      "x": 0,
+      "y": 0,
+      "width": 240,
+      "height": 800
+    },
+    "main": {
+      "x": 280,
+      "width": 960
+    },
+    "sidebar": 240,
+    "contentMax": 960,
+    "bottom": {
+      "x": 280,
+      "y": 739,
+      "width": 960,
+      "height": 61
+    },
+    "entries": 3,
+    "active": 1
+  },
+  {
+    "kind": "shell",
+    "width": 1280,
+    "height": 800,
+    "nav": {
+      "x": 0,
+      "y": 0,
+      "width": 240,
+      "height": 800
+    },
+    "main": {
+      "x": 280,
+      "width": 960
+    },
+    "sidebar": 240,
+    "contentMax": 960,
+    "bottom": null,
+    "entries": 3,
+    "active": 1
+  },
+  {
+    "kind": "shell",
+    "width": 1280,
+    "height": 800,
+    "nav": {
+      "x": 0,
+      "y": 0,
+      "width": 240,
+      "height": 800
+    },
+    "main": {
+      "x": 280,
+      "width": 960
+    },
+    "sidebar": 240,
+    "contentMax": 960,
+    "bottom": null,
+    "entries": 3,
+    "active": 1
+  },
+  {
+    "kind": "shell",
+    "width": 1280,
+    "height": 800,
+    "nav": {
+      "x": 0,
+      "y": 0,
+      "width": 240,
+      "height": 800
+    },
+    "main": {
+      "x": 280,
+      "width": 960
+    },
+    "sidebar": 240,
+    "contentMax": 960,
+    "bottom": null,
+    "entries": 3,
+    "active": 1
+  },
+  {
+    "kind": "shell",
+    "width": 1280,
+    "height": 800,
+    "nav": {
+      "x": 0,
+      "y": 0,
+      "width": 240,
+      "height": 800
+    },
+    "main": {
+      "x": 280,
+      "width": 960
+    },
+    "sidebar": 240,
+    "contentMax": 960,
+    "bottom": null,
+    "entries": 3,
+    "active": 1
+  },
+  {
+    "kind": "shell",
+    "width": 1280,
+    "height": 800,
+    "nav": {
+      "x": 0,
+      "y": 0,
+      "width": 240,
+      "height": 800
+    },
+    "main": {
+      "x": 280,
+      "width": 960
+    },
+    "sidebar": 240,
+    "contentMax": 960,
+    "bottom": null,
+    "entries": 3,
+    "active": 1
+  },
+  {
+    "kind": "shell",
+    "width": 1280,
+    "height": 800,
+    "nav": {
+      "x": 0,
+      "y": 0,
+      "width": 240,
+      "height": 800
+    },
+    "main": {
+      "x": 280,
+      "width": 960
+    },
+    "sidebar": 240,
+    "contentMax": 960,
+    "bottom": {
+      "x": 280,
+      "y": 739,
+      "width": 960,
+      "height": 61
+    },
+    "entries": 3,
+    "active": 1
+  },
+  {
+    "kind": "shell",
+    "width": 1280,
+    "height": 800,
+    "nav": {
+      "x": 0,
+      "y": 0,
+      "width": 240,
+      "height": 800
+    },
+    "main": {
+      "x": 280,
+      "width": 960
+    },
+    "sidebar": 240,
+    "contentMax": 960,
+    "bottom": {
+      "x": 280,
+      "y": 739,
+      "width": 960,
+      "height": 61
+    },
+    "entries": 3,
+    "active": 1
+  },
+  {
+    "kind": "shell",
+    "width": 1280,
+    "height": 800,
+    "nav": {
+      "x": 0,
+      "y": 0,
+      "width": 240,
+      "height": 800
+    },
+    "main": {
+      "x": 280,
+      "width": 960
+    },
+    "sidebar": 240,
+    "contentMax": 960,
+    "bottom": null,
+    "entries": 3,
+    "active": 1
+  },
+  {
+    "kind": "shell",
+    "width": 1280,
+    "height": 800,
+    "nav": {
+      "x": 0,
+      "y": 0,
+      "width": 240,
+      "height": 800
+    },
+    "main": {
+      "x": 280,
+      "width": 960
+    },
+    "sidebar": 240,
+    "contentMax": 960,
+    "bottom": null,
+    "entries": 3,
+    "active": 1
+  },
+  {
+    "kind": "shell",
+    "width": 1280,
+    "height": 800,
+    "nav": {
+      "x": 0,
+      "y": 0,
+      "width": 240,
+      "height": 800
+    },
+    "main": {
+      "x": 280,
+      "width": 960
+    },
+    "sidebar": 240,
+    "contentMax": 960,
+    "bottom": {
+      "x": 280,
+      "y": 739,
+      "width": 960,
+      "height": 61
+    },
+    "entries": 3,
+    "active": 1
+  }
+]

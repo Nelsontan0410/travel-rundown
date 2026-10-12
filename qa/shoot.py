@@ -7,6 +7,7 @@ parser.add_argument('out')
 parser.add_argument('cover')
 parser.add_argument('--width', type=int, choices=[390, 768, 1280], default=390)
 parser.add_argument('--shell-checks', action='store_true')
+parser.add_argument('--page-checks', action='store_true')
 args = parser.parse_args()
 OUT = args.out
 COVER = args.cover
@@ -16,6 +17,51 @@ os.makedirs(OUT, exist_ok=True)
 md = open(os.path.join(HERE, 'sample.md'), encoding='utf-8').read()
 checks = []
 shell_checks = []
+page_checks = []
+
+def check_grid(page, selector):
+    results = page.locator(selector).evaluate_all('''grids => grids.map(grid => {
+        const style = getComputedStyle(grid);
+        const cards = [...grid.children].filter(el => getComputedStyle(el).gridColumnEnd !== '-1');
+        return {width: innerWidth, columns: style.gridTemplateColumns.split(' ').length,
+            gap: parseFloat(style.columnGap), gridWidth: grid.clientWidth,
+            cards: cards.map(el => ({width: el.getBoundingClientRect().width,
+                client: el.clientWidth, scroll: el.scrollWidth}))};
+    })''')
+    assert results
+    for result in results:
+        expected = 3 if result['width'] >= 1024 else 2 if result['width'] >= 768 else 1
+        assert result['columns'] == expected, result
+        card_width = (result['gridWidth'] - result['gap'] * (expected - 1)) / expected
+        assert all(abs(c['width'] - card_width) <= 1 and c['scroll'] <= c['client'] + 1 for c in result['cards']), result
+        page_checks.append({'kind': selector, **result})
+
+def check_grid_resize(page, selector):
+    page.locator(selector).evaluate_all('grids => window.__gridChildren = grids.map(grid => [...grid.children])')
+    for width in [767, 768, 1023, 1024, 1280, 390, args.width]:
+        page.set_viewport_size({'width': width, 'height': HEIGHT})
+        check_grid(page, selector)
+        assert page.locator(selector).evaluate_all('grids => grids.every((grid, g) => [...grid.children].every((el, i) => el === window.__gridChildren[g][i]))')
+    page_checks.append({'kind': 'grid-resize', 'selector': selector, 'sameCards': True})
+
+def check_page_layout(page, name):
+    result = page.evaluate('''() => {
+        const main = document.querySelector('main');
+        const doc = document.querySelector('[class*="_docPage_"]');
+        const el = doc || main;
+        const box = el.getBoundingClientRect();
+        const max = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--content-max'));
+        return {x: box.x, width: box.width, height: box.height, max,
+            display: getComputedStyle(el).display, fullDocument: !!doc,
+            nav: !!document.querySelector('nav[aria-label="主导航"]')};
+    }''')
+    assert result['width'] <= result['max'] + 1, result
+    if result['fullDocument']:
+        assert not result['nav'] and abs(result['height'] - HEIGHT) <= 1, result
+        assert abs(result['x'] + result['width'] / 2 - args.width / 2) <= 1, result
+    else:
+        assert result['display'] == 'block', result
+    page_checks.append({'kind': 'page', 'page': name, **result})
 
 def check_shell(page):
     result = page.evaluate('''() => {
@@ -122,14 +168,18 @@ def capture(page, name, full_page=False):
     assert metrics['document'] <= metrics['viewport'], f'{name}: 页面横向溢出 {metrics}'
     assert not metrics['overflow'], f'{name}: 元素横向溢出 {metrics}'
     page.screenshot(path=os.path.join(OUT, name + '.png'), full_page=full_page)
-    if args.shell_checks:
+    if args.shell_checks or args.page_checks:
         check_shell(page)
+    if args.page_checks:
+        check_page_layout(page, name)
 
 with tempfile.TemporaryDirectory() as temp, sync_playwright() as p:
     b = p.chromium.launch(executable_path=os.environ.get('PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH'))
     # 证明 PDF
     pg = b.new_page()
-    pg.set_content('<html><body style="font-family:sans-serif;padding:40px"><h1>酒店预订确认</h1><h2>温泉酒店</h2><p>预订编号 DEMO-001</p></body></html>')
+    proof = '<h1>酒店预订确认</h1><h2>温泉酒店</h2><p>预订编号 DEMO-001</p>'
+    extra_page = '<div style="break-before:page">' + proof + '</div>' if args.page_checks else ''
+    pg.set_content('<html><body style="font-family:sans-serif;padding:40px">' + proof + extra_page + '</body></html>')
     pdf_path = os.path.join(temp, '酒店预订证明.pdf')
     pg.pdf(path=pdf_path, format='A5')
     pg.close()
@@ -228,6 +278,22 @@ with tempfile.TemporaryDirectory() as temp, sync_playwright() as p:
         if args.shell_checks:
             check_cleanup(page)
     capture(page, '03', full_page=True)
+    if args.page_checks:
+        check_grid_resize(page, '[class*="_bookingGrid_"]')
+        page.get_by_text('酒店', exact=True).click()
+        expect(page.locator('[class*="_bookingGrid_"] > [class*="_booking_"]')).to_have_count(1)
+        check_grid_resize(page, '[class*="_bookingGrid_"]')
+        capture(page, '03-filtered')
+        page.get_by_text('全部', exact=True).click()
+        page.get_by_text('添加', exact=True).click()
+        with page.expect_file_chooser() as fc:
+            page.get_by_text('从文件选择').click()
+        fc.value.set_files(pdf_path); page.wait_for_timeout(300)
+        page.get_by_text('保存', exact=True).click(); page.wait_for_timeout(400)
+        label = page.locator('[class*="_bookingGrid_"] > [class*="_groupLabel_"]')
+        assert label.evaluate('el => Math.abs(el.getBoundingClientRect().width - el.parentElement.clientWidth) <= 1')
+        capture(page, '03-unlinked', full_page=True)
+        check_grid_resize(page, '[class*="_bookingGrid_"]')
     if args.shell_checks:
         def open_sheet():
             page.get_by_text('添加', exact=True).click(); page.wait_for_timeout(300)
@@ -260,6 +326,23 @@ with tempfile.TemporaryDirectory() as temp, sync_playwright() as p:
                              'focusTrap': True, 'escapeDismiss': True, 'focusRestore': True})
     page.get_by_text('查看证明').click(); page.wait_for_timeout(2500)
     capture(page, '06')
+    if args.page_checks:
+        scroll = page.locator('[class*="_scroll_"]')
+        bar = page.locator('[class*="_bar_"]')
+        actions = page.locator('[class*="_docBottom_"]')
+        before_bar, before_actions = bar.bounding_box(), actions.bounding_box()
+        scroll.evaluate('el => el.scrollTop = el.scrollHeight')
+        page.wait_for_timeout(150)
+        assert scroll.evaluate('el => el.scrollTop > 0')
+        assert bar.bounding_box() == before_bar and actions.bounding_box() == before_actions
+        assert abs(before_actions['y'] + before_actions['height'] - HEIGHT) <= 1
+        capture(page, '06-scrolled')
+        page.get_by_label('放大', exact=True).click(); page.wait_for_timeout(500)
+        expect(page.locator('[class*="_pct_"]')).to_have_text('125%')
+        assert bar.bounding_box() == before_bar and actions.bounding_box() == before_actions
+        capture(page, '06-zoomed')
+        page_checks.append({'kind': 'viewer', 'fullPageRoute': True, 'scrollableProof': True,
+                            'zoomWorks': True, 'fixedToolbar': True, 'fixedActions': True})
     page.get_by_label('返回').click(); page.wait_for_timeout(300)
     page.get_by_label('返回').click(); page.wait_for_timeout(300)
     page.get_by_label('旅程设置').click(); page.wait_for_timeout(1500)
@@ -278,6 +361,21 @@ with tempfile.TemporaryDirectory() as temp, sync_playwright() as p:
         shell_checks.append({'kind': 'delete-Dialog', 'escapeDismiss': True,
                              'backdropDismiss': True, 'settingsPreserved': True})
     page.get_by_text('旅程', exact=True).click(); page.wait_for_timeout(500)
+    if args.page_checks:
+        # 仅重复导入 qa/sample.md，展示两张封面卡和一张无封面的紧凑卡。
+        for covered in [True, False]:
+            page.get_by_text('粘贴行程文字', exact=True).click()
+            page.locator('textarea').fill(md)
+            page.get_by_text('解析并预览', exact=True).click(); page.wait_for_timeout(300)
+            page.get_by_text('确认导入', exact=True).click(); page.wait_for_timeout(500)
+            if covered:
+                page.get_by_label('旅程设置').click(); page.wait_for_timeout(300)
+                with page.expect_file_chooser() as fc:
+                    page.get_by_label('更换封面').click()
+                fc.value.set_files(COVER); page.wait_for_timeout(400)
+            page.get_by_text('旅程', exact=True).click(); page.wait_for_timeout(300)
+        expect(page.locator('[class*="_tripGrid_"] > *')).to_have_count(3)
+        check_grid_resize(page, '[class*="_tripGrid_"]')
     capture(page, '04', full_page=True)
     if args.shell_checks:
         unexpected_choosers = []
@@ -302,7 +400,10 @@ with tempfile.TemporaryDirectory() as temp, sync_playwright() as p:
     b.close()
 with open(os.path.join(OUT, 'layout-checks.json'), 'w', encoding='utf-8') as f:
     json.dump(checks, f, ensure_ascii=False, indent=2)
-if args.shell_checks:
+if args.shell_checks or args.page_checks:
     with open(os.path.join(OUT, 'shell-checks.json'), 'w', encoding='utf-8') as f:
         json.dump(shell_checks, f, ensure_ascii=False, indent=2)
+if args.page_checks:
+    with open(os.path.join(OUT, 'page-checks.json'), 'w', encoding='utf-8') as f:
+        json.dump(page_checks, f, ensure_ascii=False, indent=2)
 print(f'{args.width}×{HEIGHT}: {len(checks)} 页截图与横向溢出检查通过')

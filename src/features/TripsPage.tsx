@@ -55,6 +55,7 @@ export default function TripsPage() {
         <>
           <SectionTitle>已导入旅程</SectionTitle>
           <div className={p.stack}>
+            <div className={p.tripGrid}>
             {sortTrips(trips).map((t) => (
               <TripCard
                 key={t.id}
@@ -65,6 +66,7 @@ export default function TripsPage() {
                 onOpen={() => void openTrip(t.id)}
               />
             ))}
+            </div>
             <Button block variant="outline" icon="RotateCcw" onClick={() => void restoreFromFile()}>
               恢复备份
             </Button>
