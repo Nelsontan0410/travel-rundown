@@ -1,7 +1,10 @@
 *, *::before, *::after { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
-html { -webkit-text-size-adjust: 100%; }
+html { min-height: 100%; -webkit-text-size-adjust: 100%; }
 body {
+  min-height: 100dvh;
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
   font-family: var(--font-sans);
   font-size: var(--fs-body);
   line-height: var(--lh);
@@ -18,3 +21,7 @@ img { display: block; max-width: 100%; }
 svg { flex-shrink: 0; }
 .tabular { font-variant-numeric: tabular-nums; }
 #root { min-height: 100dvh; }
+html :focus-visible {
+  outline: calc(var(--border-w) * 2) solid var(--color-primary);
+  outline-offset: var(--space-1);
+}

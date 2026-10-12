@@ -1,11 +1,11 @@
-.screen { max-width: var(--max-w); margin: 0 auto; min-height: 100dvh; position: relative; background: var(--color-surface); }
-.main { padding: 0 var(--page-x) var(--space-6); }
+.screen { composes: frame from '../styles/layout.module.css'; max-width: var(--max-w); margin: 0 auto; position: relative; background: var(--color-surface); }
+.main { composes: content from '../styles/layout.module.css'; padding: 0 var(--page-x) var(--space-6); }
 .full { padding: 0; }
 .withTab { padding-bottom: calc(var(--h-tabbar) + var(--safe-bottom) + var(--space-6)); }
 .withTabBottom { padding-bottom: calc(var(--h-tabbar) + var(--safe-bottom) + var(--h-btn-lg) + var(--space-4) + var(--space-6)); }
 .withBottom { padding-bottom: calc(var(--safe-bottom) + var(--h-btn-lg) + var(--space-4) + var(--space-6)); }
 
-.fixedCol { position: fixed; left: 50%; transform: translateX(-50%); width: 100%; max-width: var(--max-w); z-index: 20; }
+.fixedCol { composes: fixed from '../styles/layout.module.css'; position: fixed; transform: translateX(-50%); max-width: var(--max-w); z-index: 20; }
 
 /* AppHeader */
 .header {

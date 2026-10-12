@@ -64,6 +64,10 @@
   --size-icon: 24px;   --size-icon-sm: 20px;
   --icon-stroke: 1.75;
   --max-w: 430px;
+  /* B0：公共布局尺寸；电脑版外壳与页面排版在 B1/B2 接入。 */
+  --sidebar-w: 240px;
+  --content-max: 960px;
+  --col-gap: var(--space-6);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-top: env(safe-area-inset-top, 0px);
 
