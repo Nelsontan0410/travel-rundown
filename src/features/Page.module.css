@@ -30,7 +30,7 @@
 .unlinkedRow { align-self: flex-start; }
 
 /* 06 */
-.docPage { height: 100dvh; display: flex; flex-direction: column; max-width: var(--max-w); margin: 0 auto; background: var(--color-surface); }
+.docPage { composes: frame from '../styles/layout.module.css'; height: 100dvh; display: flex; flex-direction: column; max-width: var(--max-w); margin: 0 auto; background: var(--color-surface); }
 .docFile { padding: 0 var(--page-x) var(--space-3); display: flex; }
 .docBottom { display: flex; gap: var(--space-2); padding: var(--space-3) var(--page-x) calc(var(--space-2) + var(--safe-bottom)); }
 .docBottom > * { flex: 1; }

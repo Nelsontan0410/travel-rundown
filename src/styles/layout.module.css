@@ -1,0 +1,17 @@
+/* 公共地基：保留当前单栏结构，B1/B2 再接入电脑版式。 */
+.frame {
+  width: 100%;
+  min-width: 0;
+  min-height: 100dvh;
+}
+
+.content {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* 与 body 的左右安全区保持一致，避免固定栏压到横屏刘海。 */
+.fixed {
+  left: calc(50% + (env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)) / 2);
+  width: calc(100% - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
+}

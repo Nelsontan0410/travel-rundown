@@ -1,0 +1,74 @@
+[
+  {
+    "page": "04-empty",
+    "viewport": 1280,
+    "document": 1280,
+    "overflow": []
+  },
+  {
+    "page": "paste",
+    "viewport": 1280,
+    "document": 1280,
+    "overflow": []
+  },
+  {
+    "page": "preview",
+    "viewport": 1280,
+    "document": 1280,
+    "overflow": []
+  },
+  {
+    "page": "01-nocover",
+    "viewport": 1280,
+    "document": 1280,
+    "overflow": []
+  },
+  {
+    "page": "03",
+    "viewport": 1280,
+    "document": 1280,
+    "overflow": []
+  },
+  {
+    "page": "01",
+    "viewport": 1280,
+    "document": 1280,
+    "overflow": []
+  },
+  {
+    "page": "02",
+    "viewport": 1280,
+    "document": 1280,
+    "overflow": []
+  },
+  {
+    "page": "02-full",
+    "viewport": 1280,
+    "document": 1280,
+    "overflow": []
+  },
+  {
+    "page": "06",
+    "viewport": 1280,
+    "document": 1280,
+    "overflow": []
+  },
+  {
+    "page": "05",
+    "viewport": 1280,
+    "document": 1280,
+    "overflow": []
+  },
+  {
+    "page": "04",
+    "viewport": 1280,
+    "document": 1280,
+    "overflow": []
+  },
+  {
+    "page": "template",
+    "viewport": 1280,
+    "document": 1280,
+    "overflow": []
+  }
+]
