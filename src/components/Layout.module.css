@@ -24,7 +24,7 @@
 .navTitle { font-size: var(--fs-nav); font-weight: var(--fw-nav); text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bigRow { display: flex; align-items: flex-start; gap: var(--space-2); padding: var(--space-4) 0 var(--space-3); }
 .bigTitle { font-size: var(--fs-page); font-weight: var(--fw-page); }
-.bigSub { font-size: var(--fs-body); color: var(--color-text-2); margin-top: var(--space-1); }
+.bigSub { font-size: var(--fs-body); color: var(--color-icon); margin-top: var(--space-1); }
 .textBtn { display: inline-flex; align-items: center; gap: var(--space-1); color: var(--color-primary); font-size: var(--fs-card); font-weight: 600; height: var(--size-hit); padding: 0 var(--space-2); }
 
 /* TabBar */
@@ -70,7 +70,7 @@
 .dialogWrap { position: fixed; inset: 0; z-index: 50; display: flex; align-items: flex-end; justify-content: center; background: var(--scrim); animation: fade var(--duration) ease-out; }
 .dialog { background: var(--color-surface); border-radius: var(--radius-sheet) var(--radius-sheet) 0 0; padding: var(--pad-dialog) var(--pad-dialog) calc(var(--pad-dialog) + var(--safe-bottom)); width: 100%; max-width: var(--content-max); max-height: 85dvh; overflow-y: auto; box-shadow: var(--shadow-overlay); }
 .dialogTitle { font-size: var(--fs-section); font-weight: var(--fw-section); }
-.dialogText { font-size: var(--fs-body); color: var(--color-text-2); margin-top: var(--space-2); }
+.dialogText { font-size: var(--fs-body); color: var(--color-icon); margin-top: var(--space-2); }
 .dialogBtns { display: flex; gap: var(--space-2); margin-top: var(--space-5); }
 .dialogBtns > * { flex: 1; }
 
@@ -129,7 +129,7 @@
   }
   .navLogo { display: flex; align-items: center; height: var(--h-header); padding: 0 var(--space-3); margin-bottom: var(--space-4); flex-shrink: 0; }
   .tab { flex-direction: row; justify-content: flex-start; gap: var(--space-3); height: var(--size-hit); padding: 0 var(--space-3); border-radius: var(--radius-sm); font-size: var(--fs-body); }
-  .tabOn { background: var(--color-primary-soft); }
+  .tabOn { background: var(--color-primary-soft); color: var(--color-primary-ink); }
   body:has(.withSidebar) .toast {
     left: calc(50% + var(--sidebar-w) / 2 + (env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)) / 2);
     bottom: calc(var(--safe-bottom) + var(--space-4));

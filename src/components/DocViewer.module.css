@@ -5,15 +5,17 @@
 .img { background: var(--color-surface); display: block; max-width: none; }
 .bar {
   position: absolute; left: 50%; transform: translateX(-50%); bottom: var(--space-3);
-  height: var(--h-zoom); padding: 0 var(--space-2); border-radius: var(--radius-full); background: var(--color-surface-subtle);
+  height: var(--size-hit); padding: 0 var(--space-2); border-radius: var(--radius-full); background: var(--color-surface-subtle);
   display: flex; align-items: center; gap: var(--space-4);
 }
 .zoomBtn {
-  width: var(--size-zoom-btn); height: var(--size-zoom-btn); border-radius: var(--radius-full);
+  width: var(--size-hit); height: var(--size-hit); border-radius: var(--radius-full);
   border: var(--border-w) solid var(--color-border); background: var(--color-surface); color: var(--color-primary);
   display: inline-flex; align-items: center; justify-content: center;
 }
 .zoomBtn:disabled { opacity: var(--opacity-disabled); }
-.pct { font-size: var(--fs-small); min-width: var(--size-hit); text-align: center; font-variant-numeric: tabular-nums; color: var(--color-text-2); }
-.pageNo { position: absolute; right: var(--space-4); bottom: calc(var(--space-3) + (var(--h-zoom) - var(--size-icon-sm)) / 2); font-size: var(--fs-small); color: var(--color-text-2); font-variant-numeric: tabular-nums; }
-.missing { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-3); color: var(--color-text-2); font-size: var(--fs-body); padding: var(--page-x); text-align: center; }
+.pct { font-size: var(--fs-small); min-width: var(--size-hit); text-align: center; font-variant-numeric: tabular-nums; color: var(--color-icon); }
+.pageNo { position: absolute; right: var(--space-4); bottom: calc(var(--space-3) + (var(--size-hit) - var(--size-icon-sm)) / 2); font-size: var(--fs-small); color: var(--color-icon); font-variant-numeric: tabular-nums; }
+.missing { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-3); color: var(--color-icon); font-size: var(--fs-body); padding: var(--page-x); text-align: center; }
+
+.pageNo, .missing { color: var(--color-text); }

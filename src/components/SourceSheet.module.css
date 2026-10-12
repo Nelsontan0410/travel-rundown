@@ -1,5 +1,5 @@
 .pre { margin: 0; padding: var(--space-3); background: var(--color-tile-bg); border-radius: var(--radius-md); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: var(--fs-small); color: var(--color-text); white-space: pre-wrap; word-break: break-word; max-height: 50vh; overflow: auto; }
 .row { display: flex; gap: var(--space-2); }
-.no { flex: 0 0 auto; min-width: 2.5em; text-align: right; color: var(--color-text-3); user-select: none; }
+.no { flex: 0 0 auto; min-width: 2.5em; text-align: right; color: var(--color-text); user-select: none; }
 .hit { background: var(--color-warning-soft); }
-.hint { margin: var(--space-2) 0 0; font-size: var(--fs-small); color: var(--color-text-2); }
+.hint { margin: var(--space-2) 0 0; font-size: var(--fs-small); color: var(--color-icon); }

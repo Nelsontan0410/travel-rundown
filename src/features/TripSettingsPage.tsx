@@ -127,7 +127,7 @@ export default function TripSettingsPage() {
           恢复备份
         </Button>
       </Card>
-      <p className={p.mt8} style={{ fontSize: 'var(--fs-caption)', color: 'var(--color-text-2)' }}>
+      <p className={`${p.mt8} ${p.caption}`}>
         备份包含行程、预订证明和完成状态。
       </p>
 

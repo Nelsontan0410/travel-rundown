@@ -8,6 +8,7 @@ parser.add_argument('cover')
 parser.add_argument('--width', type=int, choices=[390, 768, 1280], default=390)
 parser.add_argument('--shell-checks', action='store_true')
 parser.add_argument('--page-checks', action='store_true')
+parser.add_argument('--a11y-checks', action='store_true')
 args = parser.parse_args()
 OUT = args.out
 COVER = args.cover
@@ -18,6 +19,52 @@ md = open(os.path.join(HERE, 'sample.md'), encoding='utf-8').read()
 checks = []
 shell_checks = []
 page_checks = []
+a11y_checks = []
+
+def tab_to(page, target):
+    for _ in range(100):
+        if target.evaluate('el => el === document.activeElement'):
+            return
+        page.keyboard.press('Tab')
+    raise AssertionError('Tab cannot reach ' + str(target))
+
+def keyboard_activate(page, target):
+    tab_to(page, target)
+    page.keyboard.press('Enter')
+    page.wait_for_timeout(300)
+
+def check_accessibility(page, name):
+    result = page.evaluate(r'''() => {
+        const visible = el => el.getClientRects().length && getComputedStyle(el).visibility !== 'hidden' && !el.closest('[inert]');
+        const targets = [...document.querySelectorAll('button:not(:disabled), a[href], [role="button"], textarea')].filter(visible);
+        const small = targets.map(el => ({label: el.getAttribute('aria-label') || el.textContent.trim().slice(0, 40),
+            width: el.getBoundingClientRect().width, height: el.getBoundingClientRect().height}))
+            .filter(b => b.width < 43.9 || b.height < 43.9);
+        const rgb = value => (value.match(/[\d.]+/g) || []).map(Number);
+        const lum = c => c.slice(0, 3).map(n => n / 255).map(n => n <= .04045 ? n / 12.92 : ((n + .055) / 1.055) ** 2.4)
+            .reduce((sum, n, i) => sum + n * [.2126, .7152, .0722][i], 0);
+        const contrast = [], failures = [];
+        const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+        while(walker.nextNode()) {
+            const node = walker.currentNode, el = node.parentElement;
+            if (!node.textContent.trim() || !visible(el) || el.closest('svg, script, style, button:disabled, [class*="_pdf_"]')) continue;
+            const fg = rgb(getComputedStyle(el).color);
+            let bg = null;
+            for (let p = el; p; p = p.parentElement) {
+                const color = rgb(getComputedStyle(p).backgroundColor);
+                if (color.length === 3 || color[3] === 1) { bg = color; break; }
+            }
+            if (!bg || !fg.length) continue;
+            const ratio = (Math.max(lum(fg), lum(bg)) + .05) / (Math.min(lum(fg), lum(bg)) + .05);
+            const item = {text: node.textContent.trim().slice(0, 40), ratio};
+            contrast.push(item);
+            if (ratio < 4.5) failures.push(item);
+        }
+        return {small, contrastCount: contrast.length, minContrast: Math.min(...contrast.map(x => x.ratio)), failures};
+    }''')
+    assert not result['small'], (name, result['small'])
+    assert not result['failures'], (name, result['failures'])
+    a11y_checks.append({'kind': 'targets-and-copy', 'page': name, **result})
 
 def check_grid(page, selector):
     results = page.locator(selector).evaluate_all('''grids => grids.map(grid => {
@@ -167,6 +214,8 @@ def capture(page, name, full_page=False):
     checks.append({'page': name, **metrics})
     assert metrics['document'] <= metrics['viewport'], f'{name}: 页面横向溢出 {metrics}'
     assert not metrics['overflow'], f'{name}: 元素横向溢出 {metrics}'
+    if args.a11y_checks:
+        check_accessibility(page, name)
     page.screenshot(path=os.path.join(OUT, name + '.png'), full_page=full_page)
     if args.shell_checks or args.page_checks:
         check_shell(page)
@@ -220,8 +269,14 @@ with tempfile.TemporaryDirectory() as temp, sync_playwright() as p:
         open_about()
         capture(page, 'dialog')
         check_overlay(page, 'alertdialog', 'Dialog', open_about, page.get_by_label('更多'))
-    page.get_by_text('粘贴行程文字').click()
-    page.locator('textarea').fill(md)
+    if args.a11y_checks:
+        keyboard_activate(page, page.get_by_role('button', name='粘贴行程文字', exact=True))
+        tab_to(page, page.locator('textarea'))
+        page.keyboard.insert_text(md)
+        assert page.locator('textarea').evaluate('el => getComputedStyle(el).outlineStyle === "solid"')
+    else:
+        page.get_by_text('粘贴行程文字').click()
+        page.locator('textarea').fill(md)
     if args.shell_checks:
         page.evaluate('window.__shellTextarea = document.querySelector("textarea")')
         for width in [767, 768, 1023, 1024, 1280, 390, args.width]:
@@ -231,10 +286,54 @@ with tempfile.TemporaryDirectory() as temp, sync_playwright() as p:
             check_shell(page)
         shell_checks.append({'kind': 'live-resize', 'draftPreserved': True, 'sameTextarea': True})
     capture(page, 'paste')
-    page.get_by_text('解析并预览').click(); page.wait_for_timeout(300)
+    if args.a11y_checks:
+        keyboard_activate(page, page.get_by_role('button', name='解析并预览', exact=True))
+    else:
+        page.get_by_text('解析并预览').click(); page.wait_for_timeout(300)
     capture(page, 'preview')
-    page.get_by_text('确认导入').click(); page.wait_for_timeout(800)
+    if args.a11y_checks:
+        keyboard_activate(page, page.get_by_role('button', name='确认导入', exact=True))
+        page.wait_for_timeout(800)
+        tabs = page.get_by_role('tab')
+        selected = page.locator('[role="tab"][aria-selected="true"]')
+        tab_to(page, selected)
+        original = selected.get_attribute('data-day')
+        capture(page, 'keyboard-date-focus')
+        assert page.locator('[role="tab"][tabindex="0"]').count() == 1
+        page.keyboard.press('ArrowRight')
+        assert selected.get_attribute('data-day') != original
+        expect(selected).to_be_focused()
+        page.keyboard.press('ArrowLeft')
+        assert selected.get_attribute('data-day') == original
+        page.keyboard.press('End'); expect(tabs.last).to_be_focused()
+        page.keyboard.press('ArrowRight'); expect(tabs.first).to_be_focused()
+        page.keyboard.press('ArrowLeft'); expect(tabs.last).to_be_focused()
+        page.keyboard.press('Home'); expect(tabs.first).to_be_focused()
+        page.keyboard.press('Tab')
+        card = page.locator('[role="button"]').first
+        expect(card).to_be_focused()
+        assert card.evaluate('el => getComputedStyle(el).outlineStyle === "solid" && parseFloat(getComputedStyle(el).outlineWidth) >= 2')
+        capture(page, 'keyboard-card-focus')
+        for key in ['Enter', 'Space']:
+            tab_to(page, card)
+            page.keyboard.press(key); page.wait_for_timeout(300)
+            expect(page.get_by_label('返回', exact=True)).to_be_visible()
+            keyboard_activate(page, page.get_by_label('返回', exact=True))
+            expect(page.get_by_role('tablist')).to_be_visible()
+        a11y_checks.append({'kind': 'keyboard-only-import-browse-open-return', 'passed': True,
+            'rovingTab': True, 'arrowsAndWrap': True, 'homeEnd': True, 'enterAndSpace': True})
+    else:
+        page.get_by_text('确认导入').click(); page.wait_for_timeout(800)
     capture(page, '01-nocover')
+    if args.a11y_checks:
+        selected = page.locator('[role="tab"][aria-selected="true"]')
+        selected.hover()
+        assert selected.evaluate('el => getComputedStyle(el).textDecorationLine === "underline"')
+        page.mouse.down()
+        assert selected.evaluate('el => getComputedStyle(el).outlineStyle === "solid"')
+        capture(page, 'pointer-active')
+        page.mouse.up()
+        a11y_checks.append({'kind': 'pointer-feedback', 'hoverUnderline': True, 'activeOutline': True})
     # 封面
     page.get_by_label('旅程设置').click(); page.wait_for_timeout(300)
     with page.expect_file_chooser() as fc:
@@ -306,6 +405,14 @@ with tempfile.TemporaryDirectory() as temp, sync_playwright() as p:
     page.get_by_text('标记完成').click(); page.wait_for_timeout(300)
     page.go_back(); page.wait_for_timeout(500)
     capture(page, '01')
+    if args.a11y_checks:
+        proof_button = page.locator('[role="button"]').get_by_role('button', name='预订证明', exact=True)
+        keyboard_activate(page, proof_button)
+        page.wait_for_timeout(1500)
+        expect(page.locator('[class*="_docPage_"]')).to_be_visible()
+        keyboard_activate(page, page.get_by_label('返回', exact=True))
+        expect(page.get_by_role('tablist')).to_be_visible()
+        a11y_checks.append({'kind': 'nested-card-keyboard-action', 'onlyProofOpened': True})
     page.get_by_text('温泉酒店入住').click(); page.wait_for_timeout(500)
     capture(page, '02')
     capture(page, '02-full', full_page=True)
@@ -397,6 +504,16 @@ with tempfile.TemporaryDirectory() as temp, sync_playwright() as p:
                              'backdropDismiss': True, 'fileChooserNotOpened': True})
     page.get_by_text('获取导入模板').first.click(); page.wait_for_timeout(300)
     capture(page, 'template')
+    if args.a11y_checks:
+        page.emulate_media(reduced_motion='reduce')
+        page.get_by_label('返回', exact=True).click(); page.wait_for_timeout(300)
+        page.get_by_label('更多').click(); page.wait_for_timeout(300)
+        animations = page.get_by_role('menu').evaluate('el => getComputedStyle(el).animationName')
+        assert animations == 'none', animations
+        page.keyboard.press('Escape')
+        expect(page.get_by_role('menu')).to_have_count(0)
+        expect(page.get_by_label('更多')).to_be_focused()
+        a11y_checks.append({'kind': 'reduced-motion-and-escape', 'animation': animations, 'focusReturned': True})
     b.close()
 with open(os.path.join(OUT, 'layout-checks.json'), 'w', encoding='utf-8') as f:
     json.dump(checks, f, ensure_ascii=False, indent=2)
@@ -407,3 +524,7 @@ if args.page_checks:
     with open(os.path.join(OUT, 'page-checks.json'), 'w', encoding='utf-8') as f:
         json.dump(page_checks, f, ensure_ascii=False, indent=2)
 print(f'{args.width}×{HEIGHT}: {len(checks)} 页截图与横向溢出检查通过')
+
+if args.a11y_checks:
+    with open(os.path.join(OUT, 'a11y-checks.json'), 'w', encoding='utf-8') as f:
+        json.dump(a11y_checks, f, ensure_ascii=False, indent=2)

@@ -10,7 +10,7 @@
 .block { width: 100%; }
 .primary { background: var(--color-primary); color: var(--color-surface); }
 .outline { background: var(--color-surface); border-color: var(--color-primary); color: var(--color-primary); }
-.danger { background: var(--color-warning-ink); color: var(--color-surface); }
+.danger { background: var(--color-warning-soft); color: var(--color-text); border-color: var(--color-warning-ink); }
 .link { background: none; color: var(--color-primary); padding: 0; height: auto; gap: var(--space-1); font-size: var(--fs-body); min-height: var(--size-hit); }
 
 /* IconButton */
@@ -27,7 +27,7 @@
 }
 .chip-success { background: var(--color-success-soft); color: var(--color-success-ink); }
 .chip-info { background: var(--color-primary-soft); color: var(--color-primary-ink); }
-.chip-neutral { background: var(--color-neutral-soft); color: var(--color-text-2); }
+.chip-neutral { background: var(--color-neutral-soft); color: var(--color-text); }
 
 /* FilterChips */
 .filters { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-2); }
@@ -43,15 +43,15 @@
   border-radius: var(--radius-md); padding: var(--space-2) var(--space-3); font-size: var(--fs-body);
 }
 .banner-success { background: var(--color-success-soft); color: var(--color-success-ink); font-weight: 500; }
-.banner-info { background: var(--color-info-bg); color: var(--color-text-2); font-size: var(--fs-small); }
-.banner-warning { background: var(--color-warning-soft); color: var(--color-warning-ink); font-weight: 600; }
+.banner-info { background: var(--color-info-bg); color: var(--color-text); font-size: var(--fs-small); }
+.banner-warning { background: var(--color-warning-soft); color: var(--color-text); font-weight: 600; }
 .bannerText { flex: 1; min-width: 0; }
 
 /* SectionTitle / NoteBox */
 .section { font-size: var(--fs-section); font-weight: var(--fw-section); margin: var(--space-6) 0 var(--space-2); }
 .note {
   background: var(--color-surface-muted); border-radius: var(--radius-sm); padding: var(--pad-note) var(--space-3);
-  font-size: var(--fs-body); color: var(--color-text-2); white-space: pre-wrap; word-break: break-word;
+  font-size: var(--fs-body); color: var(--color-icon); white-space: pre-wrap; word-break: break-word;
 }
 
 /* IconTile */
@@ -69,8 +69,17 @@
 .empty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: var(--space-2); padding: var(--space-6) var(--page-x); margin-top: 20vh; }
 .emptyCompact { margin-top: var(--space-2); }
 .emptyTitle { font-size: var(--fs-card); font-weight: 600; margin-top: var(--space-2); }
-.emptyText { font-size: var(--fs-body); color: var(--color-text-2); }
-.emptyLine { text-align: center; color: var(--color-text-2); padding: var(--space-6) 0; }
+.emptyText { font-size: var(--fs-body); color: var(--color-icon); }
+.emptyLine { text-align: center; color: var(--color-icon); padding: var(--space-6) 0; }
 
 /* Caption */
-.caption { font-size: var(--fs-caption); color: var(--color-text-2); }
+.caption { font-size: var(--fs-caption); color: var(--color-icon); }
+
+/* B3: full touch targets also work with hybrid pointer devices. */
+.sm, .filter { min-height: var(--size-hit); }
+.iconBtn { width: var(--size-hit); height: var(--size-hit); }
+@media (hover: hover) {
+  .btn:not(:disabled):hover, .filter:not(:disabled):hover { border-color: var(--color-primary-ink); }
+  .primary:not(:disabled):hover, .filterOn:not(:disabled):hover { background: var(--color-primary-ink); }
+  .outline:not(:disabled):hover, .link:not(:disabled):hover { color: var(--color-primary-ink); }
+}
