@@ -6,6 +6,7 @@ import { Button, InfoBanner } from '../components/Basics';
 import { KeyValueCard } from '../components/Cards';
 import { useUI } from '../store/ui';
 import { saveImport, loadDiffOld } from '../db/repo';
+import SourceSheet from '../components/SourceSheet';
 import DiffSection from '../components/DiffSection';
 import { diffImport, flattenParsed, type ImportDiff } from '../importer/diff';
 import { fmtDateRange, tripDays } from '../domain/format';
@@ -17,6 +18,7 @@ export default function PreviewPage() {
   const setDraft = useUI((s) => s.setDraft);
   const setPaste = useUI((s) => s.setPasteText);
   const [open, setOpen] = useState(false);
+  const [srcLine, setSrcLine] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [diff, setDiff] = useState<ImportDiff | null>(null);
   const [accepted, setAccepted] = useState<Set<string>>(new Set());
@@ -117,7 +119,17 @@ export default function PreviewPage() {
               {open && (
                 <ul className={p.warnList}>
                   {result.warnings.map((w, i) => (
-                    <li key={i}>{w.message}</li>
+                    <li key={i}>
+                      {w.message}
+                      {w.line ? (
+                        <>
+                          {' '}
+                          <button type="button" onClick={() => setSrcLine(w.line!)} style={{ color: 'var(--color-primary)', background: 'none', border: 0, padding: 0, font: 'inherit' }}>
+                            查看原文
+                          </button>
+                        </>
+                      ) : null}
+                    </li>
                   ))}
                 </ul>
               )}
@@ -125,6 +137,7 @@ export default function PreviewPage() {
           )}
         </>
       )}
+      {srcLine != null && <SourceSheet open onClose={() => setSrcLine(null)} md={draft.md} from={srcLine} to={srcLine} context={2} />}
     </Screen>
   );
 }

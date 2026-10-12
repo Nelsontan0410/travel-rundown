@@ -61,6 +61,15 @@ export interface Item {
   bookingStatus?: BookingStatus; // 设计新增
   note?: string;
   meta?: Record<string, string>;
+  src?: SourceRange; // 在导入 md 里的起止行号（含）
+  alt?: string; // 备选方案（如天气不好时）
+  fixed?: boolean; // 固定时间（航班、预约等）
+  timeNote?: string; // 没有精确时间时的说明，例如「早上」
+}
+
+export interface SourceRange {
+  from: number;
+  to: number;
 }
 
 export type DocKind = 'flight' | 'lodging' | 'ticket' | 'insurance' | 'other';

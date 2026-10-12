@@ -90,7 +90,7 @@ export default function ItineraryPage() {
               <TimelineRow
                 key={it.id}
                 first={i === 0}
-                time={it.start}
+                time={it.start ?? it.timeNote}
                 dot={status === 'done' ? 'done' : isCur ? 'current' : 'pending'}
                 icon={itemIcon(it)}
                 title={it.title}

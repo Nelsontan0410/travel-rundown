@@ -102,3 +102,63 @@ describe('prompt', () => {
     expect(buildPrompt('apple-maps', 'apple-maps')).toContain('所有行程项都用Apple Maps链接。');
   });
 });
+
+describe('A2 source lines', () => {
+  const md = `# T
+- 日期: 2026-11-03 ~ 2026-11-03
+- 出发地时区: Asia/Singapore
+
+## Day 1 | 2026-11-03 | 东京 | Asia/Tokyo
+
+### [spot] 09:00 A
+- 备注: x
+
+### [spot] 10:00 B
+- 备注: y
+- 备注: z
+`;
+  const r = parseMd(md);
+  it('records start/end line of every item', () => {
+    const [a, b] = r.days[0].items;
+    expect(a.src).toEqual({ from: 7, to: 8 });
+    expect(b.src).toEqual({ from: 10, to: 12 });
+  });
+});
+
+describe('A3 optional fields', () => {
+  const md = `# T
+- 日期: 2026-01-14 ~ 2026-01-14
+- 出发地时区: Asia/Singapore
+
+## Day 1 | 2026-01-14 | 洞爷湖 | Asia/Tokyo
+
+### [spot] Snow World Toya 雪地摩托
+- 时间说明: 早上
+- 备选: 天气不好就改去洞爷湖周边
+- 固定: 是
+
+### [flight] 10:00 航班
+- 固定: 也许
+`;
+  const r = parseMd(md);
+  it('reads 备选 / 固定 / 时间说明', () => {
+    const it = r.days[0].items[0];
+    expect(it.timeNote).toBe('早上');
+    expect(it.alt).toBe('天气不好就改去洞爷湖周边');
+    expect(it.fixed).toBe(true);
+    expect(it.start).toBeUndefined();
+  });
+  it('invalid 固定 value warns and is ignored', () => {
+    expect(r.days[0].items[1].fixed).toBeUndefined();
+    expect(r.warnings.some((w) => w.message.includes('固定'))).toBe(true);
+  });
+  it('old format is unaffected', () => {
+    const o = parseMd(SAMPLE);
+    expect(o.days[0].items[0].alt).toBeUndefined();
+    expect(o.days[0].items[0].fixed).toBeUndefined();
+  });
+  it('prompt documents the new fields', () => {
+    const p = buildPrompt('amap', 'google-maps');
+    for (const k of ['- 备选:', '- 固定:', '- 时间说明:']) expect(p).toContain(k);
+  });
+});
