@@ -1,4 +1,7 @@
 .stack { display: flex; flex-direction: column; gap: var(--space-2); }
+.bookingGrid, .tripGrid { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-2); align-items: start; }
+.bookingGrid > *, .tripGrid > * { min-width: 0; }
+.gridFull { grid-column: 1 / -1; }
 .importCard { padding: var(--space-4); display: flex; flex-direction: column; align-items: center; gap: var(--space-2); text-align: center; margin-top: var(--space-2); }
 .importTitle { font-size: var(--fs-section); font-weight: var(--fw-section); }
 .importSub { font-size: var(--fs-body); color: var(--color-text-2); margin-bottom: var(--space-2); }
@@ -30,9 +33,11 @@
 .unlinkedRow { align-self: flex-start; }
 
 /* 06 */
-.docPage { composes: frame from '../styles/layout.module.css'; height: 100dvh; display: flex; flex-direction: column; max-width: var(--max-w); margin: 0 auto; background: var(--color-surface); }
+.docPage { composes: frame from '../styles/layout.module.css'; height: 100dvh; display: flex; flex-direction: column; max-width: var(--content-max); margin: 0 auto; background: var(--color-surface); }
+.docPage > header { flex-shrink: 0; }
 .docFile { padding: 0 var(--page-x) var(--space-3); display: flex; }
 .docBottom { display: flex; gap: var(--space-2); padding: var(--space-3) var(--page-x) calc(var(--space-2) + var(--safe-bottom)); }
+.docFile, .docBottom { flex-shrink: 0; }
 .docBottom > * { flex: 1; }
 
 /* 导入 */
@@ -58,3 +63,11 @@
 .check { width: var(--size-icon-sm); height: var(--size-icon-sm); border-radius: var(--radius-full); border: var(--border-w) solid var(--color-border); flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
 .checkOn { border-color: var(--color-primary); background: var(--color-primary); color: var(--color-surface); }
 .sheetList { max-height: 50dvh; overflow-y: auto; }
+
+@media (min-width: 768px) {
+  .bookingGrid, .tripGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--col-gap); row-gap: var(--space-4); }
+}
+
+@media (min-width: 1024px) {
+  .bookingGrid, .tripGrid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}

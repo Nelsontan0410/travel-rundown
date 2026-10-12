@@ -66,8 +66,8 @@ export default function DocsPage() {
           {allSaved && <InfoBanner variant="success">已保存附件可离线查看</InfoBanner>}
 
           {unlinked.length > 0 && (
-            <>
-              <p className={p.groupLabel}>未关联</p>
+            <div className={p.bookingGrid}>
+              <p className={`${p.groupLabel} ${p.gridFull}`}>未关联</p>
               {unlinked.map((d) => (
                 <BookingCard
                   key={d.id}
@@ -84,9 +84,10 @@ export default function DocsPage() {
                   }
                 />
               ))}
-            </>
+            </div>
           )}
 
+          <div className={p.bookingGrid}>
           {listed.map((it) => {
             const day = td.dayById.get(it.dayId)!;
             const docs = docsForItem(td.docs, it.key);
@@ -108,6 +109,7 @@ export default function DocsPage() {
               />
             );
           })}
+          </div>
         </div>
       )}
       <div className={p.listFoot}>
