@@ -1,7 +1,8 @@
 // 逐行解析固定格式的行程 md（PRD「导入逻辑」）。不引入 md 语法树。
 // 单个行程项出错不会让整份解析失败，只记警告。
-import type { BookingStatus, ItemType, Place, SourceRange } from '../domain/types';
-import { deviceTz, isIsoDate, isValidTz, addDays } from '../domain/format';
+import type { BookingStatus, FlightInfo, ItemType, LodgingInfo, MealKind, Place, SourceRange, TransitInfo } from '../domain/types';
+import { deviceTz, isValidTz, addDays, findDates, parseDateAny, parseMoney } from '../domain/format';
+import { migrateItemV2 } from '../domain/migrate';
 import { makeItemKey } from '../domain/itemKey';
 
 export interface ParseWarning {
@@ -28,6 +29,11 @@ export interface ItemDraft {
   alt?: string;
   fixed?: boolean;
   timeNote?: string;
+  flight?: FlightInfo;
+  lodging?: LodgingInfo;
+  transit?: TransitInfo;
+  meal?: MealKind;
+  mustDo?: string[];
 }
 
 export interface DayDraft {
@@ -46,6 +52,7 @@ export interface TripDraft {
   endDate: string;
   homeTz: string;
   destination?: string;
+  budget?: number; // 分
 }
 
 export interface ParseResult {
@@ -55,10 +62,32 @@ export interface ParseResult {
   itemCount: number;
 }
 
-const TYPES: ItemType[] = ['flight', 'lodging', 'spot', 'transit', 'note'];
+const TYPES: ItemType[] = ['flight', 'lodging', 'spot', 'transit', 'meal', 'note'];
+/** 中文类型名也认（AI 偶尔会写中文） */
+const TYPE_ALIAS: Record<string, { type: ItemType; meal?: MealKind }> = {
+  机票: { type: 'flight' }, 航班: { type: 'flight' }, 飞机: { type: 'flight' },
+  住宿: { type: 'lodging' }, 酒店: { type: 'lodging' }, hotel: { type: 'lodging' },
+  景点: { type: 'spot' }, 活动: { type: 'spot' }, 购物: { type: 'spot' }, attraction: { type: 'spot' },
+  交通: { type: 'transit' }, transport: { type: 'transit' },
+  餐饮: { type: 'meal' }, 用餐: { type: 'meal' }, food: { type: 'meal' },
+  早餐: { type: 'meal', meal: 'breakfast' }, 午餐: { type: 'meal', meal: 'lunch' },
+  晚餐: { type: 'meal', meal: 'dinner' }, 小吃: { type: 'meal', meal: 'snack' }, 宵夜: { type: 'meal', meal: 'snack' },
+  其他: { type: 'note' }, 备注: { type: 'note' }, 提醒: { type: 'note' },
+};
+const MEAL_WORDS: [RegExp, MealKind][] = [
+  [/早餐|早饭|breakfast/i, 'breakfast'],
+  [/午餐|午饭|lunch/i, 'lunch'],
+  [/晚餐|晚饭|dinner/i, 'dinner'],
+  [/小吃|宵夜|下午茶|甜品|snack/i, 'snack'],
+];
+const LIST_KEYS = ['必逛', '必玩', '必看', '必做', '必体验', '必吃', '必点', '亮点'];
+const LIST_SPLIT = /\s*[；;、|｜]\s*|\s+\/\s+/;
+
+function mealFrom(text: string): MealKind | undefined {
+  return MEAL_WORDS.find(([re]) => re.test(text))?.[1];
+}
 const FIELD_RE = /^[-*]\s*([^:：]+?)\s*[:：]\s*(.*)$/;
-const ITEM_RE = /^(?:\[\s*([A-Za-z]*)\s*\])?\s*(?:(\d{1,2}:\d{2})(?:\s*[-–—~～]\s*(\d{1,2}:\d{2})\s*(\+\s*1)?)?)?\s*(.*)$/;
-const DATE_RE = /\d{4}-\d{2}-\d{2}/g;
+const ITEM_RE = /^(?:[\[【]\s*([^\]】]*?)\s*[\]】])?\s*(?:(\d{1,2}:\d{2})(?:\s*[-–—~～]\s*(\d{1,2}:\d{2})\s*(\+\s*1)?)?)?\s*(.*)$/;
 
 function pad(t: string): string {
   const [h, m] = t.split(':');
@@ -90,15 +119,29 @@ export function parseMd(input: string): ParseResult {
   let rawDayTz = '';
   let curItem: (ItemDraft & { _line: number }) | null = null;
   const pendingDayTz: { day: DayDraft; raw: string; line: number }[] = [];
+  let listOpen = false; // 「- 必逛:」后面跟着的子列表
 
   const finishItem = () => {
     curItem = null;
+    listOpen = false;
   };
 
   lines.forEach((rawLine, i) => {
     const ln = i + 1;
     const line = rawLine.trim();
     if (!line || /^```/.test(line)) return;
+
+    // 必逛 / 必吃 子列表：缩进的「- xxx」，或不含冒号的「- xxx」
+    if (listOpen && curItem) {
+      const sub = rawLine.match(/^\s+[-*•·]\s*(.+)$/) ?? (FIELD_RE.test(line) ? null : line.match(/^[-*•·]\s*(.+)$/));
+      const nested = /^\s+[-*•·]/.test(rawLine);
+      if (sub && (nested || !FIELD_RE.test(line))) {
+        const it = curItem as ItemDraft;
+        it.mustDo = [...(it.mustDo ?? []), sub[1].trim()];
+        return;
+      }
+      listOpen = false;
+    }
 
     if (/^#\s/.test(line) || line === '#') {
       finishItem();
@@ -111,16 +154,16 @@ export function parseMd(input: string): ParseResult {
       const segs = line.replace(/^##\s*/, '').split(/\s*[|｜]\s*/).map((s) => s.trim());
       const idxMatch = segs[0]?.match(/\d+/);
       const index = idxMatch ? Number(idxMatch[0]) : days.length + 1;
-      const date = segs[1] ?? '';
+      const date = parseDateAny(segs[1] ?? '');
       curDay = {
         index,
-        date: isIsoDate(date) ? date : '',
+        date,
         tz: '',
         city: segs[2] ?? '',
         title: segs[4] || undefined,
         items: [],
       };
-      if (!isIsoDate(date)) warnings.push({ line: ln, message: `第 ${ln} 行：Day ${index} 的日期无法识别` });
+      if (!date) warnings.push({ line: ln, message: `第 ${ln} 行：Day ${index} 的日期无法识别` });
       rawDayTz = segs[3] ?? '';
       pendingDayTz.push({ day: curDay, raw: rawDayTz, line: ln });
       curDayLine = ln;
@@ -135,10 +178,15 @@ export function parseMd(input: string): ParseResult {
         return;
       }
       const m = line.replace(/^###\s*/, '').match(ITEM_RE);
-      const rawType = (m?.[1] ?? '').toLowerCase();
+      const rawType = (m?.[1] ?? '').trim().toLowerCase();
       let type: ItemType = 'note';
+      let mealKind: MealKind | undefined;
+      const alias = TYPE_ALIAS[rawType] ?? TYPE_ALIAS[(m?.[1] ?? '').trim()];
       if (TYPES.includes(rawType as ItemType)) type = rawType as ItemType;
-      else
+      else if (alias) {
+        type = alias.type;
+        mealKind = alias.meal;
+      } else
         warnings.push({
           line: ln,
           message: rawType ? `第 ${ln} 行：不认识的类型「${rawType}」，已当作 note` : `第 ${ln} 行：缺少类型，已当作 note`,
@@ -167,6 +215,7 @@ export function parseMd(input: string): ParseResult {
         start: start ? pad(start) : undefined,
         end: end ? pad(end) : undefined,
         endDayOffset: end && m?.[4] ? 1 : undefined,
+        ...(mealKind ? { meal: mealKind } : {}),
         _line: ln,
       };
       curDay.items.push(curItem);
@@ -177,11 +226,57 @@ export function parseMd(input: string): ParseResult {
     if (!f) return; // 其他文字忽略
     const key = f[1].trim();
     const value = f[2].trim();
+    if (curItem && LIST_KEYS.includes(key)) {
+      const it = curItem as ItemDraft;
+      const list = value.split(LIST_SPLIT).map((x) => x.trim()).filter(Boolean);
+      if (list.length) it.mustDo = [...(it.mustDo ?? []), ...list];
+      listOpen = true;
+      return;
+    }
     if (!value) return;
 
     if (curItem) {
       const it = curItem as ItemDraft;
       switch (key) {
+        case '航班号':
+        case '航班':
+          it.flight = { ...it.flight, number: value };
+          break;
+        case '航空公司':
+          it.flight = { ...it.flight, airline: value };
+          break;
+        case '航站楼':
+          it.flight = { ...it.flight, terminal: value };
+          break;
+        case '座位':
+          it.flight = { ...it.flight, seat: value };
+          break;
+        case '入住日期':
+        case '退房日期': {
+          const d = parseDateAny(value);
+          if (!d) {
+            warnings.push({ line: ln, message: `第 ${ln} 行：${key}无法识别，请写成 DD-MM-YYYY` });
+            break;
+          }
+          it.lodging = { ...it.lodging, [key === '入住日期' ? 'checkIn' : 'checkOut']: d };
+          break;
+        }
+        case '房型':
+          it.lodging = { ...it.lodging, roomType: value };
+          break;
+        case '方式':
+        case '交通方式':
+          it.transit = { ...it.transit, mode: value };
+          break;
+        case '线路':
+          it.transit = { ...it.transit, line: value };
+          break;
+        case '餐别': {
+          const mk = mealFrom(value);
+          if (mk) it.meal = mk;
+          else warnings.push({ line: ln, message: `第 ${ln} 行：餐别只能是早餐、午餐、晚餐或小吃` });
+          break;
+        }
         case '地点': {
           const [name, localName] = splitPipe(value);
           it.place = { ...(it.place ?? { name: '' }), name: name || it.title, localName };
@@ -236,10 +331,14 @@ export function parseMd(input: string): ParseResult {
 
     // Trip 基本信息
     if (key === '日期') {
-      const ds = value.match(DATE_RE) ?? [];
-      if (ds[0] && isIsoDate(ds[0])) trip.startDate = ds[0];
-      if (ds[1] && isIsoDate(ds[1])) trip.endDate = ds[1];
-      else if (ds[0]) trip.endDate = ds[0];
+      const ds = findDates(value);
+      if (ds[0]) trip.startDate = ds[0];
+      trip.endDate = ds[1] ?? ds[0] ?? '';
+      if (!ds.length) warnings.push({ line: ln, message: `第 ${ln} 行：行程日期无法识别，请写成 DD-MM-YYYY ~ DD-MM-YYYY` });
+    } else if (key === '预算') {
+      const v = parseMoney(value);
+      if (v === null) warnings.push({ line: ln, message: `第 ${ln} 行：预算只能写数字（单位 MYR）` });
+      else trip.budget = v;
     } else if (key === '出发地时区') {
       rawTripTz = value;
       tripTzLine = ln;
@@ -278,6 +377,11 @@ export function parseMd(input: string): ParseResult {
   if (!trip.title) {
     trip.title = '未命名旅程';
     warnings.push({ message: '缺少行程标题（# 开头的一行）' });
+  }
+  // 标题就是目的地，例如「北海道，日本」；没写「目的地」时取最后一段当国家/地区
+  if (!trip.destination) {
+    const segs = trip.title.split(/\s*[，,]\s*/).filter(Boolean);
+    if (segs.length > 1) trip.destination = segs[segs.length - 1];
   }
 
   // Day 时区：缺失时沿用出发地时区并记警告
@@ -323,6 +427,20 @@ export function parseMd(input: string): ParseResult {
       if (!it.place && (it.type === 'spot' || it.type === 'lodging')) it.place = { name: it.title };
       if (it.toPlace && it.type !== 'flight' && it.type !== 'transit') {
         it.toPlace = undefined;
+      }
+      // 旧格式写在自定义字段里的航班号、退房日期等，搬到专属字段
+      Object.assign(it, migrateItemV2(it));
+      if (it.type !== 'flight') delete it.flight;
+      if (it.type !== 'lodging') delete it.lodging;
+      if (it.type !== 'transit') delete it.transit;
+      if (it.type === 'lodging') it.lodging = { checkIn: d.date, ...it.lodging };
+      if (it.type === 'meal' && !it.meal) {
+        it.meal = mealFrom(it.title) ?? (it.start ? (it.start < '10:30' ? 'breakfast' : it.start < '15:00' ? 'lunch' : it.start >= '17:00' ? 'dinner' : 'snack') : undefined);
+      }
+      if (it.type !== 'meal') delete it.meal;
+      if (it.mustDo && it.type !== 'spot' && it.type !== 'meal') {
+        it.meta = { ...(it.meta ?? {}), 要点: it.mustDo.join('；') };
+        delete it.mustDo;
       }
       it.key = makeItemKey(d.date, it.type, it.title, used);
       itemCount++;

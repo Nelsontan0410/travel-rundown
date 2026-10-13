@@ -6,6 +6,8 @@ import { FileRow, SettingsGroup, SettingsRow } from '../components/Cards';
 import { CheckFilled } from '../components/Icon';
 import { prepareFile, pickFile, TooLargeError } from '../lib/files';
 import { addDoc } from '../db/repo';
+import { Field, SwitchRow, TextInput } from '../components/Form';
+import { MIN_PASSWORD } from '../lib/crypto';
 import { fmtMonthDay, SEP } from '../domain/format';
 import type { DocKind, Item, ItemType } from '../domain/types';
 import type { TripData } from '../hooks/data';
@@ -20,7 +22,7 @@ const KIND_OPTIONS: { value: DocKind; label: string }[] = [
 export function kindForType(t?: ItemType): DocKind {
   if (t === 'flight') return 'flight';
   if (t === 'lodging') return 'lodging';
-  if (t === 'spot') return 'ticket';
+  if (t === 'spot' || t === 'meal' || t === 'transit') return 'ticket';
   return 'other';
 }
 
@@ -101,6 +103,11 @@ export function AddDocSheet({
   const [tooLarge, setTooLarge] = useState(false);
   const [picker, setPicker] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [lockOn, setLockOn] = useState(false);
+  const [pw, setPw] = useState('');
+  const [pw2, setPw2] = useState('');
+  const [hint, setHint] = useState('');
+  const [pwErr, setPwErr] = useState('');
   const preview = useMemo(() => (file && file.blob.type.startsWith('image/') ? URL.createObjectURL(file.blob) : undefined), [file]);
   useEffect(() => () => {
     if (preview) URL.revokeObjectURL(preview);
@@ -112,6 +119,11 @@ export function AddDocSheet({
       setKind(kindForType(presetType));
       setKeys(presetKeys);
       setTooLarge(false);
+      setLockOn(false);
+      setPw('');
+      setPw2('');
+      setHint('');
+      setPwErr('');
     }
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -130,9 +142,20 @@ export function AddDocSheet({
 
   const save = async () => {
     if (!file) return;
+    if (lockOn) {
+      if (pw.length < MIN_PASSWORD) return setPwErr(`密码至少 ${MIN_PASSWORD} 位`);
+      if (pw !== pw2) return setPwErr('两次输入的密码不一致');
+    }
     setSaving(true);
     try {
-      await addDoc({ tripId: td.trip.id, blob: file.blob, title: file.name, kind, itemKeys: keys });
+      await addDoc({
+        tripId: td.trip.id,
+        blob: file.blob,
+        title: file.name,
+        kind,
+        itemKeys: keys,
+        ...(lockOn ? { password: pw, hint: hint.trim() || undefined } : {}),
+      });
       onClose();
     } finally {
       setSaving(false);
@@ -167,8 +190,22 @@ export function AddDocSheet({
           <div className={p.mt12}>
             <SettingsGroup>
               <SettingsRow label="关联行程项" value={linked} onClick={() => setPicker(true)} />
+              <SwitchRow label="设置密码（防止别人打开）" on={lockOn} onChange={setLockOn} />
             </SettingsGroup>
           </div>
+          {lockOn && (
+            <div className={p.mt12}>
+              <Field label="密码" error={pwErr || undefined}>
+                <TextInput type="password" autoComplete="new-password" value={pw} onChange={(e) => { setPw(e.target.value); setPwErr(''); }} />
+              </Field>
+              <Field label="再输入一次">
+                <TextInput type="password" autoComplete="new-password" value={pw2} onChange={(e) => { setPw2(e.target.value); setPwErr(''); }} />
+              </Field>
+              <Field label="密码提示（可选）" hint="文件会在这台设备上加密，密码不会保存。忘记密码将无法打开。">
+                <TextInput value={hint} maxLength={40} onChange={(e) => setHint(e.target.value)} />
+              </Field>
+            </div>
+          )}
           <div className={p.mt16}>
             <Button block disabled={saving} onClick={() => void save()}>
               保存

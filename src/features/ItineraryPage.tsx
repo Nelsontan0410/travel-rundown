@@ -3,10 +3,12 @@ import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { Screen, RootHeader } from '../components/Layout';
 import { Button, EmptyLine, EmptyState } from '../components/Basics';
 import { DayHeading, DayTiles, HeroCover, Timeline, TimelineRow } from '../components/Itinerary';
-import { readiness, statusOf, useAppShellReady, useBlobUrl, useCurrentTripId, useTripData } from '../hooks/data';
+import { readiness, statusOf, useAppShellReady, useBlobUrl, useCurrentTripId, useSettings, useTripData } from '../hooks/data';
+import { navLink } from '../links/maps';
+import { LedgerSummaryCard } from '../components/Ledger';
 import { useUI } from '../store/ui';
-import { fmtDateRange, fmtMonthDay, SEP, utcOffsetLabel } from '../domain/format';
-import { currentItemId, defaultDay, docsForItem, itemIcon, itemSubtitle, placeCopyText, rightSlot } from '../domain/rules';
+import { fmtDate, fmtDateRange, fmtMoney, SEP, utcOffsetLabel } from '../domain/format';
+import { currentItemId, defaultDay, docsForItem, itemIcon, itemSubtitle, ledgerSummary, placeCopyText, rightSlot } from '../domain/rules';
 import { openExternal } from '../links/openLink';
 import { setLastTrip } from '../db/repo';
 import PhaseCard from '../components/PhaseCard';
@@ -20,6 +22,7 @@ export default function ItineraryPage() {
   const td = useTripData(tripId);
   const app = useAppShellReady();
   const cover = useBlobUrl(td?.trip.coverBlobKey);
+  const settings = useSettings();
   const selected = useUI((s) => (tripId ? s.selectedDay[tripId] : undefined));
   const selectDay = useUI((s) => s.selectDay);
   const [now, setNow] = useState(() => new Date());
@@ -67,7 +70,8 @@ export default function ItineraryPage() {
   const items = day ? td.items.filter((i) => i.dayId === day.id) : [];
   const cur = day ? currentItemId(day, items, (k) => statusOf(td, k), now) : undefined;
   const dayTitle = day ? `Day ${day.index}${SEP}${day.title || day.city}` : '';
-  const daySub = day ? `${fmtMonthDay(day.date)}${SEP}当地时间 ${utcOffsetLabel(day.tz, now)}` : '';
+  const daySub = day ? `${fmtDate(day.date)}${SEP}当地时间 ${utcOffsetLabel(day.tz, now)}` : '';
+  const ledger = ledgerSummary(trip.budget, td.expenses);
 
   return (
     <Screen
@@ -86,8 +90,11 @@ export default function ItineraryPage() {
             const status = statusOf(td, it.key);
             const docs = docsForItem(td.docs, it.key);
             const isCur = it.id === cur;
-            const copy = it.place ? placeCopyText(it.place) : it.title;
-            const openNav = () => it.navUrl && openExternal(it.navUrl, copy);
+            const target = it.type === 'transit' ? it.toPlace ?? it.place : it.place;
+            const copy = target ? placeCopyText(target) : it.title;
+            const url = day ? navLink(it, day.tz, settings) : undefined;
+            const openNav = () => url && openExternal(url, copy);
+            const slot = rightSlot(it, status, docs.length, !!url);
             return (
               <TimelineRow
                 key={it.id}
@@ -97,11 +104,11 @@ export default function ItineraryPage() {
                 icon={itemIcon(it)}
                 title={it.title}
                 subtitle={itemSubtitle(it)}
-                slot={rightSlot(it, status, docs.length)}
+                slot={slot}
                 current={isCur}
                 actions={{
                   proof: docs.length ? () => nav(`/doc/${docs[0].id}?item=${encodeURIComponent(it.key)}`) : undefined,
-                  nav: it.navUrl ? openNav : undefined,
+                  nav: url && slot.kind !== 'nav' ? openNav : undefined,
                 }}
                 onOpen={() => nav(`/item/${it.id}`)}
                 onNav={openNav}
@@ -110,6 +117,15 @@ export default function ItineraryPage() {
           })}
         </Timeline>
       )}
+      <div style={{ marginTop: 'var(--space-6)' }}>
+        <LedgerSummaryCard
+          budget={ledger.budget}
+          spent={ledger.spent}
+          left={ledger.left}
+          fmt={fmtMoney}
+          onClick={() => nav(`/trip/${trip.id}/ledger`)}
+        />
+      </div>
     </Screen>
   );
 }

@@ -71,3 +71,10 @@
 @media (min-width: 1024px) {
   .bookingGrid, .tripGrid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
+
+/* v2：账本、密码等表单里的原生下拉框，外观和输入框一致 */
+.select { width: 100%; height: var(--h-btn-lg); padding: 0 var(--space-3); border: var(--border-w) solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-surface); font-size: var(--fs-body); color: var(--color-text); outline: none; }
+.select:focus { border-color: var(--color-primary); }
+.lockNote { display: flex; align-items: center; gap: var(--space-2); font-size: var(--fs-small); color: var(--color-text-2); }
+.lockPanel { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-3); padding: var(--space-6) var(--page-x); text-align: center; background: var(--color-surface-muted); }
+.lockPanel svg { color: var(--color-primary); }

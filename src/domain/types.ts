@@ -1,5 +1,6 @@
 // 数据结构以 PRD「数据结构」为准；带「设计新增」的是设计参考「数据绑定」要求的字段。
-export type ItemType = 'flight' | 'lodging' | 'spot' | 'transit' | 'note';
+export type ItemType = 'flight' | 'lodging' | 'spot' | 'transit' | 'meal' | 'note';
+export type MealKind = 'breakfast' | 'lunch' | 'dinner' | 'snack';
 export type ItemStatus = 'todo' | 'done' | 'skipped';
 export type BookingStatus = 'confirmed' | 'pending';
 export type TranslateLang = 'zh-CN' | 'en' | 'ja' | 'ko';
@@ -19,6 +20,8 @@ export interface Trip {
   homeTz: string;
   destination?: string; // 设计新增
   coverBlobKey?: string; // 设计新增
+  /** v2：旅行预算，单位「分」（MYR × 100）。导入只带预算，实际花费由用户在账本里记 */
+  budget?: number;
   translate: TripTranslate; // 设计新增
   sourceMd: string;
   importedAt: string;
@@ -65,6 +68,31 @@ export interface Item {
   alt?: string; // 备选方案（如天气不好时）
   fixed?: boolean; // 固定时间（航班、预约等）
   timeNote?: string; // 没有精确时间时的说明，例如「早上」
+  // ---- v2：按类型的专属字段（只有对应类型才会有） ----
+  flight?: FlightInfo;
+  lodging?: LodgingInfo;
+  transit?: TransitInfo;
+  meal?: MealKind;
+  /** 景点「必逛 / 必体验」、餐饮「必吃」清单；用户勾选状态存在 ItemState.checked */
+  mustDo?: string[];
+}
+
+export interface FlightInfo {
+  number?: string; // 航班号
+  airline?: string;
+  terminal?: string;
+  seat?: string;
+}
+
+export interface LodgingInfo {
+  checkIn?: string; // YYYY-MM-DD，默认就是所在那天
+  checkOut?: string; // YYYY-MM-DD
+  roomType?: string;
+}
+
+export interface TransitInfo {
+  mode?: string; // 地铁、巴士、JR、出租车、租车、步行……
+  line?: string;
 }
 
 export interface SourceRange {
@@ -79,19 +107,48 @@ export interface Doc {
   tripId: string;
   title: string;
   kind: DocKind;
-  mime: string;
+  mime: string; // 原文件类型；加密后 blob 本体是密文，但这里仍记原类型
   blobKey: string;
   itemKeys: string[];
+  /** v2：有值表示文件已用密码加密（AES-GCM，密钥由 PBKDF2 从密码导出），密码不保存 */
+  lock?: DocLock;
   addedAt: string;
   updatedAt: string;
+}
+
+export interface DocLock {
+  salt: string; // base64
+  iv: string; // base64
+  iter: number;
+  hint?: string;
 }
 
 export interface ItemState {
   tripId: string;
   itemKey: string;
   status: ItemStatus;
+  /** v2：已勾选的必逛 / 必吃项（存文字，重新导入后文字不变就还在） */
+  checked?: string[];
   updatedAt: string;
 }
+
+export type ExpenseCategory = 'flight' | 'lodging' | 'transit' | 'meal' | 'ticket' | 'shopping' | 'other';
+
+/** v2：账本明细。金额单位「分」，目前只支持 MYR */
+export interface Expense {
+  id: string;
+  tripId: string;
+  date: string; // YYYY-MM-DD
+  amount: number; // 分
+  title: string;
+  category: ExpenseCategory;
+  itemKey?: string;
+  note?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const CURRENCY = 'MYR';
 
 export interface BlobRecord {
   key: string;

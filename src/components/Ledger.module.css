@@ -1,0 +1,25 @@
+.card { padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-3); width: 100%; text-align: left; }
+.top { display: flex; align-items: center; gap: var(--space-2); }
+.top svg { color: var(--color-primary); }
+.title { font-size: var(--fs-section); font-weight: var(--fw-section); flex: 1; }
+.nums { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); }
+.num { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
+.numLabel { font-size: var(--fs-caption); color: var(--color-text-2); }
+.numValue { font-size: var(--fs-card); font-weight: var(--fw-card); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.over { color: var(--color-warning-ink); }
+.bar { height: var(--space-2); border-radius: var(--radius-full); background: var(--color-neutral-soft); overflow: hidden; }
+.fill { height: 100%; background: var(--color-primary); transition: width var(--duration); }
+.fillOver { background: var(--color-warning-ink); }
+.note { font-size: var(--fs-small); color: var(--color-text-2); }
+.cats { padding: var(--space-2) var(--space-3); }
+.cat { display: grid; grid-template-columns: var(--size-thumb) minmax(0, 1fr) auto; align-items: center; gap: var(--space-3); min-height: var(--h-file-row); font-size: var(--fs-body); }
+.catBar { height: var(--space-2); border-radius: var(--radius-full); background: var(--color-neutral-soft); overflow: hidden; }
+.catFill { height: 100%; background: var(--color-primary); }
+.catAmt { font-variant-numeric: tabular-nums; color: var(--color-text-2); font-size: var(--fs-small); }
+.day { font-size: var(--fs-small); font-weight: 600; color: var(--color-text-2); margin: var(--space-4) 0 var(--space-2); display: flex; justify-content: space-between; font-variant-numeric: tabular-nums; }
+.row { display: flex; align-items: center; gap: var(--space-3); width: 100%; min-height: var(--h-card-min); padding: var(--space-2) var(--space-3); text-align: left; }
+.row + .row { border-top: var(--border-w) solid var(--color-border); }
+.rowText { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.rowTitle { font-size: var(--fs-card); font-weight: var(--fw-card); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rowSub { font-size: var(--fs-small); color: var(--color-text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rowAmt { font-size: var(--fs-card); font-weight: var(--fw-card); font-variant-numeric: tabular-nums; }

@@ -11,6 +11,7 @@ import DocPage from './features/DocPage';
 import TemplatePage from './features/TemplatePage';
 import PastePage from './features/PastePage';
 import PreviewPage from './features/PreviewPage';
+import LedgerPage from './features/LedgerPage';
 import RestoreConfirm from './components/RestoreConfirm';
 import UpdateBanner from './components/UpdateBanner';
 
@@ -40,6 +41,7 @@ export default function App() {
         <Route path="/item/:itemId" element={<ItemPage />} />
         <Route path="/docs" element={<DocsPage />} />
         <Route path="/trip/:tripId/settings" element={<TripSettingsPage />} />
+        <Route path="/trip/:tripId/ledger" element={<LedgerPage />} />
         <Route path="/doc/:docId" element={<DocPage />} />
         <Route path="/import/template" element={<TemplatePage />} />
         <Route path="/import/paste" element={<PastePage />} />

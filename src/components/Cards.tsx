@@ -20,6 +20,7 @@ export function FileRow({
   saved,
   onClick,
   previewUrl,
+  locked,
 }: {
   title: string;
   mime: string;
@@ -27,13 +28,19 @@ export function FileRow({
   saved: boolean;
   onClick?: () => void;
   previewUrl?: string;
+  /** 已加密：不显示缩略图 */
+  locked?: boolean;
 }) {
   const isImg = mime.startsWith('image/');
-  const stored = useBlobUrl(isImg && saved ? blobKey : undefined);
+  const stored = useBlobUrl(isImg && saved && !locked ? blobKey : undefined);
   const url = previewUrl ?? stored;
   return (
     <button type="button" className={s.file} onClick={onClick} disabled={!onClick}>
-      {isImg ? (
+      {locked ? (
+        <span className={s.thumb} aria-label="已加密" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Icon name="Lock" size="xs" color="var(--color-primary)" />
+        </span>
+      ) : isImg ? (
         url ? <img className={s.thumb} src={url} alt="" /> : <span className={s.thumb} />
       ) : (
         <span className={s.pdf}>PDF</span>
@@ -50,6 +57,7 @@ export interface BookingFile {
   mime: string;
   blobKey: string;
   saved: boolean;
+  locked?: boolean;
 }
 
 /** BookingCard（02、03） */
@@ -100,7 +108,7 @@ export function BookingCard({
       {files.length > 0
         ? files.map((f) => (
             <div key={f.id} className={s.fileLine}>
-              <FileRow title={f.title} mime={f.mime} blobKey={f.blobKey} saved={f.saved} onClick={() => onOpenFile(f.id)} />
+              <FileRow title={f.title} mime={f.mime} blobKey={f.blobKey} saved={f.saved} locked={f.locked} onClick={() => onOpenFile(f.id)} />
               {withEye && <IconButton icon="Eye" label="查看" onClick={() => onOpenFile(f.id)} />}
             </div>
           ))

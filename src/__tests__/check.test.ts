@@ -25,10 +25,8 @@ describe('checkTrip', () => {
     expect(rules([it0({ type: 'lodging', start: '15:00', place: { name: 'a', localAddress: 'x' } })])).not.toContain('missing-local-address');
     expect(rules([it0({ type: 'spot' })])).not.toContain('missing-local-address');
   });
-  it('missing-nav: everything except note', () => {
-    expect(rules([it0({ navUrl: undefined })])).toContain('missing-nav');
-    expect(rules([it0({ type: 'note', navUrl: undefined })])).not.toContain('missing-nav');
-    expect(rules([it0()])).not.toContain('missing-nav');
+  it('v2: no longer warns about missing nav links (App builds them)', () => {
+    expect(rules([it0({ navUrl: undefined })])).toEqual([]);
   });
   it('time-order: reversed start in the same day', () => {
     const a = it0({ key: 'a', start: '10:00' });

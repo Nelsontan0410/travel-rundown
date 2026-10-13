@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Navigate, useParams, useSearchParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import p from './Page.module.css';
@@ -6,7 +7,11 @@ import { Button } from '../components/Basics';
 import { FileRow } from '../components/Cards';
 import { DocViewer } from '../components/DocViewer';
 import { db } from '../db/schema';
-import { replaceDocBlob } from '../db/repo';
+import { lockDoc, openLockedDoc, replaceDocBlob, unlockDoc } from '../db/repo';
+import { Icon } from '../components/Icon';
+import PasswordSheet from '../components/PasswordSheet';
+import { WrongPasswordError } from '../lib/crypto';
+import { toast } from '../store/ui';
 import { downloadBlob, extOf, pickFile, prepareFile } from '../lib/files';
 import { copyWithToast } from '../links/openLink';
 
@@ -30,22 +35,55 @@ export default function DocPage() {
     }
     return null;
   }, [doc?.id, itemKey]);
+  // 加密文件：解开后的明文只放在内存里，离开页面就丢掉
+  const [plain, setPlain] = useState<Blob | null>(null);
+  const [pw, setPw] = useState('');
+  const [ask, setAsk] = useState<'unlock' | 'set' | 'remove' | null>(null);
+  const locked = !!doc?.lock;
+  useEffect(() => {
+    if (doc?.lock && !plain && blob) setAsk('unlock');
+  }, [doc?.id, !!blob]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (doc === null) return <Navigate to="/docs" replace />;
   if (!doc) return null;
 
+  const view = locked ? plain : blob;
   const download = () => {
-    if (!blob) return;
+    if (!view) return;
     const name = /\.[a-z0-9]+$/i.test(doc.title) ? doc.title : `${doc.title}.${extOf(doc.mime)}`;
-    downloadBlob(blob, name);
+    downloadBlob(view, name);
   };
   const reupload = async () => {
     const f = await pickFile('image/*,application/pdf');
     if (!f) return;
     try {
-      await replaceDocBlob(doc.id, await prepareFile(f));
+      const b = await prepareFile(f);
+      await replaceDocBlob(doc.id, b, locked ? pw : undefined);
+      if (locked) setPlain(b);
     } catch {
       /* 超过 20 MiB */
+    }
+  };
+  const submitPw = async (password: string, hint?: string): Promise<string | void> => {
+    try {
+      if (ask === 'unlock') {
+        setPlain(await openLockedDoc(doc.id, password));
+        setPw(password);
+      } else if (ask === 'set') {
+        await lockDoc(doc.id, password, hint);
+        setPlain(blob ?? null);
+        setPw(password);
+        toast('已设置密码');
+      } else if (ask === 'remove') {
+        await unlockDoc(doc.id, password);
+        setPlain(null);
+        setPw('');
+        toast('已移除密码');
+      }
+      setAsk(null);
+    } catch (e) {
+      if (e instanceof WrongPasswordError) return '密码不正确';
+      return '操作失败，请再试一次';
     }
   };
 
@@ -53,11 +91,27 @@ export default function DocPage() {
     <div className={p.docPage}>
       <BackHeader title="预订证明" right={{ icon: 'Download', label: '下载原文件', onClick: download, primary: true }} />
       <div className={p.docFile}>
-        <FileRow title={doc.title} mime={doc.mime} blobKey={doc.blobKey} saved={!!blob} />
+        <FileRow title={doc.title} mime={doc.mime} blobKey={doc.blobKey} saved={!!blob} locked={locked} />
+        {blob && (!locked || plain) && (
+          <Button variant="link" chevron={false} icon={locked ? 'LockOpen' : 'Lock'} onClick={() => setAsk(locked ? 'remove' : 'set')}>
+            {locked ? '移除密码' : '设置密码'}
+          </Button>
+        )}
       </div>
-      <DocViewer blob={blob} mime={doc.mime} onReupload={() => void reupload()} />
+      {locked && !plain && blob ? (
+        <div className={p.lockPanel}>
+          <Icon name="Lock" size="xl" />
+          <p>这份文件已加密</p>
+          {doc.lock?.hint && <p className={p.lockNote}>提示：{doc.lock.hint}</p>}
+          <Button icon="LockOpen" onClick={() => setAsk('unlock')}>
+            输入密码查看
+          </Button>
+        </div>
+      ) : (
+        <DocViewer blob={locked && blob ? plain : blob} mime={doc.mime} onReupload={() => void reupload()} />
+      )}
       <div className={p.docBottom}>
-        <Button icon="Download" disabled={!blob} onClick={download}>
+        <Button icon="Download" disabled={!view} onClick={download}>
           下载原文件
         </Button>
         {bookingRef && (
@@ -66,6 +120,14 @@ export default function DocPage() {
           </Button>
         )}
       </div>
+      <PasswordSheet
+        open={ask !== null}
+        onClose={() => setAsk(null)}
+        mode={ask === 'set' ? 'set' : 'unlock'}
+        title={ask === 'set' ? '为这份文件设置密码' : ask === 'remove' ? '输入密码以移除' : '输入密码'}
+        hint={doc.lock?.hint}
+        onSubmit={submitPw}
+      />
     </div>
   );
 }

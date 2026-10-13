@@ -58,7 +58,7 @@ describe('parseMd', () => {
       place: { name: '新加坡樟宜机场', localName: 'Changi Airport' },
       toPlace: { name: '成田国际机场', localName: '成田国際空港' },
       bookingRef: 'ABC123',
-      meta: { 航班号: 'XX123' },
+      flight: { number: 'XX123' },
     });
     const l = r.days[0].items[1];
     expect(l.place).toEqual({ name: '新宿 XX 酒店', address: '东京都新宿区…', localAddress: '東京都新宿区…' });
@@ -94,12 +94,23 @@ describe('parseMd', () => {
 });
 
 describe('prompt', () => {
-  it('fills nav rules', () => {
-    const p = buildPrompt('amap', 'google-maps');
-    expect(p).toContain('中国大陆境内的行程项用高德地图链接，其他地区用Google Maps链接。');
-    expect(p).toContain('uri.amap.com');
-    expect(p).not.toContain('{链接规则}');
-    expect(buildPrompt('apple-maps', 'apple-maps')).toContain('所有行程项都用Apple Maps链接。');
+  it('v2 prompt: six types, DD-MM-YYYY, no links', () => {
+    const p = buildPrompt();
+    for (const t of ['flight', 'lodging', 'spot', 'transit', 'meal', 'note']) expect(p).toContain(`- ${t}：`);
+    expect(p).toContain('DD-MM-YYYY');
+    expect(p).not.toContain('https://');
+  });
+  it('v2 prompt ↔ parser: every field the prompt asks for is understood (nothing falls into meta)', () => {
+    const p = buildPrompt();
+    const keys = [...new Set([...p.matchAll(/^- ([^:：\s]+):/gm)].map((m) => m[1]))].filter((k) => !['日期', '出发地时区', '预算'].includes(k));
+    expect(keys.length).toBeGreaterThan(15);
+    const sample: Record<string, string> = { 入住日期: '01-01-2027', 退房日期: '02-01-2027', 预订状态: '已确认', 固定: '是', 餐别: '午餐' };
+    for (const k of keys) {
+      const r = parseMd(`# 东京，日本\n- 日期: 01-01-2027 ~ 02-01-2027\n- 出发地时区: Asia/Singapore\n## Day 1 | 01-01-2027 | 东京 | Asia/Tokyo\n### [spot] 10:00 X\n- ${k}: ${sample[k] ?? '值 | 値'}\n`);
+      const it = r.days[0].items[0];
+      expect(it.meta?.[k], k).toBeUndefined();
+      expect(r.warnings, k).toEqual([]);
+    }
   });
 });
 
