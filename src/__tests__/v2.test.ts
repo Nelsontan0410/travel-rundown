@@ -122,3 +122,12 @@ describe('v2 预览改日期', () => {
     expect(s.days[0].items.find((i) => i.type === 'lodging')!.lodging!.checkOut).toBe('2027-03-03');
   });
 });
+
+describe('v2 导入拦截', () => {
+  it('blocks content that is not in the App format', () => {
+    const bad = parseMd('# 北海道冬季旅程 Rundown\n\n## 行程总览\n- 1月9日 至 1月19日\n\n## 每日行程\n\n### 1月9日 | 新加坡出发\n- 航班 NH844\n');
+    expect(bad.errors.length).toBeGreaterThan(0);
+    expect(bad.errors.join()).toContain('没有');
+  });
+  it('valid sample has no errors', () => expect(r.errors).toEqual([]));
+});

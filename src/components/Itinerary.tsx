@@ -50,8 +50,8 @@ export function DayTiles({
             className={`${s.tile} ${on ? s.tileOn : ''}`}
             onClick={() => onSelect(d.id)}
           >
-            <span className={s.tileNum}>{dd}</span>
-            <span className={s.tileMonth}>{MONTHS[m - 1]}</span>
+            <span className={s.tileNum}>{dd || '—'}</span>
+            <span className={s.tileMonth}>{MONTHS[m - 1] ?? ''}</span>
           </button>
         );
       })}

@@ -59,6 +59,8 @@ export interface ParseResult {
   trip: TripDraft;
   days: DayDraft[];
   warnings: ParseWarning[];
+  /** 致命问题：内容不是 App 的格式，不允许导入（预览页会给出修复提示词） */
+  errors: string[];
   itemCount: number;
 }
 
@@ -118,6 +120,7 @@ export function parseMd(input: string): ParseResult {
   let curDayLine = 0;
   let rawDayTz = '';
   let curItem: (ItemDraft & { _line: number }) | null = null;
+  let untyped = 0;
   const pendingDayTz: { day: DayDraft; raw: string; line: number }[] = [];
   let listOpen = false; // 「- 必逛:」后面跟着的子列表
 
@@ -186,11 +189,13 @@ export function parseMd(input: string): ParseResult {
       else if (alias) {
         type = alias.type;
         mealKind = alias.meal;
-      } else
+      } else {
+        untyped++;
         warnings.push({
           line: ln,
           message: rawType ? `第 ${ln} 行：不认识的类型「${rawType}」，已当作 note` : `第 ${ln} 行：缺少类型，已当作 note`,
         });
+      }
       let start = m?.[2];
       let end = m?.[3];
       if (start && !validTime(start)) {
@@ -447,5 +452,14 @@ export function parseMd(input: string): ParseResult {
     }
   }
 
-  return { trip, days, warnings, itemCount };
+  const errors: string[] = [];
+  if (!days.length) errors.push('没有识别到任何一天（需要「## Day 1 | DD-MM-YYYY | 城市 | 时区」这样的标题）');
+  else if (!trip.startDate) errors.push('没有识别到行程日期');
+  else {
+    const noDate = days.filter((d) => !d.date).map((d) => d.index);
+    if (noDate.length) errors.push(`Day ${noDate.join('、')} 没有日期`);
+  }
+  if (itemCount > 0 && untyped === itemCount) errors.push('行程项都没有类型标记（需要「### [flight] 08:30 标题」这样的写法）');
+
+  return { trip, days, warnings, errors, itemCount };
 }
