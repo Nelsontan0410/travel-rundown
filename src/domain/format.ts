@@ -7,21 +7,81 @@ function parts(date: string) {
   return { y, m, d };
 }
 
-/** 1月13日 */
+export const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+
+/** 13-JAN（用户要求的显示格式：日-英文月份缩写-年） */
 export function fmtMonthDay(date: string): string {
   const { m, d } = parts(date);
-  return `${m}月${d}日`;
+  if (!m || !d) return date;
+  return `${d}-${MONTHS[m - 1]}`;
 }
 
-/** 2027.01.13 — 01.22；跨年时两边都写全年份 */
+/** 13-JAN-2027 */
+export function fmtDate(date: string): string {
+  const { y } = parts(date);
+  return y ? `${fmtMonthDay(date)}-${y}` : date;
+}
+
+/** 13-JAN — 22-JAN-2027；跨年时两边都写全 */
 export function fmtDateRange(start: string, end: string): string {
+  if (!start) return '';
+  if (!end || start === end) return fmtDate(start);
   const a = parts(start);
   const b = parts(end);
-  const p = (n: number) => String(n).padStart(2, '0');
-  const left = `${a.y}.${p(a.m)}.${p(a.d)}`;
-  if (start === end) return left;
-  const right = a.y === b.y ? `${p(b.m)}.${p(b.d)}` : `${b.y}.${p(b.m)}.${p(b.d)}`;
-  return `${left}${RANGE}${right}`;
+  const left = a.y === b.y ? fmtMonthDay(start) : fmtDate(start);
+  return `${left}${RANGE}${fmtDate(end)}`;
+}
+
+/**
+ * 解析导入时出现的各种日期写法，统一成 YYYY-MM-DD；认不出返回 ''。
+ * 支持：13-01-2027、13/1/2027、13.01.2027（日在前）、2027-01-13、13-JAN-2027、13 Jan 2027。
+ * 只认「日-月-年」，不认美式「月-日-年」。
+ */
+export function parseDateAny(raw: string): string {
+  const s = raw.trim();
+  const ok = (y: number, m: number, d: number) => {
+    if (!(y >= 1900 && y <= 2200 && m >= 1 && m <= 12 && d >= 1 && d <= 31)) return '';
+    const iso = `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const t = new Date(`${iso}T00:00:00Z`);
+    return t.getUTCDate() === d ? iso : '';
+  };
+  let m = s.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/);
+  if (m) return ok(+m[1], +m[2], +m[3]);
+  m = s.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/);
+  if (m) return ok(+m[3], +m[2], +m[1]);
+  m = s.match(/^(\d{1,2})[-\s/.]*([A-Za-z]{3})[A-Za-z]*[-\s/.,]*(\d{4})$/);
+  if (m) {
+    const mi = MONTHS.indexOf(m[2].toUpperCase());
+    return mi < 0 ? '' : ok(+m[3], mi + 1, +m[1]);
+  }
+  return '';
+}
+
+/** 从一段文字里按顺序找出所有能识别的日期 */
+export function findDates(text: string): string[] {
+  const re = /\d{4}[-/.]\d{1,2}[-/.]\d{1,2}|\d{1,2}[-/.]\d{1,2}[-/.]\d{4}|\d{1,2}[-\s]*[A-Za-z]{3,9}[-\s,]*\d{4}/g;
+  return (text.match(re) ?? []).map(parseDateAny).filter(Boolean);
+}
+
+/** 两个日期相差几天（b − a） */
+export function daysBetween(a: string, b: string): number {
+  return Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86400000);
+}
+
+/** RM 1,234.50（金额单位「分」） */
+export function fmtMoney(sen: number): string {
+  const neg = sen < 0;
+  const v = Math.abs(Math.round(sen));
+  const whole = Math.floor(v / 100).toLocaleString('en-US');
+  const cents = String(v % 100).padStart(2, '0');
+  return `${neg ? '-' : ''}RM ${whole}.${cents}`;
+}
+
+/** 「1,234.5」「RM 80」「MYR8000」→ 分；认不出返回 null */
+export function parseMoney(raw: string): number | null {
+  const s = raw.replace(/(RM|MYR|令吉|马币|,|，|\s)/gi, '');
+  if (!/^\d+(\.\d{1,2})?$/.test(s)) return null;
+  return Math.round(parseFloat(s) * 100);
 }
 
 /** 行程天数：endDate − startDate + 1 */

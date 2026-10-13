@@ -4,6 +4,7 @@ import { Button, StatusChip } from './Basics';
 import { Icon } from './Icon';
 import type { RightSlot } from '../domain/rules';
 import type { IconName } from '../domain/rules';
+import { MONTHS } from '../domain/format';
 
 /** HeroCover（01） */
 export function HeroCover({ coverUrl, dateRange, offline }: { coverUrl?: string; dateRange: string; offline: boolean }) {
@@ -50,7 +51,7 @@ export function DayTiles({
             onClick={() => onSelect(d.id)}
           >
             <span className={s.tileNum}>{dd}</span>
-            <span className={s.tileMonth}>{m}月</span>
+            <span className={s.tileMonth}>{MONTHS[m - 1]}</span>
           </button>
         );
       })}

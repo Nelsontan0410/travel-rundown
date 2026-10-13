@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "e2e": "npm run build && python3 qa/e2e.py",
-    "guard": "node scripts/guard.mjs"
+    "guard": "node scripts/guard.mjs",
+    "qa:v2": "npm run build && python3 qa/v2_flow.py"
   },
   "dependencies": {
     "dexie": "^4.0.10",

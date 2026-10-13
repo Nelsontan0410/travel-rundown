@@ -1,14 +1,17 @@
 import { useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import p from './Page.module.css';
-import { Screen, BackHeader, Dialog } from '../components/Layout';
+import { Screen, BackHeader, Dialog, Sheet } from '../components/Layout';
+import { Field, FormActions, TextInput } from '../components/Form';
 import { Button, Card, InfoBanner } from '../components/Basics';
 import { ReadinessRow, SettingsGroup, SettingsRow } from '../components/Cards';
 import { Icon } from '../components/Icon';
-import { readiness, useAppShellReady, useBlobUrl, useTripData } from '../hooks/data';
-import { fmtDateRange, fmtDaysDest } from '../domain/format';
-import { navAppsUsed, TRANSLATE_LANGS } from '../links/linkLabel';
-import { deleteTrip, exportBackup, setCover, setTranslateTo } from '../db/repo';
+import { readiness, useAppShellReady, useBlobUrl, useSettings, useTripData } from '../hooks/data';
+import { addDays, daysBetween, fmtDate, fmtDateRange, fmtDaysDest, fmtMoney } from '../domain/format';
+import { TRANSLATE_LANGS } from '../links/linkLabel';
+import { NAV_APP_NAME } from '../importer/promptTemplate';
+import { deleteTrip, exportBackup, setCover, setTranslateTo, shiftTripStart } from '../db/repo';
+import { toast } from '../store/ui';
 import { downloadBlob, pickFile, prepareFile } from '../lib/files';
 import { restoreFromFile } from './importFlow';
 import { ChoiceSheet } from './Sheets';
@@ -17,7 +20,7 @@ import { useStorageInfo } from '../hooks/storage';
 import CheckList from '../components/CheckList';
 import { checkTrip } from '../domain/check';
 import { docsForItem } from '../domain/rules';
-import type { TranslateLang } from '../domain/types';
+import { DEFAULT_SETTINGS, type TranslateLang } from '../domain/types';
 
 /** 05 旅程设置（从 01 的设置图标进入） */
 export default function TripSettingsPage() {
@@ -30,13 +33,26 @@ export default function TripSettingsPage() {
   const [confirmDel, setConfirmDel] = useState(false);
   const setPaste = useUI((s) => s.setPasteText);
   const storage = useStorageInfo();
+  const settings = useSettings() ?? DEFAULT_SETTINGS;
+  const [dateSheet, setDateSheet] = useState(false);
+  const [newStart, setNewStart] = useState('');
 
   if (td === null) return <Navigate to="/trips" replace />;
   if (!td) return <Screen tab="trips" header={<BackHeader title="旅程设置" />}>{null}</Screen>;
 
   const { trip } = td;
   const r = readiness(td, app);
-  const navApps = navAppsUsed(td.items.map((i) => i.navUrl));
+  const navApps =
+    settings.navElsewhere === settings.navInChina
+      ? NAV_APP_NAME[settings.navElsewhere]
+      : `${NAV_APP_NAME[settings.navElsewhere]}（中国大陆：${NAV_APP_NAME[settings.navInChina]}）`;
+  const span = daysBetween(trip.startDate, trip.endDate);
+  const saveStart = async () => {
+    if (!newStart || newStart === trip.startDate) return setDateSheet(false);
+    await shiftTripStart(trip.id, newStart);
+    setDateSheet(false);
+    toast('行程日期已更新');
+  };
   const lang = TRANSLATE_LANGS.find((l) => l.code === trip.translate.to) ?? TRANSLATE_LANGS[0];
   const filesOk = r.filesSaved === r.filesTotal;
   const issues = checkTrip(
@@ -79,8 +95,26 @@ export default function TripSettingsPage() {
         </div>
       </div>
 
+      <SettingsGroup title="行程">
+        <SettingsRow
+          icon="CalendarDays"
+          label="出发日期"
+          value={fmtDate(trip.startDate)}
+          onClick={() => {
+            setNewStart(trip.startDate);
+            setDateSheet(true);
+          }}
+        />
+        <SettingsRow
+          icon="Wallet"
+          label="旅行账本"
+          value={trip.budget !== undefined ? `预算 ${fmtMoney(trip.budget)}` : '未设置预算'}
+          onClick={() => nav(`/trip/${trip.id}/ledger`)}
+        />
+      </SettingsGroup>
+
       <SettingsGroup title="外部工具" note="导航和翻译将在外部应用或网页中打开。">
-        <SettingsRow icon="Navigation" label="导航工具" value={navApps.length ? navApps.join('、') : '—'} arrow={false} />
+        <SettingsRow icon="Navigation" label="导航工具" value={navApps} onClick={() => nav('/import/template')} />
         <SettingsRow icon="Languages" label="翻译工具" value="Google Translate" arrow={false} />
         <SettingsRow icon="Globe" label="翻译语言" value={`自动识别 → ${lang.label}`} onClick={() => setLangSheet(true)} />
       </SettingsGroup>
@@ -128,7 +162,7 @@ export default function TripSettingsPage() {
         </Button>
       </Card>
       <p className={p.mt8} style={{ fontSize: 'var(--fs-caption)', color: 'var(--color-text-2)' }}>
-        备份包含行程、预订证明和完成状态。
+        备份包含行程、预订证明（加密的仍保持加密）、完成状态和账本。
       </p>
 
       <SettingsGroup title="管理">
@@ -174,6 +208,24 @@ export default function TripSettingsPage() {
           </>
         }
       />
+      <Sheet open={dateSheet} onClose={() => setDateSheet(false)} title="修改出发日期">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            void saveStart();
+          }}
+        >
+          <Field
+            label="出发日期"
+            hint={newStart ? `整份行程一起平移：${fmtDateRange(newStart, addDays(newStart, span))}。完成状态、证明和账本关联都会保留。` : undefined}
+          >
+            <TextInput type="date" value={newStart} onChange={(e) => setNewStart(e.target.value)} />
+          </Field>
+          <FormActions>
+            <Button type="submit">保存</Button>
+          </FormActions>
+        </form>
+      </Sheet>
     </Screen>
   );
 }

@@ -19,6 +19,8 @@ import {
   Image,
   Info,
   Languages,
+  Lock,
+  LockOpen,
   MapPin,
   Minus,
   MoreHorizontal,
@@ -35,6 +37,9 @@ import {
   Trash2,
   Upload,
   Utensils,
+  Wallet,
+  Pencil,
+  ExternalLink,
   type LucideIcon,
 } from 'lucide-react';
 import type { CSSProperties } from 'react';
@@ -58,6 +63,8 @@ export const ICONS = {
   Image,
   Info,
   Languages,
+  Lock,
+  LockOpen,
   MapPin,
   Minus,
   MoreHorizontal,
@@ -74,6 +81,9 @@ export const ICONS = {
   Trash2,
   Upload,
   Utensils,
+  Wallet,
+  Pencil,
+  ExternalLink,
 } satisfies Record<string, LucideIcon>;
 
 export type IconKey = keyof typeof ICONS;

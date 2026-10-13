@@ -11,7 +11,15 @@ import CheckList from '../components/CheckList';
 import { checkTrip } from '../domain/check';
 import DiffSection from '../components/DiffSection';
 import { diffImport, flattenParsed, type ImportDiff } from '../importer/diff';
-import { fmtDateRange, tripDays } from '../domain/format';
+import { fmtDate, fmtDateRange, fmtMoney, SEP, tripDays } from '../domain/format';
+import { shiftDraft } from '../importer/shift';
+import { Field, TextInput } from '../components/Form';
+import { DraftDay, TypeCounts } from '../components/DraftReview';
+import { itemIcon, itemSubtitle, TYPE_LABEL } from '../domain/rules';
+import type { Item, ItemType } from '../domain/types';
+
+const TYPE_ORDER: ItemType[] = ['flight', 'lodging', 'spot', 'meal', 'transit', 'note'];
+const TYPE_ICON = { flight: 'Plane', lodging: 'Building2', spot: 'MapPin', meal: 'Utensils', transit: 'TrainFront', note: 'StickyNote' } as const;
 
 /** 导入预览页 */
 export default function PreviewPage() {
@@ -54,6 +62,13 @@ export default function PreviewPage() {
   if (!draft) return <Navigate to="/trips" replace />;
   const { result } = draft;
   const empty = result.itemCount === 0;
+
+  const all = result.days.flatMap((d) => d.items);
+  const counts = TYPE_ORDER.map((t) => ({ icon: TYPE_ICON[t], label: TYPE_LABEL[t], n: all.filter((i) => i.type === t).length })).filter((c) => c.n > 0);
+  const changeStart = (v: string) => {
+    if (!v || v === result.trip.startDate) return;
+    setDraft({ ...draft, result: shiftDraft(result, v) });
+  };
 
   const back = () => {
     // 回到粘贴页修改：文件导入的内容也带过去
@@ -103,12 +118,23 @@ export default function PreviewPage() {
           <div className={p.mt8}>
             <KeyValueCard
               rows={[
-                ['旅程名', result.trip.title],
+                ['目的地', result.trip.title],
                 ['日期范围', result.trip.startDate ? fmtDateRange(result.trip.startDate, result.trip.endDate) : '—'],
                 ['天数', result.trip.startDate ? `${tripDays(result.trip.startDate, result.trip.endDate)}天` : `${result.days.length}天`],
                 ['行程项数', String(result.itemCount)],
+                ['总预算', result.trip.budget !== undefined ? fmtMoney(result.trip.budget) : '未写（可以之后在账本里设置）'],
               ]}
             />
+          </div>
+          {result.trip.startDate && (
+            <div className={p.mt12}>
+              <Field label="出发日期" hint="日期不对时直接选正确的出发日，整份行程会一起平移">
+                <TextInput type="date" value={result.trip.startDate} onChange={(e) => changeStart(e.target.value)} />
+              </Field>
+            </div>
+          )}
+          <div className={p.mt12}>
+            <TypeCounts items={counts} />
           </div>
           <div className={p.mt12}>
             <h3 style={{ fontSize: 'var(--fs-body)', fontWeight: 600, margin: '0 0 var(--space-2)' }}>准备检查</h3>
@@ -154,6 +180,21 @@ export default function PreviewPage() {
               )}
             </div>
           )}
+          <h3 style={{ fontSize: 'var(--fs-body)', fontWeight: 600, margin: 'var(--space-4) 0 0' }}>将要导入的内容</h3>
+          {result.days.map((d) => (
+            <DraftDay
+              key={d.index}
+              title={`Day ${d.index}${SEP}${d.title || d.city}`}
+              date={d.date ? fmtDate(d.date) : '日期未识别'}
+              rows={d.items.map((i) => ({
+                key: i.key,
+                time: i.start ?? i.timeNote,
+                icon: itemIcon(i as Item),
+                title: i.title,
+                sub: itemSubtitle(i as Item) || undefined,
+              }))}
+            />
+          ))}
         </>
       )}
       {srcLine != null && <SourceSheet open onClose={() => setSrcLine(null)} md={draft.md} from={srcLine} to={srcLine} context={2} />}

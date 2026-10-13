@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/schema';
-import { DEFAULT_SETTINGS, type Day, type Doc, type Item, type ItemStatus, type Settings, type Trip } from '../domain/types';
+import { DEFAULT_SETTINGS, type Day, type Doc, type Expense, type Item, type ItemStatus, type Settings, type Trip } from '../domain/types';
 
 export function useSettings(): Settings | undefined {
   return useLiveQuery(async () => (await db.settings.get('app')) ?? DEFAULT_SETTINGS, []);
@@ -27,6 +27,10 @@ export interface TripData {
   items: Item[]; // 按天、按出现顺序
   docs: Doc[];
   states: Map<string, ItemStatus>;
+  /** 必逛 / 必吃已勾选的文字 */
+  checked: Map<string, string[]>;
+  /** 账本明细，按日期、录入时间排序 */
+  expenses: Expense[];
   savedBlobs: Set<string>;
   dayById: Map<string, Day>;
 }
@@ -36,12 +40,14 @@ export function useTripData(tripId: string | null | undefined): TripData | null 
     if (!tripId) return null;
     const trip = await db.trips.get(tripId);
     if (!trip) return null;
-    const [days, items, docs, states] = await Promise.all([
+    const [days, items, docs, states, expenses] = await Promise.all([
       db.days.where('tripId').equals(tripId).toArray(),
       db.items.where('tripId').equals(tripId).toArray(),
       db.docs.where('tripId').equals(tripId).toArray(),
       db.itemStates.where('tripId').equals(tripId).toArray(),
+      db.expenses.where('tripId').equals(tripId).toArray(),
     ]);
+    expenses.sort((a, b) => a.date.localeCompare(b.date) || a.createdAt.localeCompare(b.createdAt));
     days.sort((a, b) => a.index - b.index || a.date.localeCompare(b.date));
     const dayOrder = new Map(days.map((d, i) => [d.id, i]));
     items.sort((a, b) => (dayOrder.get(a.dayId) ?? 0) - (dayOrder.get(b.dayId) ?? 0) || a.order - b.order);
@@ -54,6 +60,8 @@ export function useTripData(tripId: string | null | undefined): TripData | null 
       items,
       docs,
       states: new Map(states.map((s) => [s.itemKey, s.status])),
+      checked: new Map(states.filter((s) => s.checked?.length).map((s) => [s.itemKey, s.checked!])),
+      expenses,
       savedBlobs: new Set(present as string[]),
       dayById: new Map(days.map((d) => [d.id, d])),
     };

@@ -30,8 +30,8 @@ describe('misc', () => {
     expect(bookingStatusOf({ ...base, bookingStatus: 'pending' }, 2)).toBe('pending');
   });
   it('date range', () => {
-    expect(fmtDateRange('2027-01-13', '2027-01-22')).toBe('2027.01.13 — 01.22');
-    expect(fmtDateRange('2026-12-30', '2027-01-02')).toBe('2026.12.30 — 2027.01.02');
+    expect(fmtDateRange('2027-01-13', '2027-01-22')).toBe('13-JAN — 22-JAN-2027');
+    expect(fmtDateRange('2026-12-30', '2027-01-02')).toBe('30-DEC-2026 — 2-JAN-2027');
   });
   it('utc offset', () => expect(utcOffsetLabel('Asia/Tokyo')).toBe('UTC+9'));
   it('subtitle & icons', () => {
@@ -42,8 +42,8 @@ describe('misc', () => {
   });
   it('booking subtitle', () => {
     const day: Day = { id: 'd', tripId: 't', index: 1, date: '2027-01-13', tz: 'Asia/Tokyo', city: '' };
-    expect(bookingSubtitle({ ...base, type: 'flight', end: '11:30' }, day)).toBe('1月13日 · 11:30 到达');
-    expect(bookingSubtitle({ ...base, type: 'lodging', meta: { 退房日期: '2027-01-14' } }, day)).toBe('1月13日 — 1月14日');
-    expect(bookingSubtitle({ ...base, type: 'spot' }, day)).toBe('1月13日 · 时间待定');
+    expect(bookingSubtitle({ ...base, type: 'flight', end: '11:30' }, day)).toBe('13-JAN · 11:30 到达');
+    expect(bookingSubtitle({ ...base, type: 'lodging', meta: { 退房日期: '2027-01-14' } }, day)).toBe('13-JAN — 14-JAN');
+    expect(bookingSubtitle({ ...base, type: 'spot' }, day)).toBe('13-JAN · 时间待定');
   });
 });

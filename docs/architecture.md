@@ -1,47 +1,67 @@
-# 架构与数据结构（B 线只读）
+# 架构与数据结构 v2（B 线只读）
 
-本地优先：所有数据在浏览器 IndexedDB（Dexie），无后端。行程由外部 AI 生成 md，App 解析后存库。
+本地优先：所有数据在浏览器 IndexedDB（Dexie，版本 2），无后端、无 App 内 AI。
+用户在自己的 ChatGPT / Claude 里用「导入模板」的提示词整理行程，贴回 App 导入。
 
 ## 分层（依赖只能向下）
 ```mermaid
 flowchart TD
   UI["UI：src/features · src/components · src/styles（B 线）"] --> HK["hooks / store：读取与界面状态（A 线）"]
   UI --> REPO["db/repo.ts：所有写入的唯一入口（A 线）"]
-  HK --> DB[("Dexie · IndexedDB")]
+  HK --> DB[("Dexie · IndexedDB v2")]
   REPO --> DB
-  REPO --> IMP["importer：parseMd · diff · promptTemplate"]
-  UI --> DOM["domain：types · rules · format · phase · check · itemKey（纯函数）"]
-  HK --> DOM
-  IMP --> DOM
+  REPO --> IMP["importer：parseMd · shift · diff · promptTemplate"]
+  REPO --> LIB["lib/crypto：证明加密"]
+  UI --> LINKS["links/maps：App 生成导航链接"]
+  UI --> DOM["domain：types · rules · format · check · migrate（纯函数）"]
 ```
 
 ## 数据模型
 ```mermaid
 erDiagram
-  Trip ||--o{ Day : has
-  Day ||--o{ Item : has
-  Trip ||--o{ ItemState : "完成状态"
-  Trip ||--o{ Doc : "证明文件"
-  Doc }o--o{ Item : "按 Item.key 软关联"
-  ItemState }o--|| Item : "按 Item.key 软关联"
+  Trip ||--o{ Day : "按日期自动生成每天"
+  Day ||--o{ Item : "六种类型"
+  Trip ||--o{ ItemState : "完成状态 + 必逛勾选"
+  Trip ||--o{ Doc : "证明文件（可加密）"
+  Trip ||--o{ Expense : "账本明细（MYR）"
+  Doc }o--o{ Item : "按 Item.key"
+  ItemState }o--|| Item : "按 Item.key"
+  Expense }o--o| Item : "按 Item.key（可选）"
   Doc ||--|| BlobRecord : "blobKey"
-  Trip |o--o| BlobRecord : "coverBlobKey"
 ```
-- **导入内容**（每次重新导入会被整体覆盖）：Trip、Day、Item，id 每次重新生成。
-- **用户内容**（重新导入必须保留）：ItemState、Doc、BlobRecord。它们**不引用 Item.id**，只引用 `Item.key`。
-- `Item.key = 日期|type|标题slug`（同日重名加 `#n`）。这是整个 App 最关键的契约。
 
-## 导入 / 重新导入
+### Trip
+`title` 就是目的地（城市级以上，如「北海道，日本」）；`startDate/endDate`；`budget`（分，MYR，只有它从导入来）。
+
+### Item（六种类型，公共字段 + 专属字段）
+| 类型 | 中文 | 专属字段 |
+|---|---|---|
+| flight | 机票 | `flight { number, airline, terminal, seat }`，`place`=出发机场，`toPlace`=到达机场 |
+| lodging | 住宿 | `lodging { checkIn, checkOut, roomType }` |
+| spot | 景点 | `mustDo[]`（必逛 / 必体验） |
+| meal | 餐饮 | `meal`（breakfast/lunch/dinner/snack），`mustDo[]`（必吃） |
+| transit | 交通 | `transit { mode, line }`，`place`=起点，`toPlace`=终点 |
+| note | 其他 | — |
+
+公共字段：`title start end endDayOffset timeNote place toPlace bookingRef bookingStatus note alt fixed meta src navUrl`。
+`navUrl` 只是 AI 给的备选；实际导航由 `links/maps.ts` 用「当地语言名 + 地址」生成（中国大陆用高德，其他用设置里的地图）。
+
+### 用户内容（重新导入必须保留）
+- `ItemState { status, checked[] }`：完成 / 跳过；必逛、必吃已勾选的文字。
+- `Doc { lock? }`：有 `lock` 表示 blob 是密文（AES-GCM，PBKDF2 从密码导出），密码不保存，忘记无法恢复。
+- `Expense { date, amount(分), title, category, itemKey? }`：账本，目前只有 MYR。
+
+它们都**不引用 Item.id**，只引用 `Item.key = 日期|type|标题slug`（同日重名加 `#n`）。
+
+## 导入 / 重新导入 / 改期
 ```mermaid
 flowchart LR
-  A["粘贴/选择 md"] --> B["parseMd → ParseResult + warnings"]
-  B --> C["useUI.draft（Zustand）"]
-  C --> D["PreviewPage：checkTrip · diffImport"]
-  D -->|用户确认 + renames| E["saveImport（单个事务）"]
-  E --> F["覆盖 Day/Item；按 key 保留 ItemState、Doc；改名则迁移；匹配不上的 Doc 变未关联，不删除"]
+  A["粘贴 / 选文件"] --> B["parseMd：日期 DD-MM-YYYY、六种类型、必逛列表、预算"]
+  B --> C["预览：按天列出内容、类型统计、准备检查、可用日历改出发日（shiftDraft）"]
+  C -->|确认| E["saveImport（单个事务）"]
+  E --> F["覆盖 Day/Item；按 key 保留状态、勾选、证明、账本；改名则迁移"]
+  G["设置页改出发日期"] --> H["shiftTripStart：整份平移，所有 key 绑定一起迁移"]
 ```
 
-## 其他要点
-- 时间是当地时间字符串 + `Day.tz`，不存 UTC。`navUrl` 由外部 AI 写入。
-- 备份：zip（`backup.json` + `files/*`），恢复用 bulkPut 合并。
-- 旅行阶段 `tripPhase` 只看日期，不凭时钟推断完成；完成状态只来自用户手动标记。
+## 显示格式
+日期 `13-JAN-2027`（`fmtDate`），短格式 `13-JAN`；金额 `RM 1,234.50`（`fmtMoney`）。

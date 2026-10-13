@@ -7,8 +7,10 @@ import { Button, Caption, NoteBox, SectionTitle, StatusChip } from '../component
 import { BookingCard, KeyValueCard, LocationCard } from '../components/Cards';
 import { Icon } from '../components/Icon';
 import { db } from '../db/schema';
-import { setItemStatus } from '../db/repo';
-import { statusOf, useTripData } from '../hooks/data';
+import { setItemChecked, setItemStatus } from '../db/repo';
+import { statusOf, useSettings, useTripData } from '../hooks/data';
+import { navLink } from '../links/maps';
+import MustDoList from '../components/MustDoList';
 import { fmtMonthDay, fmtTimeRange, SEP, utcOffsetLabel } from '../domain/format';
 import {
   bookingChip,
@@ -18,8 +20,11 @@ import {
   bookingTitle,
   docsForItem,
   itemIcon,
+  MEAL_LABEL,
+  mustDoTitle,
   placeCopyText,
   statusChip,
+  typeInfo,
   TYPE_LABEL,
 } from '../domain/rules';
 import { copyWithToast, openExternal } from '../links/openLink';
@@ -46,6 +51,9 @@ function allText(it: Item, dateLine: string): string {
   };
   pl('地点', it.place);
   pl('终点', it.toPlace);
+  const info = typeInfo(it);
+  for (const [k, v] of info?.rows ?? []) out.push(`${k}: ${v}`);
+  if (it.mustDo?.length) out.push(`${mustDoTitle(it)}: ${it.mustDo.join('；')}`);
   if (it.bookingRef) out.push(`订单: ${it.bookingRef}`);
   if (it.note) out.push(`备注: ${it.note}`);
   for (const [k, v] of Object.entries(it.meta ?? {})) out.push(`${k}: ${v}`);
@@ -58,6 +66,7 @@ export default function ItemPage() {
   const { itemId } = useParams();
   const item = useLiveQuery(async () => (itemId ? (await db.items.get(itemId)) ?? null : null), [itemId]);
   const td = useTripData(item?.tripId);
+  const settings = useSettings();
   const [menu, setMenu] = useState(false);
   const [add, setAdd] = useState(false);
   const [srcOpen, setSrcOpen] = useState(false);
@@ -70,12 +79,18 @@ export default function ItemPage() {
   const chip = statusChip(status);
   const docs = docsForItem(td.docs, item.key);
   const time = fmtTimeRange(item.start, item.end, item.endDayOffset);
-  const dateLine = `${fmtMonthDay(day.date)}${time ? ` ${time}` : ''}${time ? `${SEP}${utcOffsetLabel(day.tz)}` : ''}`;
+  // 航班起飞时间是出发地当地时间，和当天时区可能不同，所以不标 UTC 偏移
+  const dateLine = `${fmtMonthDay(day.date)}${time ? ` ${time}` : ''}${time && item.type !== 'flight' ? `${SEP}${utcOffsetLabel(day.tz)}` : ''}`;
   const copyPlace = (pl: Place) => void copyWithToast(placeCopyText(pl));
-  const hasBooking = !!item.bookingRef || docs.length > 0;
+  const hasBooking = !!item.bookingRef || docs.length > 0 || item.type === 'flight' || item.type === 'lodging';
   const metaRows = Object.entries(item.meta ?? {});
   const set = (s: 'todo' | 'done' | 'skipped') => void setItemStatus(td.trip.id, item.key, s);
   const openDoc = (id: string) => nav(`/doc/${id}?item=${encodeURIComponent(item.key)}`);
+  const navUrl = navLink(item, day.tz, settings);
+  const info = typeInfo(item);
+  const checked = td.checked.get(item.key) ?? [];
+  const toggleCheck = (t: string) =>
+    void setItemChecked(td.trip.id, item.key, checked.includes(t) ? checked.filter((x) => x !== t) : [...checked, t]);
 
   return (
     <Screen
@@ -100,7 +115,7 @@ export default function ItemPage() {
     >
       <span className={p.tag}>
         <Icon name={itemIcon(item)} size="sm" />
-        {TYPE_LABEL[item.type]}
+        {item.type === 'meal' && item.meal ? `${TYPE_LABEL.meal}${SEP}${MEAL_LABEL[item.meal]}` : TYPE_LABEL[item.type]}
       </span>
       <h1 className={p.h1}>{item.title}</h1>
       {item.fixed && <span className={p.tag}>固定时间</span>}
@@ -119,8 +134,8 @@ export default function ItemPage() {
       )}
 
       <div className={p.btnRow}>
-        {item.navUrl && (
-          <Button icon="Navigation" onClick={() => openExternal(item.navUrl!, placeCopyText(item.place ?? { name: item.title }))}>
+        {navUrl && (
+          <Button icon="Navigation" onClick={() => openExternal(navUrl, placeCopyText(item.toPlace ?? item.place ?? { name: item.title }))}>
             打开导航
           </Button>
         )}
@@ -131,6 +146,20 @@ export default function ItemPage() {
       <div className={p.btnNote}>
         <Caption align="right">复制文字后，在翻译工具中粘贴</Caption>
       </div>
+
+      {info && (
+        <>
+          <SectionTitle>{info.title}</SectionTitle>
+          <KeyValueCard rows={info.rows} />
+        </>
+      )}
+
+      {!!item.mustDo?.length && (
+        <>
+          <SectionTitle>{mustDoTitle(item)}</SectionTitle>
+          <MustDoList title={item.type === 'meal' ? '推荐必吃' : '必逛 / 必体验'} items={item.mustDo} checked={checked} onToggle={toggleCheck} />
+        </>
+      )}
 
       {hasBooking && (
         <>
@@ -143,7 +172,7 @@ export default function ItemPage() {
             chip={bookingChip(bookingStatusOf(item, docs.length))}
             bookingRef={item.bookingRef}
             onCopyRef={() => void copyWithToast(item.bookingRef!)}
-            files={docs.map((d) => ({ id: d.id, title: d.title, mime: d.mime, blobKey: d.blobKey, saved: td.savedBlobs.has(d.blobKey) }))}
+            files={docs.map((d) => ({ id: d.id, title: d.title, mime: d.mime, blobKey: d.blobKey, saved: td.savedBlobs.has(d.blobKey), locked: !!d.lock }))}
             onOpenFile={openDoc}
             onUpload={() => setAdd(true)}
             footer={
@@ -184,6 +213,8 @@ export default function ItemPage() {
         items={[
           { label: '改为待完成', onClick: () => set('todo') },
           { label: '复制全部文字', onClick: () => void copyWithToast(allText(item, dateLine)) },
+          { label: '记一笔花费', onClick: () => nav(`/trip/${td.trip.id}/ledger?add=1&item=${encodeURIComponent(item.key)}`) },
+          ...(!hasBooking ? [{ label: '添加预订证明', onClick: () => setAdd(true) }] : []),
           ...(item.src ? [{ label: '查看原文', onClick: () => setSrcOpen(true) }] : []),
         ]}
       />

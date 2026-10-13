@@ -51,7 +51,7 @@ export default function DocsPage() {
   const allSaved = td.docs.length > 0 && td.docs.every((d) => td.savedBlobs.has(d.blobKey));
   const nothing = listed.length === 0 && unlinked.length === 0 && filter === 'all';
   const openDoc = (id: string, key?: string) => nav(`/doc/${id}${key ? `?item=${encodeURIComponent(key)}` : ''}`);
-  const fileOf = (d: Doc) => ({ id: d.id, title: d.title, mime: d.mime, blobKey: d.blobKey, saved: td.savedBlobs.has(d.blobKey) });
+  const fileOf = (d: Doc) => ({ id: d.id, title: d.title, mime: d.mime, blobKey: d.blobKey, saved: td.savedBlobs.has(d.blobKey), locked: !!d.lock });
 
   return (
     <Screen
