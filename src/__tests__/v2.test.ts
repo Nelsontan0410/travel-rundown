@@ -131,3 +131,36 @@ describe('v2 导入拦截', () => {
   });
   it('valid sample has no errors', () => expect(r.errors).toEqual([]));
 });
+
+// —— AI 输出丢了 # / ## / ### 时也要能识别 ——
+import nomarks from '../../qa/fixtures/hokkaido-nomarks.md?raw';
+describe('丢了标题符号的 AI 输出', () => {
+  const r = parseMd(nomarks);
+  it('识别标题、日期、10 天', () => {
+    expect(r.errors).toEqual([]);
+    expect(r.trip.title).toBe('东京・富士山・北海道，日本');
+    expect(r.trip.startDate).toBe('2027-01-10');
+    expect(r.trip.endDate).toBe('2027-01-19');
+    expect(r.days).toHaveLength(10);
+    expect(r.days[0].date).toBe('2027-01-10');
+    expect(r.days[0].tz).toBe('Asia/Tokyo');
+  });
+  it('行程项带类型和专属字段', () => {
+    const d1 = r.days[0].items;
+    expect(d1[0].type).toBe('flight');
+    expect(d1[0].flight?.airline).toBe('ANA 全日空');
+    expect(d1.find((i) => i.type === 'lodging')?.lodging?.checkOut).toBe('2027-01-11');
+    expect(d1.find((i) => i.type === 'spot')?.mustDo?.length).toBeGreaterThan(0);
+    expect(r.itemCount).toBeGreaterThan(60);
+  });
+  it('「晚上」等词变成时间说明，不留在标题里', () => {
+    const all = r.days.flatMap((d) => d.items);
+    expect(all.some((i) => i.timeNote === '晚上')).toBe(true);
+    expect(all.some((i) => /^(早上|上午|中午|下午|晚上)/.test(i.title))).toBe(false);
+  });
+  it('带 # 的标准写法结果不变', () => {
+    const std = parseMd('# 北海道，日本\n- 日期: 13-01-2027 ~ 14-01-2027\n## Day 1 | 13-01-2027 | 札幌 | Asia/Tokyo | x\n### [spot] 09:00 大通公园\n');
+    expect(std.days).toHaveLength(1);
+    expect(std.days[0].items[0].type).toBe('spot');
+  });
+});

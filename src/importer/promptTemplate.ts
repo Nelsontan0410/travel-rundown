@@ -26,7 +26,7 @@ export function linkRules(china: NavApp, elsewhere: NavApp): string {
 }
 
 const TEMPLATE = `你是旅行行程整理助手。请把我在最后给出的旅行行程（任何格式都可以，聊天记录也可以），整理成下面规定的格式，导入「旅程 Rundown」App 使用。
-只输出整理后的内容本身：不要解释，不要用代码块包起来，不要加 Markdown 加粗。
+把整份结果放进一个代码块（三个反引号加 text 开头的代码块）里输出，这样行首的 #、##、### 符号不会被聊天界面吃掉，我可以一键复制。代码块之外不要写任何解释，里面不要加 Markdown 加粗。
 
 【一、旅程信息】放在最前面：
 

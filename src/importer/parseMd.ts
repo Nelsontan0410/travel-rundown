@@ -108,9 +108,44 @@ function splitPipe(v: string): [string, string | undefined] {
   return [a, b || undefined];
 }
 
+const DAY_LINE_RE = /^(?:Day\s*\d+|第\s*\d+\s*天)\s*[|｜]/i;
+const TYPED_ITEM_RE = /^[\[【]\s*([^\]】]+?)\s*[\]】]/;
+const TOD_RE = /^(凌晨|早上|上午|中午|下午|傍晚|晚上|夜晚)\s*(.+)$/;
+
+/**
+ * 从 AI 聊天界面复制出来的文字经常丢掉行首的 # / ## / ###（渲染成了标题样式）。
+ * 这里按内容补回来：行号保持不变，所以预览里的原文行号依然准确。
+ */
+function restoreMarkers(raw: string[]): string[] {
+  const known = (t: string) => TYPES.includes(t.toLowerCase() as ItemType) || !!TYPE_ALIAS[t.toLowerCase()] || !!TYPE_ALIAS[t];
+  let seenDay = false;
+  let hasTitle = raw.some((l) => /^#\s/.test(l.trim()));
+  return raw.map((l) => {
+    let t = l.trim().replace(/^>\s*/, '');
+    if (!t || /^```/.test(t)) return l;
+    if (!/^#/.test(t)) t = t.replace(/\*\*/g, '');
+    if (/^#/.test(t)) {
+      if (/^#{1,6}\s*Day\s*\d+\s*[|｜]/i.test(t)) seenDay = true;
+      return t;
+    }
+    if (DAY_LINE_RE.test(t)) {
+      seenDay = true;
+      return `## ${t}`;
+    }
+    if (/^[-*•·]/.test(l.trim()) || /^\s/.test(l)) return l; // 字段、子列表
+    const m = t.match(TYPED_ITEM_RE);
+    if (m && known(m[1].trim())) return `### ${t}`;
+    if (!seenDay && !hasTitle && !/^[-*•·]/.test(t) && !/[:：]\s*\S/.test(t.slice(0, 12))) {
+      hasTitle = true;
+      return `# ${t}`;
+    }
+    return l;
+  });
+}
+
 export function parseMd(input: string): ParseResult {
   const warnings: ParseWarning[] = [];
-  const lines = input.replace(/\r\n?/g, '\n').split('\n');
+  const lines = restoreMarkers(input.replace(/\r\n?/g, '\n').split('\n'));
 
   const trip: TripDraft = { title: '', startDate: '', endDate: '', homeTz: '' };
   let tripTzLine: number | undefined;
@@ -208,6 +243,14 @@ export function parseMd(input: string): ParseResult {
         end = undefined;
       }
       let title = (m?.[5] ?? '').trim();
+      let timeNote: string | undefined;
+      if (!start) {
+        const tod = title.match(TOD_RE);
+        if (tod) {
+          timeNote = tod[1];
+          title = tod[2].trim();
+        }
+      }
       if (!title) {
         warnings.push({ line: ln, message: `第 ${ln} 行：行程项缺少标题` });
         title = '未命名';
@@ -221,6 +264,7 @@ export function parseMd(input: string): ParseResult {
         end: end ? pad(end) : undefined,
         endDayOffset: end && m?.[4] ? 1 : undefined,
         ...(mealKind ? { meal: mealKind } : {}),
+        ...(timeNote ? { timeNote } : {}),
         _line: ln,
       };
       curDay.items.push(curItem);
@@ -453,13 +497,13 @@ export function parseMd(input: string): ParseResult {
   }
 
   const errors: string[] = [];
-  if (!days.length) errors.push('没有识别到任何一天（需要「## Day 1 | DD-MM-YYYY | 城市 | 时区」这样的标题）');
+  if (!days.length) errors.push('没有识别到任何一天（需要「Day 1 | DD-MM-YYYY | 城市 | 时区」这样的行；如果是从 AI 聊天里复制的，可能丢了标题符号，请让 AI 放进代码块再复制）');
   else if (!trip.startDate) errors.push('没有识别到行程日期');
   else {
     const noDate = days.filter((d) => !d.date).map((d) => d.index);
     if (noDate.length) errors.push(`Day ${noDate.join('、')} 没有日期`);
   }
-  if (itemCount > 0 && untyped === itemCount) errors.push('行程项都没有类型标记（需要「### [flight] 08:30 标题」这样的写法）');
+  if (itemCount > 0 && untyped === itemCount) errors.push('行程项都没有类型标记（需要「[flight] 08:30 标题」这样的写法）');
 
   return { trip, days, warnings, errors, itemCount };
 }
