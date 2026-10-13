@@ -13,6 +13,8 @@ import DiffSection from '../components/DiffSection';
 import { diffImport, flattenParsed, type ImportDiff } from '../importer/diff';
 import { fmtDate, fmtDateRange, fmtMoney, SEP, tripDays } from '../domain/format';
 import { shiftDraft } from '../importer/shift';
+import { buildPrompt } from '../importer/promptTemplate';
+import { copyWithToast } from '../links/openLink';
 import { Field, TextInput } from '../components/Form';
 import { DraftDay, TypeCounts } from '../components/DraftReview';
 import { itemIcon, itemSubtitle, TYPE_LABEL } from '../domain/rules';
@@ -62,6 +64,8 @@ export default function PreviewPage() {
   if (!draft) return <Navigate to="/trips" replace />;
   const { result } = draft;
   const empty = result.itemCount === 0;
+  const blocked = empty || result.errors.length > 0;
+  const repairPrompt = buildPrompt().replace('（把你的行程粘贴在这里）', draft.md);
 
   const all = result.days.flatMap((d) => d.items);
   const counts = TYPE_ORDER.map((t) => ({ icon: TYPE_ICON[t], label: TYPE_LABEL[t], n: all.filter((i) => i.type === t).length })).filter((c) => c.n > 0);
@@ -100,7 +104,7 @@ export default function PreviewPage() {
       header={<BackHeader title="导入预览" onBack={back} />}
       bottom={
         <>
-          <Button disabled={empty || busy} onClick={() => void confirm()}>
+          <Button disabled={blocked || busy} onClick={() => void confirm()}>
             确认导入
           </Button>
           <Button variant="outline" onClick={back}>
@@ -109,9 +113,22 @@ export default function PreviewPage() {
         </>
       }
     >
-      {empty ? (
+      {blocked ? (
         <div className={p.mt8}>
-          <InfoBanner variant="warning">没有识别到任何行程项，请检查格式</InfoBanner>
+          <InfoBanner variant="warning">{empty ? '没有识别到任何行程项' : '这份内容不是 App 能用的格式，不能导入'}</InfoBanner>
+          {result.errors.length > 0 && (
+            <ul className={p.warnList}>
+              {result.errors.map((e) => (
+                <li key={e}>{e}</li>
+              ))}
+            </ul>
+          )}
+          <p className={p.lead}>把下面的「修复提示词」复制给 ChatGPT 或 Claude（已经附上你的原文），把它回复的内容重新粘贴进来即可。</p>
+          <div className={p.mt12}>
+            <Button block icon="Copy" onClick={() => void copyWithToast(repairPrompt)}>
+              复制修复提示词
+            </Button>
+          </div>
         </div>
       ) : (
         <>
