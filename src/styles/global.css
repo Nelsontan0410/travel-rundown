@@ -9,7 +9,9 @@ body {
   font-size: var(--fs-body);
   line-height: var(--lh);
   color: var(--color-text);
-  background: var(--color-surface);
+  background-color: var(--color-page);
+  background-image: var(--tex-paper), radial-gradient(140% 90% at 0% 0%, #FAF5EA 0%, var(--color-page) 50%, #EFE5D1 100%);
+  background-attachment: fixed;
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
 }
@@ -22,6 +24,12 @@ svg { flex-shrink: 0; }
 .tabular { font-variant-numeric: tabular-nums; }
 #root { min-height: 100dvh; }
 html :focus-visible {
-  outline: calc(var(--border-w) * 2) solid var(--color-primary);
-  outline-offset: var(--space-1);
+  outline: calc(var(--border-w) * 2) solid var(--color-accent);
+  outline-offset: 2px;
+}
+::selection { background: var(--color-accent-soft); color: var(--color-text); }
+/* 标题与重要数字：衬线（Georgia / 宋体） */
+.serif { font-family: var(--font-serif); }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0ms !important; animation-duration: 0ms !important; }
 }

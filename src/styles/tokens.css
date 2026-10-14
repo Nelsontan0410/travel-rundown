@@ -1,32 +1,65 @@
 /* 全站唯一的设计令牌文件。组件里只能引用这里的变量，不写死色值和像素值。
    来源：docs「旅程 Rundown — 设计参考 v0.1」·「风格与设计令牌」 */
 :root {
-  /* 颜色 */
-  --color-primary: #0B68F3;
-  --color-primary-soft: #E0EEFE;
-  --color-primary-ink: #0A57D6;
-  --color-info-bg: #E8F2FE;
-  --color-tile-bg: #ECF4FC;
-  --color-tag-bg: #E6EFF9;
-  --color-success: #138245;
-  --color-success-soft: #E5F7EC;
-  --color-success-ink: #1E7541;
-  --color-warning: #FEBA0A;
-  --color-warning-soft: #FEF6DE;
-  --color-warning-ink: #DC5A14;
-  --color-pdf: #EF3E40;
-  --color-text: #0F1D3A;
-  --color-text-2: #64789A;
-  --color-text-3: #8392AA;
-  --color-icon: #5C7094;
-  --color-border: #E6ECF3;
-  --color-rail: #D6DEE8;
-  --color-dot-pending: #92A6BD;
-  --color-neutral-soft: #ECF0F4;
-  --color-surface: #FFFFFF;
-  --color-surface-muted: #F2F4F8;
-  --color-surface-subtle: #F8FAFC;
-  --color-viewer-bg: #DEE3E8;
+  /* 颜色 · Vintage Skeuomorphism：奶油纸张 + 深棕皮革 + 低饱和黄铜 */
+  --color-primary: #503522;        /* 深皮革棕：主按钮、选中、主图标 */
+  --color-primary-soft: #E7D7BC;   /* 选中底板（压印） */
+  --color-primary-ink: #5A3E28;
+  --color-accent: #AF8746;         /* 黄铜：图标点缀、少量装饰 */
+  --color-accent-soft: #EADBB9;
+  --color-info-bg: #EADFCB;
+  --color-tile-bg: #E6D7BC;
+  --color-tag-bg: #E9DCC4;
+  --color-success: #5E7D4A;
+  --color-success-soft: #E1E4C9;
+  --color-success-ink: #4A6638;
+  --color-warning: #C08A3E;
+  --color-warning-soft: #F1DFC0;
+  --color-warning-ink: #9A3B2A;    /* 暗红：警告、超支、错误 */
+  --color-pdf: #9A3B2A;
+  --color-text: #30251D;
+  --color-text-2: #6E5D4D;
+  --color-text-3: #8F7D69;
+  --color-icon: #7A6450;
+  --color-border: #C8B89C;
+  --color-hairline: #DCCDB2;       /* 卡片内分隔线，比边框更轻 */
+  --color-rail: #CDBB9B;
+  --color-dot-pending: #B4A285;
+  --color-neutral-soft: #E3D6C0;
+  --color-surface: #EFE2CC;        /* 卡片：奶油纸板 */
+  --color-surface-muted: #E8DAC1;
+  --color-surface-subtle: #F3E9D8;
+  --color-page: #F5EEDF;           /* 页面：暖象牙白 */
+  --color-viewer-bg: #DCCFB8;
+  --color-leather: #503522;
+  --color-leather-dark: #3A2617;
+  --color-leather-light: #6A4A31;
+  --color-on-leather: #F1E4CC;
+  --color-on-leather-2: #C9B392;
+  --color-stitch: rgba(231, 207, 160, 0.55);
+
+  --font-serif: Georgia, "Songti SC", "STSong", "Noto Serif SC", "Noto Serif CJK SC", "Source Han Serif SC", "SimSun", serif;
+
+  /* 材质：纸张颗粒、皮革纹理（SVG 噪点，极低不透明度，不影响阅读） */
+  --tex-paper: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .35 0 0 0 0 .25 0 0 0 0 .15 0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  --tex-leather: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='l'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.55' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .32 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23l)'/%3E%3C/svg%3E");
+  --grad-paper: linear-gradient(160deg, #F4EAD8 0%, #EFE2CC 55%, #E9DAC0 100%);
+  --grad-leather: radial-gradient(120% 80% at 20% 0%, #6A4A31 0%, #503522 45%, #3A2617 100%);
+  --grad-btn-primary: linear-gradient(180deg, #6A4A31 0%, #503522 55%, #432C1B 100%);
+  --grad-btn-cream: linear-gradient(180deg, #F7EEDF 0%, #EADCC3 100%);
+  --grad-inset: linear-gradient(180deg, #E6D8BF 0%, #F2E8D6 100%);
+  --grad-brass: linear-gradient(180deg, #D0AE6E 0%, #AF8746 55%, #8C6A33 100%);
+
+  /* 光影：统一左上光源 —— 顶/左高光，底/右阴影 */
+  --hl-edge: inset 1px 1px 0 rgba(255, 252, 244, 0.75);
+  --shadow-card: inset 1px 1px 0 rgba(255, 252, 244, 0.8), inset -1px -1px 0 rgba(120, 90, 55, 0.08), 1px 2px 0 rgba(120, 90, 55, 0.12), 3px 6px 14px -6px rgba(70, 48, 28, 0.28);
+  --shadow-raised: inset 1px 1px 0 rgba(255, 252, 244, 0.7), 1px 2px 0 rgba(90, 62, 38, 0.18), 2px 4px 8px -3px rgba(70, 48, 28, 0.35);
+  --shadow-btn-primary: inset 1px 1px 0 rgba(255, 225, 180, 0.28), inset -1px -1px 0 rgba(0, 0, 0, 0.25), 1px 2px 0 #2E1E12, 2px 5px 10px -3px rgba(46, 30, 18, 0.55);
+  --shadow-pressed: inset 2px 2px 5px rgba(60, 40, 22, 0.35), inset -1px -1px 0 rgba(255, 245, 225, 0.25);
+  --shadow-inset: inset 2px 2px 4px rgba(90, 62, 38, 0.18), inset -1px -1px 0 rgba(255, 252, 244, 0.7);
+  --shadow-emboss: inset 1px 1px 3px rgba(0, 0, 0, 0.45), inset -1px -1px 0 rgba(255, 225, 180, 0.18);
+  --focus-ring: 0 0 0 2px var(--color-page), 0 0 0 4px var(--color-accent);
+  --ease: cubic-bezier(.3, .7, .4, 1);
 
   --font-sans: -apple-system, "PingFang SC", "Noto Sans SC", "Noto Sans CJK SC", "Microsoft YaHei", system-ui, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -50,7 +83,7 @@
 
   /* 圆角 */
   --radius-sm: 8px;
-  --radius-md: 12px;
+  --radius-md: 14px;
   --radius-full: 999px;
 
   /* 尺寸 */
@@ -108,10 +141,10 @@
   --radius-sheet: 16px;      /* 底部弹层顶部圆角 */
   --opacity-disabled: 0.4;
   --opacity-placeholder-icon: 0.4;
-  --duration: 200ms;
+  --duration: 180ms;
 
   /* 叠加层 */
-  --hero-gradient: linear-gradient(to top, rgba(10, 25, 50, 0.55), rgba(10, 25, 50, 0) 60%);
-  --scrim: rgba(15, 29, 58, 0.4);
-  --shadow-overlay: 0 4px 24px rgba(15, 29, 58, 0.08);  /* 仅弹层、菜单使用 */
+  --hero-gradient: linear-gradient(to top, rgba(40, 26, 15, 0.6), rgba(40, 26, 15, 0) 60%);
+  --scrim: rgba(40, 26, 15, 0.45);
+  --shadow-overlay: inset 1px 1px 0 rgba(255, 252, 244, 0.8), 0 2px 0 rgba(90, 62, 38, 0.15), 0 18px 40px -8px rgba(46, 30, 18, 0.45);
 }

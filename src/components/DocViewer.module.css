@@ -1,16 +1,16 @@
 .viewer { position: relative; flex: 1; min-height: 0; background: var(--color-viewer-bg); }
 .scroll { position: absolute; inset: 0; overflow: auto; padding: var(--space-4); touch-action: pan-x pan-y; }
 .pages { display: flex; flex-direction: column; align-items: center; gap: var(--space-4); padding-bottom: calc(var(--h-zoom) + var(--space-6)); min-width: min-content; }
-.page { background: var(--color-surface); display: block; }
-.img { background: var(--color-surface); display: block; max-width: none; }
+.page { background: #FFFDF8; display: block; box-shadow: 2px 3px 10px -2px rgba(46, 30, 18, 0.35); }
+.img { background: #FFFDF8; display: block; max-width: none; box-shadow: 2px 3px 10px -2px rgba(46, 30, 18, 0.35); }
 .bar {
   position: absolute; left: 50%; transform: translateX(-50%); bottom: var(--space-3);
-  height: var(--h-zoom); padding: 0 var(--space-2); border-radius: var(--radius-full); background: var(--color-surface-subtle);
+  height: var(--h-zoom); padding: 0 var(--space-2); border-radius: var(--radius-full); background: var(--grad-paper); border: var(--border-w) solid var(--color-border); box-shadow: var(--shadow-overlay);
   display: flex; align-items: center; gap: var(--space-4);
 }
 .zoomBtn {
   width: var(--size-zoom-btn); height: var(--size-zoom-btn); border-radius: var(--radius-full);
-  border: var(--border-w) solid var(--color-border); background: var(--color-surface); color: var(--color-primary);
+  border: var(--border-w) solid var(--color-border); background: var(--grad-btn-cream); box-shadow: var(--shadow-raised); color: var(--color-primary);
   display: inline-flex; align-items: center; justify-content: center;
 }
 .zoomBtn:disabled { opacity: var(--opacity-disabled); }
