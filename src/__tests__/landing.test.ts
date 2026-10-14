@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import md from '../../qa/fixtures/hokkaido-nomarks.md?raw';
 import { parseMd } from '../importer/parseMd';
 import { buildLanding } from '../domain/landing';
-import { matchMedia, LANDING_MEDIA } from '../domain/landingMedia';
+import { matchMedia, LANDING_MEDIA, LANDING_CREDITS } from '../domain/landingMedia';
+const PUBLIC_JPG = Object.keys(import.meta.glob('/public/landing/*.jpg'));
 import type { Day, Item } from '../domain/types';
 
 function fromMd(text: string) {
@@ -35,7 +36,15 @@ describe('旅程介绍页内容', () => {
   it('美食只取写了必吃或店名的餐饮，不收「早餐」这类空项', () => {
     expect(L.food.length).toBeGreaterThan(2);
     expect(L.food.some((f) => /^(早餐|午餐|晚餐)$/.test(f.name))).toBe(false);
-    expect(L.food.find((f) => f.name === '神户牛')?.media.id).toBe('grill');
+    // 照片只配真的对得上的菜：成吉思汗配烤羊肉照片；神户牛没有对应照片就不配，不拿羊肉冒充
+    expect(matchMedia('北海道成吉思汗羊肉烧烤', 'food')?.id).toBe('grill');
+    for (const f of L.food) {
+      if (!f.media) continue;
+      const src = items.find((i) => i.id === f.itemId)!;
+      const text = [src.title, src.place?.name, ...(src.mustDo ?? [])].join(' ');
+      expect(f.media.keywords.some((k) => text.includes(k))).toBe(true);
+    }
+    expect(L.food.find((f) => f.name === '神户牛')?.media).toBeUndefined();
   });
   it('首屏 4–6 张图，不重复', () => {
     expect(L.montage.length).toBeGreaterThanOrEqual(4);
@@ -55,7 +64,24 @@ describe('旅程介绍页内容', () => {
   });
   it('空行程也不报错', () => {
     const E = buildLanding({ title: '首尔，韩国', startDate: '2027-01-01', endDate: '2027-01-01' }, [], []);
-    expect(E.montage.length).toBe(4);
+    // 没有能对上的照片就不放照片（首屏只出文字），不拿日本的图凑韩国
+    expect(E.montage).toEqual([]);
+    expect(E.closing).toBeUndefined();
     expect(E.days).toEqual([]);
+  });
+  it('每张照片都有署名、许可证和原图链接，文件确实存在', () => {
+    expect(LANDING_CREDITS).toHaveLength(LANDING_MEDIA.length);
+    for (const m of LANDING_MEDIA) {
+      expect(m.sample).toBe(false);
+      expect(m.credit?.author).toBeTruthy();
+      expect(m.credit?.license_url).toMatch(/^https?:\/\/creativecommons\.org\//);
+      expect(m.credit?.source).toMatch(/^https:\/\/commons\.wikimedia\.org\//);
+      expect(PUBLIC_JPG).toContain(`/public${m.file}`);
+    }
+  });
+  it('拍摄地点或季节对不上的照片，都带如实说明', () => {
+    for (const id of ['onsen', 'lake-volcano', 'crab', 'sweets']) {
+      expect(LANDING_MEDIA.find((m) => m.id === id)?.caption).toBeTruthy();
+    }
   });
 });

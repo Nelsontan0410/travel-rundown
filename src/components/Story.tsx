@@ -5,14 +5,15 @@ import s from './Story.module.css';
 export interface PhotoSrc {
   src: string;
   alt: string;
-  sample?: boolean;
+  /** 拍摄地点或季节与行程不完全一致时的如实说明，显示在照片角落 */
+  caption?: string;
 }
 
 function prefersReducedMotion(): boolean {
   return typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 }
 
-/** 固定比例的照片框：预留空间不跳动，hover 轻微放大；示意图会标出来 */
+/** 固定比例的照片框：预留空间不跳动，hover 轻微放大；有说明就标在角落 */
 export function Photo({
   photo,
   ratio,
@@ -31,7 +32,7 @@ export function Photo({
   return (
     <figure className={`${s.photo} ${className ?? ''}`} style={{ aspectRatio: ratio, ...(tilt ? { '--tilt': `${tilt}deg` } : {}) } as CSSProperties}>
       <img src={photo.src} alt={photo.alt} loading={eager ? 'eager' : 'lazy'} decoding="async" {...(eager ? { fetchpriority: 'high' } : {})} />
-      {photo.sample && <span className={s.sample}>示意图</span>}
+      {photo.caption && <span className={s.caption}>{photo.caption}</span>}
       {children}
     </figure>
   );
@@ -61,7 +62,7 @@ export function Montage({ photos, interval = 6500 }: { photos: PhotoSrc[]; inter
           {...(i === 0 ? { fetchpriority: 'high' } : {})}
         />
       ))}
-      {photos[cur]?.sample && <span className={`${s.sample} ${s.sampleHero}`}>示意图</span>}
+      {photos[cur]?.caption && <span className={`${s.caption} ${s.captionHero}`}>{photos[cur].caption}</span>}
       <div className={s.dots} aria-hidden>
         {photos.map((p, i) => (
           <span key={p.src + i} className={i === cur ? s.dotOn : ''} />
@@ -76,7 +77,7 @@ export function Parallax({ photo, children }: { photo: PhotoSrc; children?: Reac
   return (
     <div className={s.parallax}>
       <img src={photo.src} alt={photo.alt} loading="lazy" decoding="async" />
-      {photo.sample && <span className={s.sample}>示意图</span>}
+      {photo.caption && <span className={s.caption}>{photo.caption}</span>}
       {children}
     </div>
   );

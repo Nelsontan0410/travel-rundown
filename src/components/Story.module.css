@@ -15,10 +15,10 @@
 @media (hover: hover) {
   .photo:hover img { transform: scale(1.04); }
 }
-.sample {
+.caption {
   position: absolute; right: var(--space-2); bottom: var(--space-2); z-index: 3;
   font-size: var(--fs-caption); line-height: 1; padding: var(--space-1) var(--space-2); border-radius: var(--radius-full);
-  background: rgba(245, 238, 223, 0.86); color: var(--color-text-2); box-shadow: inset 0 0 0 1px var(--color-border);
+  background: var(--color-fade); color: var(--color-text-2); box-shadow: inset 0 0 0 1px var(--color-border);
 }
 
 /* 首屏蒙太奇 */
@@ -35,10 +35,10 @@
 .still .frame { animation: none; transition: none; }
 @keyframes kbR { from { transform: scale(1.04) translate3d(0, 0, 0); } to { transform: scale(1.14) translate3d(-2.5%, -1.5%, 0); } }
 @keyframes kbL { from { transform: scale(1.14) translate3d(-2%, 1%, 0); } to { transform: scale(1.04) translate3d(1.5%, 0, 0); } }
-.sampleHero { top: 16%; bottom: auto; right: var(--space-4); }
+.captionHero { top: 16%; bottom: auto; right: var(--space-4); }
 .dots { position: absolute; z-index: 3; right: var(--space-4); bottom: 18%; display: flex; gap: var(--space-2); }
 @media (min-width: 1024px) {
-  .sampleHero { top: var(--space-6); right: var(--space-6); }
+  .captionHero { top: var(--space-6); right: var(--space-6); }
   .dots { right: var(--space-6); bottom: 20%; }
 }
 .dots span {

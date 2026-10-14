@@ -10,7 +10,7 @@ import type { LandingMedia } from '../domain/landingMedia';
 import { fmtDate, fmtMonthDay } from '../domain/format';
 import { useUI } from '../store/ui';
 
-const ph = (m: LandingMedia): PhotoSrc => ({ src: m.file, alt: m.alt, sample: m.sample });
+const ph = (m: LandingMedia): PhotoSrc => ({ src: m.file, alt: m.alt, caption: m.caption });
 const pad = (n: number) => String(n).padStart(2, '0');
 /** 这一页的日期范围用「至」连接，不用破折号 */
 const span = (a: string, b: string) => (a === b ? fmtDate(a) : `${fmtDate(a)} 至 ${fmtDate(b)}`);
@@ -43,6 +43,8 @@ export default function StoryPage() {
   };
   const montage: PhotoSrc[] = [...(cover ? [{ src: cover, alt: `${L.place} 封面` }] : []), ...L.montage.map(ph)].slice(0, 6);
   const [lead, ...rest] = L.highlights;
+  // 有照片的美食排前面撑起拼版，没有照片的放后面只出文字
+  const food = [...L.food.filter((f) => f.media), ...L.food.filter((f) => !f.media)];
 
   return (
     <div className={p.page}>
@@ -52,10 +54,12 @@ export default function StoryPage() {
       </Link>
 
       {/* 首屏：左 30% 标题，右 70% 动态画面 */}
-      <header className={p.hero}>
-        <div className={p.heroMedia}>
-          <Montage photos={montage} />
-        </div>
+      <header className={`${p.hero} ${montage.length ? '' : p.heroPlain}`}>
+        {montage.length > 0 && (
+          <div className={p.heroMedia}>
+            <Montage photos={montage} />
+          </div>
+        )}
         <div className={p.heroText}>
           {L.country && <p className={p.country}>{L.country}</p>}
           <h1 className={p.title} aria-label={L.place}>
@@ -109,8 +113,8 @@ export default function StoryPage() {
             <p className={p.secLead}>从行程的必逛清单里挑出来的场景，按日期排列。</p>
           </div>
           <div className={p.hlGrid}>
-            <article className={p.hlLead}>
-              <Photo photo={ph(lead.media)} ratio="4 / 3" />
+            <article className={`${p.hlLead} ${lead.media ? '' : p.hlLeadPlain}`}>
+              {lead.media && <Photo photo={ph(lead.media)} ratio="4 / 3" />}
               <div className={p.hlLeadText}>
                 <p className={p.dayTag}>Day {pad(lead.dayIndex)}</p>
                 <h3 className={p.h3}>{lead.title}</h3>
@@ -120,7 +124,7 @@ export default function StoryPage() {
             </article>
             {rest.map((h, i) => (
               <article key={h.itemId} className={`${p.hlItem} ${p[`hl${i}`] ?? ''}`}>
-                <Photo photo={ph(h.media)} ratio={i % 2 ? '3 / 4' : '4 / 3'} />
+                {h.media && <Photo photo={ph(h.media)} ratio={i % 2 ? '3 / 4' : '4 / 3'} />}
                 <p className={p.dayTag}>Day {pad(h.dayIndex)}</p>
                 <h3 className={p.h3s}>{h.title}</h3>
                 <p className={p.body}>{h.scenes.join('、')}</p>
@@ -183,9 +187,11 @@ export default function StoryPage() {
                   </button>
                 </details>
               </div>
-              <div className={p.dayThumb}>
-                <Photo photo={ph(d.media)} ratio="4 / 3" />
-              </div>
+              {d.media && (
+                <div className={p.dayThumb}>
+                  <Photo photo={ph(d.media)} ratio="4 / 3" />
+                </div>
+              )}
             </li>
           ))}
         </ol>
@@ -204,16 +210,16 @@ export default function StoryPage() {
       )}
 
       {/* 美食：大图小图穿插 */}
-      {L.food.length > 0 && (
+      {food.length > 0 && (
         <section id="food" className={p.section} aria-labelledby="h-food">
           <div className={p.secHead}>
             <h2 id="h-food" className={p.h2}>这一路要吃的</h2>
             <p className={p.secLead}>行程里写明了「必吃」或店名的几顿。</p>
           </div>
           <div className={p.foodGrid}>
-            {L.food.map((f, i) => (
-              <article key={f.itemId} className={`${p.food} ${i === 0 ? p.foodBig : ''} ${i === 3 ? p.foodWide : ''}`}>
-                <Photo photo={ph(f.media)} ratio={i === 0 ? '1 / 1' : i === 3 ? '16 / 9' : '4 / 3'} />
+            {food.map((f, i) => (
+              <article key={f.itemId} className={`${p.food} ${i === 0 && f.media ? p.foodBig : ''} ${i === 3 && f.media ? p.foodWide : ''} ${f.media ? '' : p.foodPlain}`}>
+                {f.media && <Photo photo={ph(f.media)} ratio={i === 0 ? '1 / 1' : i === 3 ? '16 / 9' : '4 / 3'} />}
                 <div className={p.foodText}>
                   <h3 className={p.h3s}>{f.name}</h3>
                   <p className={p.body}>{f.detail}</p>
@@ -238,7 +244,7 @@ export default function StoryPage() {
           <div className={p.journal}>
             {L.moments.map((m, i) => (
               <figure key={m.itemId} className={`${p.snap} ${p[`snap${i % 6}`]}`}>
-                <Photo photo={ph(m.media)} ratio={['4 / 5', '1 / 1', '3 / 2', '3 / 4', '4 / 3', '1 / 1'][i % 6]} className={p.snapPhoto} />
+                <Photo photo={ph(m.media!)} ratio={['4 / 5', '1 / 1', '3 / 2', '3 / 4', '4 / 3', '1 / 1'][i % 6]} className={p.snapPhoto} />
                 <figcaption>
                   <span className={p.snapCap}>{m.caption}</span>
                   <span className={p.snapTag}>
@@ -274,7 +280,7 @@ export default function StoryPage() {
 
       {/* 收尾 */}
       <footer className={p.closing}>
-        <Photo photo={ph(L.closing)} ratio="21 / 9" className={p.closingPhoto} />
+        {L.closing && <Photo photo={ph(L.closing)} ratio="21 / 9" className={p.closingPhoto} />}
         <div className={p.closingText}>
           <h2 className={p.closingTitle} aria-label={L.place}>
             {L.place.split(/\s*[・·]\s*/).map((seg, i) => (
@@ -289,6 +295,9 @@ export default function StoryPage() {
           <button type="button" className={p.btnLeather} onClick={() => nav(`/itinerary/${trip.id}`)}>
             查看完整行程
           </button>
+          <Link to="/credits/photos" className={p.credits}>
+            照片来源与授权
+          </Link>
         </div>
       </footer>
     </div>
