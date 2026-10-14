@@ -1,6 +1,7 @@
 // 旅程介绍页（Landing）：只从已导入的行程里整理内容，不编造营业时间、价格、评价或预订状态。
+// 照片也一样：认不出对应地点或菜式就不配图，不拿别处的照片凑数。
 import type { Day, Item } from './types';
-import { FALLBACK_FOOD, FALLBACK_SCENES, matchMedia, mediaById, type LandingMedia } from './landingMedia';
+import { matchMedia, mediaById, type LandingMedia } from './landingMedia';
 
 export interface LandingHighlight {
   itemId: string;
@@ -10,7 +11,7 @@ export interface LandingHighlight {
   /** 必逛 / 必体验里的前几项 */
   scenes: string[];
   note?: string;
-  media: LandingMedia;
+  media?: LandingMedia;
 }
 
 export interface LandingDay {
@@ -24,7 +25,7 @@ export interface LandingDay {
   line: string;
   lodging?: string;
   pace: string;
-  media: LandingMedia;
+  media?: LandingMedia;
   items: { id: string; time?: string; title: string; type: Item['type'] }[];
 }
 
@@ -34,7 +35,7 @@ export interface LandingFood {
   detail: string;
   venue?: string;
   dayIndex: number;
-  media: LandingMedia;
+  media?: LandingMedia;
 }
 
 export interface LandingMoment {
@@ -64,7 +65,7 @@ export interface LandingContent {
   interlude?: { media: LandingMedia; line: string; dayIndex: number };
   moments: LandingMoment[];
   brief: LandingBrief[];
-  closing: LandingMedia;
+  closing?: LandingMedia;
 }
 
 const MOMENT_WORDS = ['夜景', '日落', '拍照', '雪景', '散步', '街景', '灯', '倒影', '全景', '湖景', '晨景', '漫步', '取景', '合影'];
@@ -91,12 +92,6 @@ function uniq<T>(xs: T[]): T[] {
   return [...new Set(xs)];
 }
 
-/** 从固定 id 列表里轮流取，尽量不和已用过的图重复 */
-function pickFallback(ids: string[], used: Set<string>, seed: number): LandingMedia {
-  const free = ids.filter((id) => !used.has(id));
-  const pool = free.length ? free : ids;
-  return mediaById(pool[seed % pool.length]);
-}
 
 export function buildLanding(trip: { title: string; destination?: string; startDate: string; endDate: string }, days: Day[], items: Item[]): LandingContent {
   const dayById = new Map(days.map((d) => [d.id, d]));
@@ -123,8 +118,8 @@ export function buildLanding(trip: { title: string; destination?: string; startD
     if (hlDays.has(dayIdx(s))) continue;
     const mm = sceneOf(s, dayById.get(s.dayId));
     if (mm && usedMedia.has(mm.id)) continue;
-    const media = mm ?? pickFallback(FALLBACK_SCENES, usedMedia, highlights.length);
-    usedMedia.add(media.id);
+    const media = mm;
+    if (media) usedMedia.add(media.id);
     hlDays.add(dayIdx(s));
     highlights.push({
       itemId: s.id,
@@ -139,8 +134,7 @@ export function buildLanding(trip: { title: string; destination?: string; startD
   highlights.sort((a, b) => a.dayIndex - b.dayIndex);
 
   // —— 每天概览
-  const dayUsed = new Set<string>();
-  const outDays: LandingDay[] = days.map((d, i) => {
+  const outDays: LandingDay[] = days.map((d) => {
     const its = items.filter((x) => x.dayId === d.id);
     const ds = its.filter((x) => x.type === 'spot' && !LOGISTICS.test(x.title));
     const route = uniq(ds.map((x) => x.title)).slice(0, 4);
@@ -149,8 +143,7 @@ export function buildLanding(trip: { title: string; destination?: string; startD
     const active = its.filter((x) => x.type !== 'note').length;
     const pace = [timed[0] ? `${timed[0]} 开始` : '', `${active} 项安排`].filter(Boolean).join('，');
     const mm = matchMedia([d.title, ...ds.map((x) => textOf(x))].join(' '), 'scene') ?? matchMedia(d.city, 'scene');
-    const media = mm ?? pickFallback(FALLBACK_SCENES, dayUsed, i);
-    dayUsed.add(media.id);
+    const media = mm;
     const firstNoted = ds.find((x) => x.mustDo?.length);
     const line = d.note
       ?? (firstNoted ? `${firstNoted.title}：${firstNoted.mustDo!.slice(0, 3).join('、')}` : route.length ? route.join('，') : '移动与休整的一天');
@@ -188,8 +181,8 @@ export function buildLanding(trip: { title: string; destination?: string; startD
     if (food.length >= 6) break;
     const name = c.dishes[0] ?? c.it.title;
     if (food.some((f) => f.name === name)) continue;
-    const media = c.fm ?? pickFallback(FALLBACK_FOOD, foodUsed, food.length);
-    foodUsed.add(media.id);
+    const media = c.fm && !foodUsed.has(c.fm.id) ? c.fm : undefined;
+    if (media) foodUsed.add(media.id);
     const rest = c.dishes.slice(1, 4);
     const detail = rest.length ? `同一顿还有${rest.join('、')}` : c.it.note ?? c.it.title;
     const venue = c.venue && c.venue !== name && c.venue !== detail ? c.venue : undefined;
@@ -202,14 +195,15 @@ export function buildLanding(trip: { title: string; destination?: string; startD
   for (const s of spots) {
     if (moments.length >= 6) break;
     const hit = (s.mustDo ?? []).find((t) => MOMENT_WORDS.some((w) => t.includes(w)));
-    if (!hit) continue;
-    if (moments.some((x) => x.place === (s.place?.name ?? s.title) || x.dayIndex === dayIdx(s))) continue;
+    const media = sceneOf(s, dayById.get(s.dayId));
+    if (!hit || !media) continue;
+    if (moments.some((x) => x.place === (s.place?.name ?? s.title) || x.dayIndex === dayIdx(s) || x.media?.id === media.id)) continue;
     moments.push({
       itemId: s.id,
       caption: hit,
       place: s.place?.name ?? s.title,
       dayIndex: dayIdx(s),
-      media: sceneOf(s, dayById.get(s.dayId)) ?? pickFallback(FALLBACK_SCENES, new Set(), moments.length),
+      media,
     });
   }
 
@@ -232,17 +226,18 @@ export function buildLanding(trip: { title: string; destination?: string; startD
   if (pending.length) brief.push({ label: '还要确认', value: pending.slice(0, 5).map((p) => p.title).join('、') + (pending.length > 5 ? ` 等 ${pending.length} 项` : '') });
 
   // —— 首屏蒙太奇：亮点 + 美食，4–6 张不重复
-  const montage = uniq([...highlights.map((h) => h.media.id), ...outDays.map((d) => d.media.id), ...food.slice(0, 1).map((f) => f.media.id)])
+  // —— 首屏蒙太奇：亮点 + 每天 + 第一道美食里认出来的照片，最多 6 张不重复（认不出就没有）
+  const ids = (xs: (LandingMedia | undefined)[]) => xs.filter((m): m is LandingMedia => !!m).map((m) => m.id);
+  const montage = uniq([...ids(highlights.map((h) => h.media)), ...ids(outDays.map((d) => d.media)), ...ids(food.slice(0, 1).map((f) => f.media))])
     .slice(0, 6)
     .map(mediaById);
-  while (montage.length < 4) montage.push(mediaById(FALLBACK_SCENES[montage.length]));
 
-  const hlMedia = new Set(highlights.map((h) => h.media.id));
+  const hlMedia = new Set(ids(highlights.map((h) => h.media)));
   const mid = outDays.length / 2;
-  const interDay = [...outDays].sort((a, b) => Number(hlMedia.has(a.media.id)) - Number(hlMedia.has(b.media.id)) || Math.abs(a.index - mid) - Math.abs(b.index - mid))[0];
-  const interlude = interDay
-    ? { media: interDay.media, line: interDay.title ?? interDay.city, dayIndex: interDay.index }
-    : undefined;
+  const interDay = outDays
+    .filter((d) => d.media)
+    .sort((a, b) => Number(hlMedia.has(a.media!.id)) - Number(hlMedia.has(b.media!.id)) || Math.abs(a.index - mid) - Math.abs(b.index - mid))[0];
+  const interlude = interDay ? { media: interDay.media!, line: interDay.title ?? interDay.city, dayIndex: interDay.index } : undefined;
 
   const top = highlights.slice(0, 3).map((h) => h.title);
   const first = splitCities(days[0]?.city ?? '')[0];
@@ -269,6 +264,6 @@ export function buildLanding(trip: { title: string; destination?: string; startD
     interlude,
     moments,
     brief,
-    closing: highlights.length > 1 ? highlights[highlights.length - 1].media : mediaById(FALLBACK_SCENES[1]),
+    closing: [...highlights].reverse().find((h) => h.media && h.media.id !== montage[0]?.id)?.media ?? montage[montage.length - 1],
   };
 }
