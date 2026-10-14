@@ -1,5 +1,5 @@
-// 旅程介绍页的可复用展示件：照片框、首屏蒙太奇、滚动淡入、视差大图。
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+// 旅程介绍页的可复用展示件：照片框、首屏蒙太奇、视差大图。
+import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import s from './Story.module.css';
 
 export interface PhotoSrc {
@@ -71,68 +71,11 @@ export function Montage({ photos, interval = 6500 }: { photos: PhotoSrc[]; inter
   );
 }
 
-/** 给容器里所有 [data-reveal] 加上进场淡入；减少动态效果时直接显示 */
-export function useReveal<T extends HTMLElement>() {
-  const ref = useRef<T>(null);
-  useEffect(() => {
-    const root = ref.current;
-    if (!root) return;
-    const els = [...root.querySelectorAll<HTMLElement>('[data-reveal]:not([data-revealed])')];
-    els.forEach((el) => el.setAttribute('data-revealed', ''));
-    if (!els.length) return;
-    if (prefersReducedMotion() || !('IntersectionObserver' in window)) {
-      els.forEach((el) => el.classList.add(s.shown));
-      return;
-    }
-    els.forEach((el) => el.classList.add(s.hidden));
-    const io = new IntersectionObserver(
-      (entries) => {
-        for (const e of entries) {
-          if (e.isIntersecting) {
-            e.target.classList.add(s.shown);
-            io.unobserve(e.target);
-          }
-        }
-      },
-      { rootMargin: '0px 0px -8% 0px', threshold: 0.12 },
-    );
-    els.forEach((el) => io.observe(el));
-    return () => io.disconnect();
-  });
-  return ref;
-}
-
-/** 宽幅大图的轻微视差（±32px），只用在少量大图上；不劫持滚动 */
+/** 宽幅大图：滚动时画面比外框移动得慢一点（纯 CSS 滚动驱动，浏览器不支持时就是静止的大图） */
 export function Parallax({ photo, children }: { photo: PhotoSrc; children?: ReactNode }) {
-  const box = useRef<HTMLDivElement>(null);
-  const img = useRef<HTMLImageElement>(null);
-  useEffect(() => {
-    if (prefersReducedMotion()) return;
-    let raf = 0;
-    const tick = () => {
-      raf = 0;
-      const b = box.current;
-      const i = img.current;
-      if (!b || !i) return;
-      const r = b.getBoundingClientRect();
-      const p = (r.top + r.height / 2 - window.innerHeight / 2) / (window.innerHeight + r.height);
-      i.style.transform = `translate3d(0, ${(-p * 64).toFixed(1)}px, 0) scale(1.12)`;
-    };
-    const onScroll = () => {
-      if (!raf) raf = requestAnimationFrame(tick);
-    };
-    tick();
-    window.addEventListener('scroll', onScroll, { passive: true });
-    window.addEventListener('resize', onScroll);
-    return () => {
-      window.removeEventListener('scroll', onScroll);
-      window.removeEventListener('resize', onScroll);
-      if (raf) cancelAnimationFrame(raf);
-    };
-  }, []);
   return (
-    <div ref={box} className={s.parallax}>
-      <img ref={img} src={photo.src} alt={photo.alt} loading="lazy" decoding="async" />
+    <div className={s.parallax}>
+      <img src={photo.src} alt={photo.alt} loading="lazy" decoding="async" />
       {photo.sample && <span className={s.sample}>示意图</span>}
       {children}
     </div>

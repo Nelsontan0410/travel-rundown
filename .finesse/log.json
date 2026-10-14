@@ -1,0 +1,22 @@
+[
+  {
+    "date": "2026-10-14",
+    "page": "src/features/StoryPage.tsx (旅程介绍页)",
+    "register": "brand",
+    "axes": {
+      "A_palette": "cream paper + leather + low-chroma brass (locked by the user's brief)",
+      "B_type": "Georgia/Songti display, sans body",
+      "C_layout": "30/70 split hero → editorial stagger → journal log rows with route rail → full bleed → food mosaic → polaroid collage → ticket",
+      "D_engine": "CSS crossfade montage + native scroll-driven (route draw, parallax, rise)",
+      "E_material": "travel journal: paper, leather, tape, brass studs"
+    },
+    "dials": { "SOUL": 7, "SPECTACLE": 4, "DENSITY": 5 },
+    "beats": {
+      "first_screen": "image transform: slow Ken Burns crossfade",
+      "scroll": "geometric construction: route line draws down the day list",
+      "interaction": "state transition: day schedule unfolds",
+      "close": "quiet: none",
+      "still": "first montage frame, line fully drawn, everything visible"
+    }
+  }
+]
