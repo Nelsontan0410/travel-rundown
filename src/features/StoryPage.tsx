@@ -3,15 +3,17 @@ import { useMemo } from 'react';
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import p from './Story.module.css';
 import { Icon } from '../components/Icon';
-import { Montage, Parallax, Photo, useReveal, type PhotoSrc } from '../components/Story';
+import { Montage, Parallax, Photo, type PhotoSrc } from '../components/Story';
 import { useBlobUrl, useTripData } from '../hooks/data';
 import { buildLanding } from '../domain/landing';
 import type { LandingMedia } from '../domain/landingMedia';
-import { fmtDate, fmtDateRange, fmtMonthDay } from '../domain/format';
+import { fmtDate, fmtMonthDay } from '../domain/format';
 import { useUI } from '../store/ui';
 
 const ph = (m: LandingMedia): PhotoSrc => ({ src: m.file, alt: m.alt, sample: m.sample });
 const pad = (n: number) => String(n).padStart(2, '0');
+/** 这一页的日期范围用「至」连接，不用破折号 */
+const span = (a: string, b: string) => (a === b ? fmtDate(a) : `${fmtDate(a)} 至 ${fmtDate(b)}`);
 const TYPE_ICON = { flight: 'Plane', lodging: 'Building2', spot: 'MapPin', transit: 'TrainFront', meal: 'Utensils', note: 'StickyNote' } as const;
 
 /** 平滑滚到页面里的某一段；减少动态效果时直接跳 */
@@ -29,7 +31,6 @@ export default function StoryPage() {
   const td = useTripData(tripId);
   const cover = useBlobUrl(td?.trip.coverBlobKey);
   const selectDay = useUI((s) => s.selectDay);
-  const root = useReveal<HTMLDivElement>();
   const L = useMemo(() => (td ? buildLanding(td.trip, td.days, td.items) : null), [td]);
 
   if (td === null) return <Navigate to="/itinerary" replace />;
@@ -44,7 +45,7 @@ export default function StoryPage() {
   const [lead, ...rest] = L.highlights;
 
   return (
-    <div className={p.page} ref={root}>
+    <div className={p.page}>
       <Link to={`/itinerary/${trip.id}`} className={p.back}>
         <Icon name="ChevronLeft" size="sm" />
         回到行程
@@ -74,7 +75,7 @@ export default function StoryPage() {
           <dl className={p.facts}>
             <div>
               <dt>日期</dt>
-              <dd>{fmtDateRange(trip.startDate, trip.endDate)}</dd>
+              <dd>{span(trip.startDate, trip.endDate)}</dd>
             </div>
             <div>
               <dt>天数</dt>
@@ -103,12 +104,12 @@ export default function StoryPage() {
       {/* 旅行亮点：一张主图 + 错落的小图 */}
       {lead && (
         <section id="highlights" tabIndex={-1} className={p.section} aria-labelledby="h-highlights">
-          <div className={p.secHead} data-reveal>
+          <div className={p.secHead}>
             <h2 id="h-highlights" className={p.h2}>最值得期待的 {L.highlights.length} 个时刻</h2>
             <p className={p.secLead}>从行程的必逛清单里挑出来的场景，按日期排列。</p>
           </div>
           <div className={p.hlGrid}>
-            <article className={p.hlLead} data-reveal>
+            <article className={p.hlLead}>
               <Photo photo={ph(lead.media)} ratio="4 / 3" />
               <div className={p.hlLeadText}>
                 <p className={p.dayTag}>Day {pad(lead.dayIndex)}</p>
@@ -118,7 +119,7 @@ export default function StoryPage() {
               </div>
             </article>
             {rest.map((h, i) => (
-              <article key={h.itemId} className={`${p.hlItem} ${p[`hl${i}`] ?? ''}`} data-reveal>
+              <article key={h.itemId} className={`${p.hlItem} ${p[`hl${i}`] ?? ''}`}>
                 <Photo photo={ph(h.media)} ratio={i % 2 ? '3 / 4' : '4 / 3'} />
                 <p className={p.dayTag}>Day {pad(h.dayIndex)}</p>
                 <h3 className={p.h3s}>{h.title}</h3>
@@ -131,31 +132,26 @@ export default function StoryPage() {
 
       {/* 行程概览：Day 01、Day 02… 详细安排可以展开 */}
       <section id="days" tabIndex={-1} className={p.section} aria-labelledby="h-days">
-        <div className={p.secHead} data-reveal>
+        <div className={p.secHead}>
           <h2 id="h-days" className={p.h2}>{L.stats.days} 天怎么走</h2>
           <p className={p.secLead}>每天一个重点，完整的时间表在「行程」里。</p>
         </div>
         <ol className={p.dayList}>
-          {L.days.map((d, i) => (
-            <li key={d.dayId} className={`${p.day} ${i % 2 ? p.dayFlip : ''}`} data-reveal>
-              <div className={p.dayMedia}>
-                <Photo photo={ph(d.media)} ratio={['3 / 2', '5 / 4', '16 / 10'][i % 3]} />
-              </div>
+          {L.days.map((d) => (
+            <li key={d.dayId} className={p.day}>
+              <p className={p.dayRail}>
+                <span className={p.dayWord}>Day</span>
+                <span className={p.dayNum}>{pad(d.index)}</span>
+                <span className={p.dayDate}>{fmtMonthDay(d.date)}</span>
+              </p>
               <div className={p.dayText}>
-                <p className={p.dayNo}>
-                  <span>Day {pad(d.index)}</span>
-                  <span className={p.dayDate}>{fmtMonthDay(d.date)}</span>
-                </p>
                 <h3 className={p.h3}>{d.title ?? d.city}</h3>
                 {d.route.length > 0 && (
-                  <p className={p.route}>
-                    {d.route.map((r, k) => (
-                      <span key={r}>
-                        {k > 0 && <span className={p.routeSep} aria-hidden>—</span>}
-                        {r}
-                      </span>
+                  <ul className={p.route} aria-label="当天主要景点">
+                    {d.route.map((r) => (
+                      <li key={r}>{r}</li>
                     ))}
-                  </p>
+                  </ul>
                 )}
                 <p className={p.body}>{d.line}</p>
                 <dl className={p.dayMeta}>
@@ -187,6 +183,9 @@ export default function StoryPage() {
                   </button>
                 </details>
               </div>
+              <div className={p.dayThumb}>
+                <Photo photo={ph(d.media)} ratio="4 / 3" />
+              </div>
             </li>
           ))}
         </ol>
@@ -196,7 +195,7 @@ export default function StoryPage() {
       {L.interlude && (
         <section className={p.interlude} aria-label="风景">
           <Parallax photo={ph(L.interlude.media)}>
-            <p className={p.interText} data-reveal>
+            <p className={p.interText}>
               <span className={p.interDay}>Day {pad(L.interlude.dayIndex)}</span>
               {L.interlude.line}
             </p>
@@ -207,13 +206,13 @@ export default function StoryPage() {
       {/* 美食：大图小图穿插 */}
       {L.food.length > 0 && (
         <section id="food" className={p.section} aria-labelledby="h-food">
-          <div className={p.secHead} data-reveal>
+          <div className={p.secHead}>
             <h2 id="h-food" className={p.h2}>这一路要吃的</h2>
             <p className={p.secLead}>行程里写明了「必吃」或店名的几顿。</p>
           </div>
           <div className={p.foodGrid}>
             {L.food.map((f, i) => (
-              <article key={f.itemId} className={`${p.food} ${i === 0 ? p.foodBig : ''} ${i === 3 ? p.foodWide : ''}`} data-reveal>
+              <article key={f.itemId} className={`${p.food} ${i === 0 ? p.foodBig : ''} ${i === 3 ? p.foodWide : ''}`}>
                 <Photo photo={ph(f.media)} ratio={i === 0 ? '1 / 1' : i === 3 ? '16 / 9' : '4 / 3'} />
                 <div className={p.foodText}>
                   <h3 className={p.h3s}>{f.name}</h3>
@@ -232,13 +231,13 @@ export default function StoryPage() {
       {/* 值得留住的瞬间：手帐拼贴 */}
       {L.moments.length > 0 && (
         <section id="moments" className={p.section} aria-labelledby="h-moments">
-          <div className={p.secHead} data-reveal>
+          <div className={p.secHead}>
             <h2 id="h-moments" className={p.h2}>值得留住的瞬间</h2>
             <p className={p.secLead}>适合停下来拍照、散步或看夜景的地方。</p>
           </div>
           <div className={p.journal}>
             {L.moments.map((m, i) => (
-              <figure key={m.itemId} className={`${p.snap} ${p[`snap${i % 6}`]}`} data-reveal>
+              <figure key={m.itemId} className={`${p.snap} ${p[`snap${i % 6}`]}`}>
                 <Photo photo={ph(m.media)} ratio={['4 / 5', '1 / 1', '3 / 2', '3 / 4', '4 / 3', '1 / 1'][i % 6]} className={p.snapPhoto} />
                 <figcaption>
                   <span className={p.snapCap}>{m.caption}</span>
@@ -256,7 +255,7 @@ export default function StoryPage() {
       {/* 出发前速览 */}
       {L.brief.length > 0 && (
         <section id="brief" className={p.section} aria-labelledby="h-brief">
-          <div className={p.ticket} data-reveal>
+          <div className={p.ticket}>
             <div className={p.ticketHead}>
               <h2 id="h-brief" className={p.h2}>出发前速览</h2>
               <p className={p.small}>出发日 {fmtDate(trip.startDate)}</p>
@@ -276,7 +275,7 @@ export default function StoryPage() {
       {/* 收尾 */}
       <footer className={p.closing}>
         <Photo photo={ph(L.closing)} ratio="21 / 9" className={p.closingPhoto} />
-        <div className={p.closingText} data-reveal>
+        <div className={p.closingText}>
           <h2 className={p.closingTitle} aria-label={L.place}>
             {L.place.split(/\s*[・·]\s*/).map((seg, i) => (
               <span key={seg + i} className={p.titleSeg} aria-hidden>
@@ -286,7 +285,7 @@ export default function StoryPage() {
             ))}
           </h2>
           <p className={p.closingSub}>{L.stats.days} 天，{L.stats.spots} 个景点</p>
-          <p className={p.body}>{fmtDateRange(trip.startDate, trip.endDate)}</p>
+          <p className={p.body}>{span(trip.startDate, trip.endDate)}</p>
           <button type="button" className={p.btnLeather} onClick={() => nav(`/itinerary/${trip.id}`)}>
             查看完整行程
           </button>

@@ -1,15 +1,16 @@
+/* finesse · component · photo / montage / parallax — shares the story page soul */
 /* 旅程介绍页的共用展示件 */
 
 /* 照片框：纸板外框 + 内嵌照片，hover 轻微放大 */
 .photo {
   position: relative; margin: 0; overflow: hidden; border-radius: var(--radius-md);
   background: var(--color-viewer-bg);
-  box-shadow: inset 0 0 0 1px rgba(48, 37, 29, 0.08), 1px 2px 0 rgba(90, 62, 38, 0.12), 3px 10px 24px -10px rgba(46, 30, 18, 0.45);
-  transform: rotate(var(--tilt, 0deg));
+  box-shadow: var(--shadow-photo);
+  rotate: var(--tilt, 0deg);
 }
 .photo img {
   position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
-  transition: transform 600ms var(--ease);
+  transition: transform 600ms var(--ease-out-soft);
 }
 @media (hover: hover) {
   .photo:hover img { transform: scale(1.04); }
@@ -21,7 +22,7 @@
 }
 
 /* 首屏蒙太奇 */
-.montage { position: absolute; inset: 0; overflow: hidden; background: #D9CDB6; }
+.montage { position: absolute; inset: 0; overflow: hidden; background: var(--color-viewer-bg); }
 .frame {
   position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
   opacity: 0; z-index: 0; transition: opacity 1800ms ease-in-out; will-change: opacity, transform;
@@ -46,16 +47,11 @@
 }
 .dots .dotOn { background: var(--color-accent); transform: scale(1.3); }
 
-/* 滚动进场：轻微上移 + 淡入 */
-.hidden { opacity: 0; transform: translate3d(0, 24px, 0); }
-.shown { opacity: 1; transform: none; transition: opacity 700ms var(--ease), transform 700ms var(--ease); }
-
 /* 视差大图 */
 .parallax { position: relative; overflow: hidden; height: 100%; background: var(--color-viewer-bg); }
-.parallax img { position: absolute; inset: -40px 0; width: 100%; height: calc(100% + 80px); object-fit: cover; transform: scale(1.12); will-change: transform; }
+.parallax img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transform: scale(1.12); }
 
 @media (prefers-reduced-motion: reduce) {
   .frame { animation: none; transition: none; }
-  .hidden { opacity: 1; transform: none; }
   .photo img { transition: none; }
 }
