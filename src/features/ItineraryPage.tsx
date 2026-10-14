@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
+import p from './Page.module.css';
 import { Screen, RootHeader } from '../components/Layout';
 import { Button, EmptyLine, EmptyState } from '../components/Basics';
 import { DayHeading, DayTiles, HeroCover, Timeline, TimelineRow } from '../components/Itinerary';
@@ -79,6 +80,11 @@ export default function ItineraryPage() {
       header={<RootHeader title={trip.title} icon="Settings" iconLabel="旅程设置" onIcon={() => nav(`/trip/${trip.id}/settings`)} />}
     >
       <HeroCover coverUrl={cover} dateRange={fmtDateRange(trip.startDate, trip.endDate)} offline={ready.allGreen} />
+      <div className={p.mt8}>
+        <Button variant="outline" block icon="Image" onClick={() => nav(`/trip/${trip.id}/story`)}>
+          翻开旅程介绍
+        </Button>
+      </div>
       <PhaseCard td={td} now={now} />
       <DayTiles days={td.days} selectedId={day?.id} onSelect={(id) => selectDay(trip.id, id)} />
       {day && <DayHeading title={dayTitle} sub={daySub} />}
