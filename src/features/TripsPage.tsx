@@ -4,10 +4,11 @@ import p from './Page.module.css';
 import { Screen, RootHeader, Menu, Dialog } from '../components/Layout';
 import { Button, Card, EmptyState, SectionTitle } from '../components/Basics';
 import { Icon } from '../components/Icon';
-import { TripCard } from '../components/Cards';
-import { useTrips } from '../hooks/data';
-import { fmtDateRange, fmtDaysDest, nowIn } from '../domain/format';
-import { setLastTrip } from '../db/repo';
+import { TripDeck, type DeckTrip } from '../components/TripDeck';
+import { useTripCovers, useTrips } from '../hooks/data';
+import { fmtDateRange, isIsoDate, nowIn } from '../domain/format';
+import { deleteTrip, setLastTrip } from '../db/repo';
+import { toast } from '../store/ui';
 import { importFile, restoreFromFile } from './importFlow';
 import type { Trip } from '../domain/types';
 
@@ -25,6 +26,8 @@ export default function TripsPage() {
   const trips = useTrips();
   const [menu, setMenu] = useState(false);
   const [about, setAbout] = useState(false);
+  const covers = useTripCovers();
+  const [toDelete, setToDelete] = useState<DeckTrip | null>(null);
 
   const openTrip = async (id: string) => {
     await setLastTrip(id);
@@ -55,18 +58,17 @@ export default function TripsPage() {
         <>
           <SectionTitle>已导入旅程</SectionTitle>
           <div className={p.stack}>
-            <div className={p.tripGrid}>
-            {sortTrips(trips).map((t) => (
-              <TripCard
-                key={t.id}
-                coverKey={t.coverBlobKey}
-                title={t.title}
-                dateRange={fmtDateRange(t.startDate, t.endDate)}
-                meta={fmtDaysDest(t.startDate, t.endDate, t.destination)}
-                onOpen={() => void openTrip(t.id)}
-              />
-            ))}
-            </div>
+            <TripDeck
+              trips={sortTrips(trips).map((t) => ({
+                id: t.id,
+                title: t.title || '未命名旅程',
+                dates: isIsoDate(t.startDate) && isIsoDate(t.endDate) ? fmtDateRange(t.startDate, t.endDate) : '日期未设置',
+                people: t.participants ? `${t.participants} 人` : '人数未设置',
+                cover: covers?.get(t.id),
+              }))}
+              onOpen={(id) => void openTrip(id)}
+              onDelete={(t) => setToDelete(t)}
+            />
             <Button block variant="outline" icon="RotateCcw" onClick={() => void restoreFromFile()}>
               恢复备份
             </Button>
@@ -90,6 +92,29 @@ export default function TripsPage() {
           { label: '获取导入模板', onClick: () => nav('/import/template') },
           { label: '关于', onClick: () => setAbout(true) },
         ]}
+      />
+      <Dialog
+        open={!!toDelete}
+        onClose={() => setToDelete(null)}
+        title={`删除「${toDelete?.title ?? ''}」？`}
+        text={`将删除这份旅程（${toDelete?.dates ?? ''}）的行程、完成状态、预订证明和账本，删除后无法恢复。其他旅程不受影响。`}
+        actions={
+          <>
+            <Button variant="outline" onClick={() => setToDelete(null)}>
+              取消
+            </Button>
+            <Button
+              variant="danger"
+              onClick={() => {
+                const t = toDelete;
+                setToDelete(null);
+                if (t) void deleteTrip(t.id).then(() => toast(`已删除「${t.title}」`));
+              }}
+            >
+              删除
+            </Button>
+          </>
+        }
       />
       <Dialog
         open={about}

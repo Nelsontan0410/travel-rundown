@@ -10,7 +10,7 @@ import { readiness, useAppShellReady, useBlobUrl, useSettings, useTripData } fro
 import { addDays, daysBetween, fmtDate, fmtDateRange, fmtDaysDest, fmtMoney } from '../domain/format';
 import { TRANSLATE_LANGS } from '../links/linkLabel';
 import { NAV_APP_NAME } from '../importer/promptTemplate';
-import { deleteTrip, exportBackup, setCover, setTranslateTo, shiftTripStart } from '../db/repo';
+import { deleteTrip, exportBackup, setCover, setDepartTime, setParticipants, setTranslateTo, shiftTripStart } from '../db/repo';
 import { toast } from '../store/ui';
 import { downloadBlob, pickFile, prepareFile } from '../lib/files';
 import { restoreFromFile } from './importFlow';
@@ -36,6 +36,8 @@ export default function TripSettingsPage() {
   const settings = useSettings() ?? DEFAULT_SETTINGS;
   const [dateSheet, setDateSheet] = useState(false);
   const [newStart, setNewStart] = useState('');
+  const [factSheet, setFactSheet] = useState<'people' | 'time' | null>(null);
+  const [factVal, setFactVal] = useState('');
 
   if (td === null) return <Navigate to="/trips" replace />;
   if (!td) return <Screen tab="trips" header={<BackHeader title="旅程设置" />}>{null}</Screen>;
@@ -103,6 +105,24 @@ export default function TripSettingsPage() {
           onClick={() => {
             setNewStart(trip.startDate);
             setDateSheet(true);
+          }}
+        />
+        <SettingsRow
+          icon="CalendarDays"
+          label="出发时间"
+          value={trip.departTime ? `${trip.departTime}（${trip.homeTz}）` : `未设置，按 00:00（${trip.homeTz}）倒数`}
+          onClick={() => {
+            setFactVal(trip.departTime ?? '');
+            setFactSheet('time');
+          }}
+        />
+        <SettingsRow
+          icon="Home"
+          label="参与人数"
+          value={trip.participants ? `${trip.participants} 人` : '未设置'}
+          onClick={() => {
+            setFactVal(trip.participants ? String(trip.participants) : '');
+            setFactSheet('people');
           }}
         />
         <SettingsRow
@@ -208,6 +228,34 @@ export default function TripSettingsPage() {
           </>
         }
       />
+      <Sheet open={factSheet !== null} onClose={() => setFactSheet(null)} title={factSheet === 'time' ? '出发时间' : '参与人数'}>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            const v = factVal.trim();
+            if (factSheet === 'time') void setDepartTime(trip.id, v || undefined).then(() => toast(v ? '出发时间已更新' : '已改回按 00:00 倒数'));
+            else {
+              const n = Number(v);
+              if (v && !(Number.isInteger(n) && n > 0 && n < 1000)) return toast('人数请填 1 以上的整数');
+              void setParticipants(trip.id, v ? n : undefined).then(() => toast('人数已更新'));
+            }
+            setFactSheet(null);
+          }}
+        >
+          {factSheet === 'time' ? (
+            <Field label={`出发时间（${trip.homeTz}）`} hint="倒计时按出发日的这个时间计算；留空则按 00:00。">
+              <TextInput type="time" value={factVal} onChange={(e) => setFactVal(e.target.value)} />
+            </Field>
+          ) : (
+            <Field label="参与人数" hint="留空表示未设置">
+              <TextInput type="number" inputMode="numeric" min={1} max={999} value={factVal} onChange={(e) => setFactVal(e.target.value)} />
+            </Field>
+          )}
+          <FormActions>
+            <Button type="submit">保存</Button>
+          </FormActions>
+        </form>
+      </Sheet>
       <Sheet open={dateSheet} onClose={() => setDateSheet(false)} title="修改出发日期">
         <form
           onSubmit={(e) => {
