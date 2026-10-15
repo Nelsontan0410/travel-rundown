@@ -2,14 +2,14 @@ import json,os
 from pathlib import Path
 from playwright.sync_api import sync_playwright,expect
 out=Path('outputs');out.mkdir(exist_ok=True)
-base='http://127.0.0.1:4190'
+base=os.environ.get('FLIGHT_QA_URL', 'http://127.0.0.1:4190')
 with sync_playwright() as pw:
  b=pw.chromium.launch()
  ctx=b.new_context(viewport={'width':1280,'height':900},timezone_id='America/Los_Angeles')
  page=ctx.new_page();errors=[];page.on('pageerror',lambda e:errors.append(str(e)))
  page.goto(base)
  page.evaluate('''async()=>{ const {db}=await import('/src/db/schema.ts'); await db.trips.put({id:'flight-qa',title:'航班模块测试',startDate:'2027-01-10',endDate:'2027-01-19',homeTz:'Asia/Singapore',destination:'日本',theme:'winter',translate:{app:'google-translate',from:'auto',to:'zh-CN'},sourceMd:'',importedAt:'',updatedAt:'',flightCountdown:{origin:'SG',destination:'JP',departureTz:'Asia/Singapore',returnTz:'Asia/Tokyo',departureAt:Date.now()+86400000*8,returnAt:Date.now()+86400000*18}});await db.days.put({id:'qa-day',tripId:'flight-qa',index:1,date:'2027-01-10',tz:'Asia/Tokyo',city:'东京'}); }''')
- page.goto(base+'/trip/flight-qa/story');page.locator('[data-flight-phase]').wait_for()
+ page.goto(base+'/itinerary/flight-qa');page.locator('[data-flight-phase]').wait_for()
  for width in [1280,768,390,320]:
   page.set_viewport_size({'width':width,'height':900});page.wait_for_timeout(300)
   page.screenshot(path=str(out/f'flight-{width}-before.png'))

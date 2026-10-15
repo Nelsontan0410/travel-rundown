@@ -1,11 +1,13 @@
-# Landing 航班倒计时
+# 行程页顶部航班倒计时
 
-本 PR 仅实现用户于 2026-10-15 授权的 Landing 航班倒计时模块。
+本 PR 仅实现用户授权的航班倒计时模块。根据 2026-10-16 截图反馈，入口改为行程页顶部原 HeroCover 位置；StoryPage 恢复与 main 一致。
 视觉依据：用户提供的 `Travel_Rundown_Flight_Countdown_Claude_Package/reference_visual.png`；行为依据同包 Markdown 与 HTML 原型。参考包不进入应用，截图中的示例航班日期不作为真实数据。
 
 ## 改动边界
 
-- `StoryPage.tsx` 仅一处 import 和一个卡片入口；原照片环、标题、行程、餐饮等内容不变。
+- `ItineraryPage.tsx` 仅替换顶部封面为航班卡并移除不再使用的封面 URL hook。日期及离线状态仍显示。
+- `PhaseCard.tsx` 新增可选参数，仅在本入口隐藏旧的重复出发倒数，其他准备提醒、统计和操作完整保留。
+- `StoryPage.tsx` 与 main 一致；原照片环、标题、行程、餐饮等内容不变。
 - 新增 `FlightCountdown.tsx` / CSS 和纯计算模块 `domain/flightCountdown.ts`。
 - `Trip` 仅新增可选 `flightCountdown`，旧旅程无需迁移；使用原 Dexie trip 表，无新数据库、表、索引或版本号。
 - `repo.ts` 仅新增配置保存函数，以及重新导入时保留该配置的一行赋值。没有修改导入解析、行程日期、项目 key、订单或其他业务行为。
@@ -18,14 +20,17 @@
 
 只有连续可见页面跨过去程时刻才播放 4.6s 飞机过场。晚进入、刷新和休眠恢复按绝对时间定位；减少动态效果时跳过动画。回程起飞后显示结束，不倒数到回程落地。无配置时显示设置入口，不虚构机票信息。每份旅程独立，保存的卡片设置不随行程改期自动平移，需在卡片中明确修改。
 
+照片在中间重叠合成，使用由中间向两侧递减的模糊遮罩；没有纯色空白间隔。飞机位于连线上，抵达后保留在右侧。新增“预览起飞动画”，1.5 秒后播放相同的 4.6 秒动画，8.5 秒后恢复真实状态；演示只在组件内存中运行，不保存虚拟时间。
+
 ## 验证
 
 - 完整 `npm test`：20 文件 / 180 测试通过；`npm run build` 通过。新增 8 项时间与持久化测试。
+- Chromium 与 Safari WebKit：实测飞机 SVG 横坐标持续增加，真实时间到点与手动演示都能飞行；演示前后保存对象完全一致。Story 页确认不再出现卡片。
 - 浏览器：1280 / 768 / 390 / 320，无横向溢出；四季截图；Pin、设置弹层与 Escape、实际表单保存、错误拦截、减少动态效果、刷新后状态、到点过场与结束状态。
 - 浏览器系统时区设为 America/Los_Angeles，检查新加坡和日本的实际 UTC 值。
 - 生产构建 Service Worker：断网刷新、离线换到此前未打开的印尼、照片加载及保存后刷新均通过。
 - 截图和测试中的旅程全部为隔离的合成 QA 数据。
-- `qa/flight-countdown/` 的 visual.py / interaction.py 对本机 Vite dev :4190 测试；offline.py 对 preview :4191 测试。需要 Python Playwright + Chromium，在仓库根目录运行，结果写入 outputs/。先启动对应服务器。
+- `qa/flight-countdown/` 的 visual.py / interaction.py / motion.py 对本机 Vite dev :4190 测试；offline.py 对 preview :4191 测试。开发服务器端口可用 FLIGHT_QA_URL 覆盖。需要 Python Playwright + Chromium + WebKit，在仓库根目录运行，结果写入 outputs/。先启动对应服务器。
 
 ## 给另一条线 / 合并前事项
 

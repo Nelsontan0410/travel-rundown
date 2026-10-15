@@ -1,0 +1,40 @@
+{
+  "chromium": {
+    "demo_plane_x": [
+      414.15765380859375,
+      724.5582885742188,
+      1032.111328125
+    ],
+    "live_plane_x": [
+      374.2845764160156,
+      753.0302734375
+    ],
+    "preview_preserves_saved_time": true,
+    "widths": [
+      1280,
+      768,
+      390,
+      320
+    ],
+    "story_card_removed": true
+  },
+  "webkit": {
+    "demo_plane_x": [
+      410.6227111816406,
+      719.384033203125,
+      1028.3162841796875
+    ],
+    "live_plane_x": [
+      372.6896667480469,
+      749.7987670898438
+    ],
+    "preview_preserves_saved_time": true,
+    "widths": [
+      1280,
+      768,
+      390,
+      320
+    ],
+    "story_card_removed": true
+  }
+}

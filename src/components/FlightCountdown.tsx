@@ -6,17 +6,17 @@ import { asset, countries, countryOf, crossedDeparture, flightPhase, fromLocal, 
 import { remaining } from '../domain/countdown';
 import { setFlightCountdown } from '../db/repo';
 import { Sheet } from './Layout';
-import { Button } from './Basics';
+import { Button, StatusChip } from './Basics';
 import s from './FlightCountdown.module.css';
 import credits from '../../public/landing/flight-countdown/credits.json';
 
 const Scenery = memo(function Scenery({ origin, destination }: { origin: string; destination: string }) {
   return <div className={s.scenery} aria-hidden="true">{[origin, destination].map((code, i) => <div className={i ? s.rightImage : s.leftImage} key={i}>
     {countryOf(code) && <><img className={s.landmark} src={asset(code, 'landmark')} alt="" /><img className={s.flag} src={asset(code, 'flag')} alt="" /></>}
-  </div>)}</div>;
+  </div>)}<div className={s.blend} /></div>;
 });
 
-function Clock({ value }: { value: FlightCountdownSettings }) {
+function Clock({ value, demo = false }: { value: FlightCountdownSettings; demo?: boolean }) {
   const [now, setNow] = useState(Date.now);
   const previous = useRef(now);
   const transition = useRef<number>();
@@ -45,7 +45,7 @@ function Clock({ value }: { value: FlightCountdownSettings }) {
   const title = phase === 'before' ? '距离去程起飞' : phase === 'flying' ? `正在飞往${countryOf(value.destination)!.zh}` : phase === 'vacation' ? '开始玩乐！距离回程起飞' : '旅程已结束';
   return <>
     <div className={s.information} data-flight-phase={phase}>
-      <p className={s.heading} aria-live="polite">{title}</p>
+      <p className={s.heading} aria-live="polite">{demo ? `演示 · ${title}` : title}</p>
       <p className={s.date}>{phase === 'flying' ? '即将开启你的旅程' : `${localTime(at, tz).replace('T', ' ')} · ${tz}`}</p>
       {phase !== 'flying' && phase !== 'ended' && <div className={s.numbers} role="timer" aria-label={`${r.days}天 ${r.hours}小时 ${r.minutes}分钟 ${r.seconds}秒`}>
         {[[r.days, '天'], [r.hours, '小时'], [r.minutes, '分钟'], [r.seconds, '秒']].map(([v, unit]) => <div key={unit}><strong>{String(v).padStart(2, '0')}</strong><span>{unit}</span></div>)}
@@ -68,18 +68,29 @@ function initialDraft(td: TripData): Draft {
   return { origin: origin?.code ?? '', destination: destination?.code ?? '', departure: td.trip.departTime ? `${td.trip.startDate}T${td.trip.departTime}` : '', returning: '', departureTz: td.trip.homeTz || 'UTC', returnTz: destination?.tz ?? td.days[0]?.tz ?? 'UTC' };
 }
 
-export default function FlightCountdown({ td }: { td: TripData }) {
+export default function FlightCountdown({ td, dateRange, offline }: { td: TripData; dateRange?: string; offline?: boolean }) {
   const value = validFlightSettings(td.trip.flightCountdown) ? td.trip.flightCountdown : undefined;
   const [editing, setEditing] = useState(false);
+  const [demo, setDemo] = useState<FlightCountdownSettings>();
+  useEffect(() => {
+    if (!demo) return;
+    const timer = window.setTimeout(() => { setDemo(undefined); setNotice('演示结束，已恢复真实航班状态。'); }, 8500);
+    return () => window.clearTimeout(timer);
+  }, [demo]);
   const [pick, setPick] = useState<'origin' | 'destination'>();
   const [draft, setDraft] = useState(() => initialDraft(td));
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
   const defaults = initialDraft(td);
-  const origin = value?.origin ?? defaults.origin;
-  const destination = value?.destination ?? defaults.destination;
-  function openSettings() { setDraft(initialDraft(td)); setError(''); setEditing(true); }
+  const origin = demo?.origin ?? value?.origin ?? defaults.origin;
+  const destination = demo?.destination ?? value?.destination ?? defaults.destination;
+  function preview() {
+    const now = Date.now();
+    setDemo({ origin: origin || 'SG', destination: destination || 'JP', departureTz: value?.departureTz ?? 'Asia/Singapore', returnTz: value?.returnTz ?? 'Asia/Tokyo', departureAt: now + 1500, returnAt: now + 86400000 });
+    setNotice(window.matchMedia('(prefers-reduced-motion: reduce)').matches ? '系统已开启减少动态效果，演示将跳过飞行移动。' : '正在演示起飞过程；真实航班时间和保存数据保持不变。');
+  }
+  function openSettings() { setDemo(undefined); setDraft(initialDraft(td)); setError(''); setEditing(true); }
   async function choose(code: string) {
     if (!pick) return;
     if (!value) {
@@ -104,7 +115,7 @@ export default function FlightCountdown({ td }: { td: TripData }) {
     const next = { origin:draft.origin, destination:draft.destination, departureTz:draft.departureTz, returnTz:draft.returnTz, departureAt:fromLocal(draft.departure,draft.departureTz), returnAt:fromLocal(draft.returning,draft.returnTz) };
     if (!validFlightSettings(next)) { setError('请填写有效的国家、IANA 时区和当地时间，回程须晚于去程。夏令时跳过或重复的时刻请改用明确的 UTC 时间。'); return; }
     setBusy(true);
-    try { await setFlightCountdown(td.trip.id,next); setEditing(false); setNotice('航班设置已保存到本机。'); }
+    try { await setFlightCountdown(td.trip.id,next); setEditing(false); setNotice(next.returnAt <= Date.now() ? '已保存：回程起飞时刻已过，当前显示旅程已结束。可点预览查看起飞动画。' : next.departureAt <= Date.now() ? '已保存：去程起飞时刻已过，直接显示回程倒数，不重复播放起飞。' : '已保存。保持本页打开，去程到点后飞机将飞往右侧 Pin。'); }
     catch(e) { setError(e instanceof Error ? e.message : '保存失败，请重试。'); }
     finally { setBusy(false); }
   }
@@ -112,16 +123,21 @@ export default function FlightCountdown({ td }: { td: TripData }) {
     <div className={s.card}>
       <Scenery origin={origin} destination={destination} />
       <button className={s.edit} aria-label="设置航班时间" onClick={openSettings}><Settings2 size={20} /></button>
-      {value ? <Clock key={JSON.stringify(value)} value={value} /> : <div className={s.information}><p className={s.heading}>下一段旅程，从这里开始</p><p className={s.date}>设置去程与回程起飞时间，开启准确倒数</p><Button variant="outline" onClick={openSettings}>设置航班时间</Button></div>}
-      {!value && <div className={s.route} aria-hidden="true"><span className={s.aircraft}><Plane size={34} /></span></div>}
+      {demo || value ? <Clock key={JSON.stringify(demo ?? value)} value={(demo ?? value)!} demo={!!demo} /> : <div className={s.information}><p className={s.heading}>下一段旅程，从这里开始</p><p className={s.date}>设置去程与回程起飞时间，开启准确倒数</p><Button variant="outline" onClick={openSettings}>设置航班时间</Button></div>}
+      {!demo && !value && <div className={s.route} aria-hidden="true"><span className={s.aircraft}><Plane size={34} /></span></div>}
       {(['origin','destination'] as const).map((side,i) => {
         const code = i ? destination : origin;
         const c = countryOf(code);
-        return <button key={side} className={`${s.pin} ${i ? s.destination : s.origin}`} aria-label={i ? '修改目的地国家' : '修改出发国家'} onClick={() => {setError('');setPick(side);}}>
+        return <button key={side} className={`${s.pin} ${i ? s.destination : s.origin}`} aria-label={i ? '修改目的地国家' : '修改出发国家'} onClick={() => {setDemo(undefined);setError('');setPick(side);}}>
           <span className={s.pinIcon}><MapPin size={46} fill="var(--color-surface)" />{c && <img src={asset(code,'flag')} alt="" />}</span>
           <strong>{c?.en ?? (i ? '目的地' : '出发地')}</strong><span>{c?.zh ?? '选择国家'}</span>
         </button>;
       })}
+    </div>
+    <div className={s.footer}>
+      {dateRange && <span>{dateRange}</span>}
+      {offline && <StatusChip variant="success">行程已离线保存</StatusChip>}
+      <button type="button" className={s.preview} onClick={() => { if (demo) { setDemo(undefined); setNotice('已恢复真实航班状态。'); } else preview(); }}>{demo ? '返回真实倒数' : '预览起飞动画'}</button>
     </div>
     <p className={s.notice} role="status">{notice}</p>
     <details className={s.credits}><summary>地标照片来源</summary><ul>{credits.filter(c => c.country === origin || c.country === destination).map(c => <li key={c.country}><a href={c.source} target="_blank" rel="noreferrer">{countryOf(c.country)?.landmark}</a> · {c.author} · <a href={c.license_url || c.source} target="_blank" rel="noreferrer">{c.license}</a>（已缩小、裁切与渐隐）</li>)}</ul></details>
