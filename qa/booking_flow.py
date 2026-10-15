@@ -35,9 +35,9 @@ try:
 
             # 资料页：离线准备检查列出没凭证的项
             page.goto(BASE + '/docs'); page.wait_for_timeout(400)
-            summary = page.get_by_role('region', name='离线准备检查')
-            expect(summary).to_contain_text('0 / ')
-            expect(summary).to_contain_text('只有编号')        # 有订单号没文件
+            # 2026-10-15：顶部汇总区块已移除（和卡片重复），每张卡片自己显示离线状态
+            expect(page.get_by_role('region', name='离线准备检查')).to_have_count(0)
+            expect(page.get_by_text('预订编号可离线查看，但没有凭证文件').first).to_be_visible()
             # 分组：酒店 / 交通 / 门票
             page.get_by_role('tab', name='交通').click()
             expect(page.get_by_text('吉隆坡 → 新千岁').first).to_be_visible()
@@ -70,9 +70,11 @@ try:
             page.get_by_text('完成', exact=True).click()
             page.get_by_text('保存', exact=True).click(); page.wait_for_timeout(400)
 
-            summary = page.get_by_role('region', name='离线准备检查')
-            expect(summary).to_contain_text('1 / ')
-            expect(summary).to_contain_text('现场需联网')
+            expect(page.get_by_text('凭证文件已保存在本机').first).to_be_visible()
+            expect(page.get_by_text('动态票码要在官方 App 里现场打开，截图无效').first).to_be_visible()
+            # 所有卡片同样大小
+            hs = page.evaluate("() => [...document.querySelectorAll('[class*=bookingGrid] > *')].map(e => Math.round(e.getBoundingClientRect().height))")
+            assert len(set(hs)) == 1, hs
             expect(page.get_by_text('动态票码 · Klook · 现场需联网')).to_be_visible()
             page.screenshot(path=os.path.join(OUT, f'{w}-02-docs-after.png'), full_page=True)
 

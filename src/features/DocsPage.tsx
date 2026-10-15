@@ -9,7 +9,7 @@ import { Icon } from '../components/Icon';
 import { useCurrentTripId, useTripData } from '../hooks/data';
 import { bookingChip, bookingIcon, bookingStatusOf, bookingSubtitle, bookingTitle, docsForItem, inBookingList } from '../domain/rules';
 import { bookingGroup, GROUP_LABEL, isLinkDoc, OFFLINE_LABEL, offlineReport, offlineState, type BookingGroup } from '../domain/bookings';
-import { BookingFooter, OfflineSummary } from '../components/BookingExtras';
+import { BookingFooter } from '../components/BookingExtras';
 import { PassViewer, type PassDoc } from '../components/PassViewer';
 import { copyWithToast, openExternal } from '../links/openLink';
 import { setDocItemKeys } from '../db/repo';
@@ -80,29 +80,12 @@ export default function DocsPage() {
         <EmptyState title="还没有预订资料" text="点右上角「添加」，或在行程详情里上传" compact />
       ) : (
         <div className={`${p.stack} ${p.mt12}`}>
-          {booked.length > 0 && (
-            <OfflineSummary
-              total={booked.length}
-              ready={report.counts.ok}
-              rows={report.rows
-                .filter((r) => r.state.level !== 'ok')
-                .map((r) => {
-                  const d = td.dayById.get(r.item.dayId);
-                  return {
-                    id: r.item.id,
-                    title: r.item.title,
-                    sub: `${d ? bookingSubtitle(r.item, d) : ''}${r.state.level === 'dynamic' && r.state.saved ? '（另有已保存的凭证）' : ''}`,
-                    ...OFFLINE_LABEL[r.state.level],
-                  };
-                })}
-              onPick={(id) => nav(`/item/${id}`)}
-            />
-          )}
           {allSaved && report.todo === 0 && <InfoBanner variant="success">已保存附件可离线查看</InfoBanner>}
 
           {unlinked.length > 0 && (
+            <>
+            <p className={p.groupLabel}>未关联</p>
             <div className={p.bookingGrid}>
-              <p className={`${p.groupLabel} ${p.gridFull}`}>未关联</p>
               {unlinked.map((d) => (
                 <BookingCard
                   key={d.id}
@@ -120,6 +103,7 @@ export default function DocsPage() {
                 />
               ))}
             </div>
+            </>
           )}
 
           <div className={p.bookingGrid}>
