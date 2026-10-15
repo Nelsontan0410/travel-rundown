@@ -1,6 +1,7 @@
 import { zipSync, unzipSync, strToU8, strFromU8 } from 'fflate';
 import { db } from './schema';
 import { uuid } from './uuid';
+import type { TripTheme } from '../domain/types';
 import type { ParseResult } from '../importer/parseMd';
 import type { DiffOldItem } from '../importer/diff';
 import { encryptBlob, decryptBlob } from '../lib/crypto';
@@ -316,6 +317,21 @@ export async function setTranslateTo(tripId: string, to: TranslateLang): Promise
   const trip = await db.trips.get(tripId);
   if (!trip) return;
   await db.trips.update(tripId, { translate: { ...(trip.translate ?? DEFAULT_TRANSLATE), to }, updatedAt: now() });
+}
+
+/** 修订 2026-10：人数（正整数；undefined = 未设置） */
+export async function setParticipants(tripId: string, n: number | undefined): Promise<void> {
+  await db.trips.update(tripId, { participants: n && Number.isInteger(n) && n > 0 ? n : undefined, updatedAt: now() });
+}
+
+/** 修订 2026-10：出发时刻 HH:mm（出发地时区）；undefined = 按 00:00 */
+export async function setDepartTime(tripId: string, time: string | undefined): Promise<void> {
+  await db.trips.update(tripId, { departTime: time && /^\d{2}:\d{2}$/.test(time) ? time : undefined, updatedAt: now() });
+}
+
+/** 修订 2026-10：这份旅程的外观主题 */
+export async function setTripTheme(tripId: string, theme: TripTheme): Promise<void> {
+  await db.trips.update(tripId, { theme, updatedAt: now() });
 }
 
 export async function deleteTrip(tripId: string): Promise<void> {

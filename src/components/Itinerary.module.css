@@ -78,3 +78,22 @@
 .cardSub { font-size: var(--fs-small); color: var(--color-text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .slot { display: flex; align-items: center; gap: var(--space-1); flex-shrink: 0; color: var(--color-icon); }
 .actions { display: flex; gap: var(--space-2); margin-top: var(--space-3); }
+
+/* 修订 2026-10 · ISSUE-003：打卡 */
+.check {
+  flex: 0 0 auto; width: 28px; height: 28px; margin: -4px 0; border-radius: var(--radius-sm);
+  display: inline-flex; align-items: center; justify-content: center; color: var(--color-on-leather);
+  background: var(--grad-inset); box-shadow: var(--shadow-inset); border: var(--border-w) solid var(--color-border);
+  transition: background var(--duration) var(--ease), border-color var(--duration) var(--ease);
+}
+.check::before { content: ''; position: absolute; inset: -8px; }
+.check { position: relative; }
+.check:hover { border-color: var(--color-accent); }
+.checkOn { background: var(--grad-btn-primary); border-color: var(--color-leather-edge); box-shadow: inset 1px 1px 0 rgba(255, 225, 180, 0.25); }
+.cardDone { opacity: 0.72; box-shadow: var(--shadow-raised); }
+.cardDone .cardTitle { text-decoration: line-through; text-decoration-color: var(--color-text-3); }
+.divider {
+  display: flex; align-items: center; gap: var(--space-2); margin: var(--space-4) 0 var(--space-2) calc(var(--w-time) + var(--w-dot-col) + var(--space-2) * 2);
+  font-size: var(--fs-small); color: var(--color-text-2); font-weight: 600;
+}
+.divider::after { content: ''; flex: 1; height: 1px; background: var(--color-hairline); }

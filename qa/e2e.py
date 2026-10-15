@@ -1,3 +1,4 @@
+import re
 # 端到端冒烟：导入 → 标记完成 → 加证明 → 导出备份 → 换一个全新浏览器环境 → 恢复 → 断网打开
 # 运行：npm run e2e（会先构建并自启 vite preview）
 import datetime, os, subprocess, sys, tempfile, time, urllib.request
@@ -42,7 +43,8 @@ try:
         page.get_by_text('解析并预览').click()
         expect(page.get_by_text('准备检查')).to_be_visible()
         page.get_by_text('确认导入').click()
-        expect(page.get_by_text('距出发 4 天')).to_be_visible()   # A4 阶段提示卡
+        # A4 阶段提示卡 → 修订 2026-10 改为四单位倒计时（精确数值在 qa/p1_flow.py 验证）
+        expect(page.get_by_role('timer')).to_have_attribute('aria-label', re.compile(r'^距离出发 [34] 天 \d+ 小时 \d+ 分 \d+ 秒$'))
         print('ok import + phase card')
 
         # 2. 标记完成

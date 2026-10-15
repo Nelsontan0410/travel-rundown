@@ -3,7 +3,9 @@ import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import p from './Page.module.css';
 import { Screen, RootHeader } from '../components/Layout';
 import { Button, EmptyLine, EmptyState } from '../components/Basics';
-import { DayHeading, DayTiles, HeroCover, Timeline, TimelineRow } from '../components/Itinerary';
+import { DayHeading, DayTiles, HeroCover, Timeline, TimelineDivider, TimelineRow } from '../components/Itinerary';
+import { checklistOrder } from '../domain/checklist';
+import { setItemStatus } from '../db/repo';
 import { readiness, statusOf, useAppShellReady, useBlobUrl, useCurrentTripId, useSettings, useTripData } from '../hooks/data';
 import { navLink } from '../links/maps';
 import { LedgerSummaryCard } from '../components/Ledger';
@@ -92,7 +94,9 @@ export default function ItineraryPage() {
         <EmptyLine>这一天还没有安排</EmptyLine>
       ) : (
         <Timeline>
-          {items.map((it, i) => {
+          {(() => {
+            const { open, done } = checklistOrder(items, (k) => statusOf(td, k));
+            const row = (it: (typeof items)[number], i: number) => {
             const status = statusOf(td, it.key);
             const docs = docsForItem(td.docs, it.key);
             const isCur = it.id === cur;
@@ -118,9 +122,19 @@ export default function ItineraryPage() {
                 }}
                 onOpen={() => nav(`/item/${it.id}`)}
                 onNav={openNav}
+                checked={status === 'done'}
+                onCheck={(v) => void setItemStatus(trip.id, it.key, v ? 'done' : 'todo')}
               />
             );
-          })}
+            };
+            return (
+              <>
+                {open.map((it, i) => row(it, i))}
+                {done.length > 0 && <TimelineDivider label={`已完成（${done.length}）`} />}
+                {done.map((it, i) => row(it, i))}
+              </>
+            );
+          })()}
         </Timeline>
       )}
       <div style={{ marginTop: 'var(--space-6)' }}>

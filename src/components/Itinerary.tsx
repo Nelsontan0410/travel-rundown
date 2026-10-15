@@ -84,10 +84,18 @@ interface RowProps {
   actions?: { proof?: () => void; nav?: () => void };
   onOpen: () => void;
   onNav: () => void;
+  /** 修订 2026-10 · ISSUE-003：打卡 */
+  checked?: boolean;
+  onCheck?: (done: boolean) => void;
+}
+
+/** 当天已完成区块的分隔标题 */
+export function TimelineDivider({ label }: { label: string }) {
+  return <p className={s.divider}>{label}</p>;
 }
 
 /** TimelineRow + ItemCard（01） */
-export function TimelineRow({ first, time, dot, icon, title, subtitle, slot, current, actions, onOpen, onNav }: RowProps) {
+export function TimelineRow({ first, time, dot, icon, title, subtitle, slot, current, actions, onOpen, onNav, checked, onCheck }: RowProps) {
   const stop = (fn: () => void) => (e: MouseEvent) => {
     e.stopPropagation();
     fn();
@@ -100,8 +108,21 @@ export function TimelineRow({ first, time, dot, icon, title, subtitle, slot, cur
         <span className={`${s.line} ${first ? s.firstLine : ''}`} />
         <span className={`${s.dot} ${dot === 'done' ? s.dotDone : dot === 'current' ? s.dotCurrent : ''}`} />
       </div>
-      <div className={`${s.card} ${current ? s.current : ''}`} role="button" tabIndex={0} onClick={onOpen} onKeyDown={(e) => e.key === 'Enter' && onOpen()}>
+      <div className={`${s.card} ${current ? s.current : ''} ${checked ? s.cardDone : ''}`} role="button" tabIndex={0} onClick={onOpen} onKeyDown={(e) => e.key === 'Enter' && onOpen()}>
         <div className={s.cardMain}>
+          {onCheck && (
+            <button
+              type="button"
+              role="checkbox"
+              aria-checked={!!checked}
+              aria-label={checked ? `取消完成：${title}` : `标记完成：${title}`}
+              className={`${s.check} ${checked ? s.checkOn : ''}`}
+              onClick={stop(() => onCheck(!checked))}
+              onKeyDown={(e) => e.stopPropagation()}
+            >
+              {checked && <Icon name="CheckCircle2" size="sm" />}
+            </button>
+          )}
           <span className={s.cardIcon} style={{ color: iconColor }}>
             <Icon name={icon} />
           </span>
