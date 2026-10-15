@@ -1,5 +1,6 @@
 // 修订 2026-10：五套主题的文字对比度（WCAG AA）。tokens.css 改色时这里会拦住看不清的组合。
 import { describe, expect, it } from 'vitest';
+import { seasonOf } from '../domain/theme';
 // vitest 会把 .css 当样式处理（?raw 拿到空串），这里直接读文件
 // @ts-ignore 项目没装 node 类型
 import { readFileSync } from 'node:fs';
@@ -23,9 +24,10 @@ const ratio = (a: string, b: string) => {
 
 const classic = block(':root');
 // 四季共用块：选择器列表以 autumn 结尾，单独匹配 autumn 时会先命中它，再命中 autumn 自己的块
-const themes: Record<string, Record<string, string>> = { classic };
+// 2026-10-15：四季。夏季 = :root 的暖色（没有 data-theme）
+const themes: Record<string, Record<string, string>> = { summer: classic };
 const shared = block(':root[data-theme="autumn"]');
-for (const t of ['winter', 'spring', 'summer', 'autumn']) themes[t] = { ...classic, ...shared, ...block(`:root[data-theme="${t}"]`) };
+for (const t of ['winter', 'spring', 'autumn']) themes[t] = { ...classic, ...shared, ...block(`:root[data-theme="${t}"]`) };
 
 // [前景, 背景, 最低对比度]
 const PAIRS: [string, string, number][] = [
@@ -53,4 +55,20 @@ describe('主题对比度', () => {
       }
     });
   }
+});
+
+describe('四季主题', () => {
+  it('夏季没有单独的色板（就是暖色），春秋冬各有一个', () => {
+    expect(css).not.toMatch(/data-theme="summer"/);
+    for (const t of ['spring', 'autumn', 'winter']) expect(css).toMatch(new RegExp(`:root\\[data-theme="${t}"\\] \\{`));
+  });
+});
+
+describe('旧资料的主题', () => {
+  it('没设置或旧的 classic 都是夏季', () => {
+    expect(seasonOf(undefined)).toBe('summer');
+    expect(seasonOf('classic')).toBe('summer');
+    expect(seasonOf('summer')).toBe('summer');
+    expect(seasonOf('winter')).toBe('winter');
+  });
 });

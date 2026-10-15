@@ -13,6 +13,7 @@ import { TRANSLATE_LANGS } from '../links/linkLabel';
 import { NAV_APP_NAME } from '../importer/promptTemplate';
 import { deleteTrip, exportBackup, exportTripPackage, setCover, setDepartTime, setParticipants, setTranslateTo, setTripTheme, shiftTripStart } from '../db/repo';
 import { THEME_LABEL } from '../components/TripTheme';
+import { seasonOf, SEASONS } from '../domain/theme';
 import { toast } from '../store/ui';
 import { downloadBlob, pickFile, prepareFile } from '../lib/files';
 import { restoreFromFile } from './importFlow';
@@ -22,7 +23,7 @@ import { useStorageInfo } from '../hooks/storage';
 import CheckList from '../components/CheckList';
 import { checkTrip } from '../domain/check';
 import { docsForItem } from '../domain/rules';
-import { DEFAULT_SETTINGS, type TranslateLang, type TripTheme } from '../domain/types';
+import { DEFAULT_SETTINGS, type TranslateLang } from '../domain/types';
 
 /** 05 旅程设置（从 01 的设置图标进入） */
 export default function TripSettingsPage() {
@@ -150,8 +151,8 @@ export default function TripSettingsPage() {
         />
       </SettingsGroup>
 
-      <SettingsGroup title="外观" note="只影响这份旅程；其他旅程保持各自的外观。">
-        <SettingsRow icon="Image" label="主题" value={THEME_LABEL[trip.theme ?? 'classic']} onClick={() => setThemeSheet(true)} />
+      <SettingsGroup title="外观" note="每份旅程各自选择。旅程列表、导入等公共页面跟随你最近打开的那份旅程。">
+        <SettingsRow icon="Image" label="主题" value={THEME_LABEL[seasonOf(trip.theme)]} onClick={() => setThemeSheet(true)} />
       </SettingsGroup>
 
       <SettingsGroup title="外部工具" note="导航和翻译将在外部应用或网页中打开。">
@@ -221,8 +222,8 @@ export default function TripSettingsPage() {
       <ChoiceSheet
         open={themeSheet}
         title="外观主题"
-        options={(Object.keys(THEME_LABEL) as TripTheme[]).map((t) => ({ value: t, label: THEME_LABEL[t] }))}
-        value={trip.theme ?? 'classic'}
+        options={SEASONS.map((t) => ({ value: t, label: THEME_LABEL[t] }))}
+        value={seasonOf(trip.theme)}
         onPick={(v) => void setTripTheme(trip.id, v)}
         onClose={() => setThemeSheet(false)}
       />

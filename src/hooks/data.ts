@@ -175,3 +175,12 @@ export function useTripPacking(tripId: string | null | undefined): TripPacking |
     return { outfits, items, packed: new Set(checks.map((c) => c.ref)) };
   }, [tripId]);
 }
+
+/** 2026-10-15：最近打开的那份旅程的主题（公共页面跟随它） */
+export function useCurrentTripTheme(): Trip['theme'] | undefined {
+  return useLiveQuery(async () => {
+    const s = await db.settings.get('app');
+    const t = (s?.lastTripId && (await db.trips.get(s.lastTripId))) || (await db.trips.toCollection().first());
+    return t?.theme ?? 'summer';
+  }, []);
+}
