@@ -1,7 +1,7 @@
 import { parseImport } from '../importer/structured';
 import { useUI } from '../store/ui';
 import { downloadBlob, pickFile } from '../lib/files';
-import { restoreBackup } from '../db/repo';
+import { restoreBackupDetailed } from '../db/repo';
 import { toast } from '../store/ui';
 import { CSV_TEMPLATE, JSON_TEMPLATE } from '../importer/templates';
 
@@ -40,8 +40,9 @@ export async function pickAndRestore(): Promise<void> {
   const f = await pickFile('.zip,application/zip');
   if (!f) return;
   try {
-    const n = await restoreBackup(f);
-    toast(`已恢复 ${n} 个旅程`);
+    const r = await restoreBackupDetailed(f);
+    const what = r.scope === 'trip' ? '旅行包' : `${r.trips} 个旅程`;
+    toast(r.missingFiles ? `已恢复${what}，${r.missingFiles} 个附件不在包里，需要重新添加` : `已恢复${what}`);
   } catch {
     toast('不是有效的备份文件');
   }

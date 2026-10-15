@@ -11,6 +11,7 @@ import { migrateItemV2 } from '../domain/migrate';
 import {
   DEFAULT_SETTINGS,
   DEFAULT_TRANSLATE,
+  type BlobRecord,
   type Day,
   type Doc,
   type DocKind,
@@ -358,12 +359,18 @@ export function requestPersist(): void {
   }
 }
 
-// ---------- 完整备份：一个 zip，含行程、完成状态和证明文件 ----------
+// ---------- 备份：一个 zip，含行程、完成状态、账本，可选附件（证明文件、封面） ----------
 
 interface BackupJson {
   app: 'travel-rundown';
   version: 1 | 2;
   exportedAt: string;
+  /** 2026-10：all = 本机全部旅程；trip = 单个旅行包。旧备份没有这个字段，按 all 处理 */
+  scope?: 'all' | 'trip';
+  /** 2026-10：是否包含附件文件；false 时 blobs 为空，docs 只有资料没有文件 */
+  attachments?: boolean;
+  /** 2026-10：没打包进来的附件数量（attachments=false 时） */
+  omittedFiles?: number;
   expenses?: Expense[];
   trips: Trip[];
   days: Day[];
@@ -374,6 +381,23 @@ interface BackupJson {
   blobs: { key: string; type: string; file: string }[];
 }
 
+type BackupData = Omit<BackupJson, 'app' | 'version' | 'exportedAt' | 'blobs'>;
+
+async function zipBackup(data: BackupData, blobs: BlobRecord[]): Promise<Blob> {
+  const files: Record<string, Uint8Array> = {};
+  const blobMeta: BackupJson['blobs'] = [];
+  for (let i = 0; i < blobs.length; i++) {
+    const name = `files/${i}`;
+    files[name] = new Uint8Array(await blobs[i].blob.arrayBuffer());
+    blobMeta.push({ key: blobs[i].key, type: blobs[i].blob.type, file: name });
+  }
+  const json: BackupJson = { app: 'travel-rundown', version: 2, exportedAt: now(), ...data, blobs: blobMeta };
+  files['backup.json'] = strToU8(JSON.stringify(json));
+  const zipped = zipSync(files, { level: 0 });
+  return new Blob([zipped], { type: 'application/zip' });
+}
+
+/** 本机全部旅程，含全部附件 */
 export async function exportBackup(): Promise<Blob> {
   const [trips, days, items, docs, itemStates, settings, blobs, expenses] = await Promise.all([
     db.trips.toArray(),
@@ -385,32 +409,70 @@ export async function exportBackup(): Promise<Blob> {
     db.blobs.toArray(),
     db.expenses.toArray(),
   ]);
-  const files: Record<string, Uint8Array> = {};
-  const blobMeta: BackupJson['blobs'] = [];
-  for (let i = 0; i < blobs.length; i++) {
-    const name = `files/${i}`;
-    files[name] = new Uint8Array(await blobs[i].blob.arrayBuffer());
-    blobMeta.push({ key: blobs[i].key, type: blobs[i].blob.type, file: name });
-  }
-  const json: BackupJson = {
-    app: 'travel-rundown',
-    version: 2,
-    exportedAt: now(),
-    expenses,
-    trips,
-    days,
-    items,
-    docs,
-    itemStates,
-    settings,
-    blobs: blobMeta,
-  };
-  files['backup.json'] = strToU8(JSON.stringify(json));
-  const zipped = zipSync(files, { level: 0 });
-  return new Blob([zipped], { type: 'application/zip' });
+  return zipBackup({ scope: 'all', attachments: true, trips, days, items, docs, itemStates, settings, expenses }, blobs);
 }
 
-export async function restoreBackup(file: Blob): Promise<number> {
+/** 一份旅程的附件：证明文件 + 封面。返回 blob 键（本机已保存的才算） */
+async function tripBlobKeys(tripId: string): Promise<{ keys: string[]; missing: number }> {
+  const trip = await db.trips.get(tripId);
+  const docs = await db.docs.where('tripId').equals(tripId).toArray();
+  const wanted = [...docs.map((d) => d.blobKey), ...(trip?.coverBlobKey ? [trip.coverBlobKey] : [])];
+  const present = wanted.length ? ((await db.blobs.where('key').anyOf(wanted).primaryKeys()) as string[]) : [];
+  return { keys: present, missing: wanted.length - present.length };
+}
+
+export interface PackageInfo {
+  /** 附件文件数（本机已保存的） */
+  files: number;
+  bytes: number;
+}
+
+/** 旅行包里附件的数量和大小，用来在导出前告诉用户 */
+export async function tripPackageInfo(tripId: string): Promise<PackageInfo> {
+  const { keys } = await tripBlobKeys(tripId);
+  const blobs = keys.length ? await db.blobs.bulkGet(keys) : [];
+  return { files: keys.length, bytes: blobs.reduce((n, b) => n + (b?.blob.size ?? 0), 0) };
+}
+
+/** 单个旅行包：这份旅程的行程、完成状态、证明资料、账本；attachments=true 时连附件文件一起 */
+export async function exportTripPackage(tripId: string, opts: { attachments: boolean }): Promise<Blob> {
+  const trip = await db.trips.get(tripId);
+  if (!trip) throw new Error('旅程不存在');
+  const [days, items, docs, itemStates, expenses] = await Promise.all([
+    db.days.where('tripId').equals(tripId).toArray(),
+    db.items.where('tripId').equals(tripId).toArray(),
+    db.docs.where('tripId').equals(tripId).toArray(),
+    db.itemStates.where('tripId').equals(tripId).toArray(),
+    db.expenses.where('tripId').equals(tripId).toArray(),
+  ]);
+  const { keys } = await tripBlobKeys(tripId);
+  const blobs = opts.attachments && keys.length ? ((await db.blobs.bulkGet(keys)).filter(Boolean) as BlobRecord[]) : [];
+  return zipBackup(
+    {
+      scope: 'trip',
+      attachments: opts.attachments,
+      omittedFiles: opts.attachments ? 0 : keys.length,
+      trips: [trip],
+      days,
+      items,
+      docs,
+      itemStates,
+      settings: [],
+      expenses,
+    },
+    blobs,
+  );
+}
+
+export interface RestoreResult {
+  trips: number;
+  scope: 'all' | 'trip';
+  attachments: boolean;
+  /** 恢复后本机仍缺文件的证明资料数（不含附件的旅行包恢复到新设备时会有） */
+  missingFiles: number;
+}
+
+export async function restoreBackupDetailed(file: Blob): Promise<RestoreResult> {
   const data = unzipSync(new Uint8Array(await file.arrayBuffer()));
   const raw = data['backup.json'];
   if (!raw) throw new Error('不是有效的备份文件');
@@ -432,5 +494,17 @@ export async function restoreBackup(file: Blob): Promise<number> {
     if (!cur && incoming) await db.settings.put(incoming);
   });
   requestPersist();
-  return json.trips.length;
+  const keys = json.docs.map((d) => d.blobKey);
+  const present = keys.length ? ((await db.blobs.where('key').anyOf(keys).primaryKeys()) as string[]) : [];
+  return {
+    trips: json.trips.length,
+    scope: json.scope ?? 'all',
+    attachments: json.attachments ?? true,
+    missingFiles: keys.length - new Set(present).size,
+  };
+}
+
+/** 旧接口：只返回恢复的旅程数 */
+export async function restoreBackup(file: Blob): Promise<number> {
+  return (await restoreBackupDetailed(file)).trips;
 }
