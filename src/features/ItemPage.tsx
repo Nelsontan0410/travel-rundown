@@ -32,6 +32,8 @@ import { copyWithToast, openExternal } from '../links/openLink';
 import { isLinkDoc, OFFLINE_LABEL, offlineState } from '../domain/bookings';
 import { BookingFooter } from '../components/BookingExtras';
 import { PassViewer } from '../components/PassViewer';
+import { AddressCardSheet } from '../components/AddressCard';
+import { addressCard } from '../domain/address';
 import { translateUrl } from '../links/linkLabel';
 import { AddDocSheet } from './AddDoc';
 import SourceSheet from '../components/SourceSheet';
@@ -75,6 +77,7 @@ export default function ItemPage() {
   const [add, setAdd] = useState(false);
   const [srcOpen, setSrcOpen] = useState(false);
   const [show, setShow] = useState(false);
+  const [addrOpen, setAddrOpen] = useState(false);
 
   if (item === null) return <Navigate to="/itinerary" replace />;
   if (!item || !td) return <Screen tab="itinerary" header={<BackHeader title="行程详情" />}>{null}</Screen>;
@@ -93,6 +96,9 @@ export default function ItemPage() {
   const set = (s: 'todo' | 'done' | 'skipped') => void setItemStatus(td.trip.id, item.key, s);
   const openDoc = (id: string) => nav(`/doc/${id}?item=${encodeURIComponent(item.key)}`);
   const navUrl = navLink(item, day.tz, settings);
+  // 地址卡的「请带我到这里」按地点所在时区：第一天的航班在出发地
+  const addr = addressCard(item, item.type === 'flight' && day.index === 1 ? td.trip.homeTz : day.tz);
+  const openRoute = () => navUrl && openExternal(navUrl, placeCopyText(item.toPlace ?? item.place ?? { name: item.title }));
   const info = typeInfo(item);
   const checked = td.checked.get(item.key) ?? [];
   const toggleCheck = (t: string) =>
@@ -143,17 +149,38 @@ export default function ItemPage() {
 
       <div className={p.btnRow}>
         {navUrl && (
-          <Button icon="Navigation" onClick={() => openExternal(navUrl, placeCopyText(item.toPlace ?? item.place ?? { name: item.title }))}>
-            打开导航
+          <Button icon="Navigation" onClick={openRoute}>
+            看路线
           </Button>
         )}
-        <Button variant="outline" icon="Languages" onClick={() => openExternal(translateUrl(td.trip.translate.to))}>
-          打开翻译
-        </Button>
+        {addr ? (
+          <Button variant="outline" icon="MapPin" onClick={() => setAddrOpen(true)}>
+            给司机看
+          </Button>
+        ) : (
+          <Button variant="outline" icon="Languages" onClick={() => openExternal(translateUrl(td.trip.translate.to))}>
+            打开翻译
+          </Button>
+        )}
       </div>
       <div className={p.btnNote}>
-        <Caption align="right">复制文字后，在翻译工具中粘贴</Caption>
+        {addr ? (
+          <Button variant="link" chevron={false} icon="Languages" onClick={() => openExternal(translateUrl(td.trip.translate.to))}>
+            打开翻译
+          </Button>
+        ) : (
+          <Caption align="right">复制文字后，在翻译工具中粘贴</Caption>
+        )}
       </div>
+      {addr && (
+        <AddressCardSheet
+          open={addrOpen}
+          onClose={() => setAddrOpen(false)}
+          card={addr}
+          onCopy={(text, what) => void copyWithToast(text, `已复制${what}`)}
+          onRoute={navUrl ? openRoute : undefined}
+        />
+      )}
 
       {info && (
         <>

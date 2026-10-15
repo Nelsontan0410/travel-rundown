@@ -15,7 +15,7 @@ export function openExternal(url: string, fallbackCopy?: string): void {
   else toast('无法打开链接');
 }
 
-export async function copyWithToast(text: string): Promise<void> {
+export async function copyWithToast(text: string, okMsg = '已复制'): Promise<void> {
   const ok = await copyText(text);
-  toast(ok ? '已复制' : '复制失败');
+  toast(ok ? okMsg : '复制失败');
 }
