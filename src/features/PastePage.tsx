@@ -34,7 +34,7 @@ export default function PastePage() {
         className={p.textarea}
         value={text}
         onChange={(e) => setText(e.target.value)}
-        placeholder="把 AI 回复的 Markdown 粘贴到这里"
+        placeholder="把 AI 回复的行程粘贴到这里：Markdown、JSON、CSV 或普通文字都可以"
         spellCheck={false}
         autoCapitalize="off"
         autoCorrect="off"

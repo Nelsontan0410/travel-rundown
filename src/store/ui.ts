@@ -1,11 +1,16 @@
 import { create } from 'zustand';
-import type { ParseResult } from '../importer/parseMd';
+import type { ImportFormat, ParseResult } from '../importer/parseMd';
 
 interface ImportDraft {
+  /** 原始输入（MD / JSON / CSV / 文字），确认导入后存进 Trip.sourceMd */
   md: string;
   result: ParseResult;
   targetTripId?: string;
   from: 'file' | 'paste';
+  /** 修订 2026-10：识别出的格式、交给解析器的标准文本（预览「查看原文」用）、文件名 */
+  format?: ImportFormat;
+  normalized?: string;
+  fileName?: string;
 }
 
 interface UIState {

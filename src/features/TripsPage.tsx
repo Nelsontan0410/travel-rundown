@@ -8,7 +8,7 @@ import { TripCard } from '../components/Cards';
 import { useTrips } from '../hooks/data';
 import { fmtDateRange, fmtDaysDest, nowIn } from '../domain/format';
 import { setLastTrip } from '../db/repo';
-import { importMdFile, restoreFromFile } from './importFlow';
+import { importFile, restoreFromFile } from './importFlow';
 import type { Trip } from '../domain/types';
 
 /** 排序：没结束的旅程按开始日期升序排前面，已结束的按开始日期降序排后面 */
@@ -31,7 +31,7 @@ export default function TripsPage() {
     nav('/itinerary');
   };
   const onImportFile = async () => {
-    if (await importMdFile()) nav('/import/preview');
+    if (await importFile()) nav('/import/preview');
   };
 
   return (
@@ -39,9 +39,9 @@ export default function TripsPage() {
       <Card className={p.importCard}>
         <Icon name="FileUp" size="xl" color="var(--color-primary)" />
         <h2 className={p.importTitle}>把行程带进来</h2>
-        <p className={p.importSub}>导入 AI 已整理好的 Markdown 行程</p>
+        <p className={p.importSub}>支持 Markdown、JSON、CSV 文件，或直接粘贴文字</p>
         <Button block onClick={onImportFile}>
-          导入 MD 文件
+          导入文件
         </Button>
         <Button block variant="outline" onClick={() => nav('/import/paste')}>
           粘贴行程文字

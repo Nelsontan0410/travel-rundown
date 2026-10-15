@@ -8,6 +8,7 @@ import { buildPrompt, NAV_APP_NAME } from '../importer/promptTemplate';
 import { updateSettings } from '../db/repo';
 import { copyWithToast } from '../links/openLink';
 import { ChoiceSheet } from './Sheets';
+import { downloadTemplate } from './importFlow';
 import { DEFAULT_SETTINGS, type NavApp } from '../domain/types';
 
 const NAV_OPTIONS: { value: NavApp; label: string }[] = [
@@ -38,6 +39,10 @@ export default function TemplatePage() {
         <SettingsRow label="其他地区" value={NAV_APP_NAME[settings.navElsewhere]} onClick={() => setSheet('elsewhere')} />
       </SettingsGroup>
       <NoteBox className={p.prompt}>{prompt}</NoteBox>
+      <SettingsGroup title="结构化模板（JSON / CSV）">
+        <SettingsRow label="下载 JSON 模板" value="按格式填写可精准导入" onClick={() => downloadTemplate('json')} />
+        <SettingsRow label="下载 CSV 模板" value="每行一个活动，可用 Excel 编辑" onClick={() => downloadTemplate('csv')} />
+      </SettingsGroup>
 
       <ChoiceSheet
         open={sheet !== null}

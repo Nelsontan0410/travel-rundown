@@ -102,7 +102,7 @@ describe('prompt', () => {
   });
   it('v2 prompt ↔ parser: every field the prompt asks for is understood (nothing falls into meta)', () => {
     const p = buildPrompt();
-    const keys = [...new Set([...p.matchAll(/^- ([^:：\s]+):/gm)].map((m) => m[1]))].filter((k) => !['日期', '出发地时区', '预算'].includes(k));
+    const keys = [...new Set([...p.matchAll(/^- ([^:：\s]+):/gm)].map((m) => m[1]))].filter((k) => !['日期', '出发地时区', '预算', '人数'].includes(k));
     expect(keys.length).toBeGreaterThan(15);
     const sample: Record<string, string> = { 入住日期: '01-01-2027', 退房日期: '02-01-2027', 预订状态: '已确认', 固定: '是', 餐别: '午餐' };
     for (const k of keys) {

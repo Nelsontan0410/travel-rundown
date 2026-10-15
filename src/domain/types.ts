@@ -5,6 +5,7 @@ export type ItemStatus = 'todo' | 'done' | 'skipped';
 export type BookingStatus = 'confirmed' | 'pending';
 export type TranslateLang = 'zh-CN' | 'en' | 'ja' | 'ko';
 export type NavApp = 'amap' | 'google-maps' | 'apple-maps';
+export type TripTheme = 'classic' | 'winter';
 
 export interface TripTranslate {
   app: 'google-translate';
@@ -23,6 +24,12 @@ export interface Trip {
   /** v2：旅行预算，单位「分」（MYR × 100）。导入只带预算，实际花费由用户在账本里记 */
   budget?: number;
   translate: TripTranslate; // 设计新增
+  /** 修订 2026-10：参与人数（导入里写了「人数」或在旅程设置里填） */
+  participants?: number;
+  /** 修订 2026-10：这份旅程的外观主题，缺省为 classic */
+  theme?: TripTheme;
+  /** 修订 2026-10：出发时刻 HH:mm（出发地时区 homeTz），缺省按出发日 00:00 倒数 */
+  departTime?: string;
   sourceMd: string;
   importedAt: string;
   updatedAt: string;

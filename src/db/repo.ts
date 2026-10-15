@@ -60,6 +60,10 @@ export async function saveImport(
       coverBlobKey: existing?.coverBlobKey,
       budget: result.trip.budget ?? existing?.budget,
       translate: existing?.translate ?? DEFAULT_TRANSLATE,
+      // 修订 2026-10：人数以导入为准，没写就保留；主题和出发时刻是用户设置，重新导入不覆盖
+      participants: result.trip.participants ?? existing?.participants,
+      theme: existing?.theme,
+      departTime: existing?.departTime,
       sourceMd,
       importedAt: ts,
       updatedAt: ts,

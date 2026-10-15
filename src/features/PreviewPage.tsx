@@ -19,6 +19,19 @@ import { Field, TextInput } from '../components/Form';
 import { DraftDay, TypeCounts } from '../components/DraftReview';
 import { itemIcon, itemSubtitle, TYPE_LABEL } from '../domain/rules';
 import type { Item, ItemType } from '../domain/types';
+import { useTrips } from '../hooks/data';
+import { DroppedList, FixList, MappingSummaryCard, UnmappedList, type FixRow, type UnmappedRow } from '../components/MappingReview';
+import { confirmFlag, mapUnmapped, setDayDate, setItemType, setTripTitle, type UnmappedTarget } from '../importer/corrections';
+import type { ParseResult } from '../importer/parseMd';
+
+const FORMAT_LABEL = { md: 'Markdown', text: '文字', json: 'JSON', csv: 'CSV' } as const;
+const TYPE_OPTIONS = (Object.keys(TYPE_LABEL) as ItemType[]).map((t) => ({ value: t, label: TYPE_LABEL[t] }));
+const MAP_TARGETS: { value: UnmappedTarget; label: string }[] = [
+  { value: 'note', label: '备注' },
+  { value: 'timeNote', label: '时间说明' },
+  { value: 'place', label: '地点' },
+  { value: 'address', label: '地址' },
+];
 
 const TYPE_ORDER: ItemType[] = ['flight', 'lodging', 'spot', 'meal', 'transit', 'note'];
 const TYPE_ICON = { flight: 'Plane', lodging: 'Building2', spot: 'MapPin', meal: 'Utensils', transit: 'TrainFront', note: 'StickyNote' } as const;
@@ -34,7 +47,10 @@ export default function PreviewPage() {
   const [busy, setBusy] = useState(false);
   const [diff, setDiff] = useState<ImportDiff | null>(null);
   const [accepted, setAccepted] = useState<Set<string>>(new Set());
+  const trips = useTrips();
   const target = draft?.targetTripId;
+  // 进入预览时是不是「重新导入到指定旅程」（从旅程设置进来）；同名旅程的「更新」选择不算
+  const [fixedTarget] = useState(() => draft?.targetTripId);
   const parsed = draft?.result;
   const newFlat = useMemo(() => (parsed ? flattenParsed(parsed.days) : []), [parsed]);
   useEffect(() => {
@@ -72,6 +88,69 @@ export default function PreviewPage() {
   const changeStart = (v: string) => {
     if (!v || v === result.trip.startDate) return;
     setDraft({ ...draft, result: shiftDraft(result, v) });
+  };
+
+  // —— 映射检查与就地修正（只改草稿）
+  const fix = (fn: (r: ParseResult) => ParseResult) => setDraft({ ...draft, result: fn(result) });
+  const rep = result.mapping;
+  const dayLabel = (i: number) => {
+    const d = result.days[i];
+    return d ? `Day ${d.index}${d.title || d.city ? `${SEP}${d.title || d.city}` : ''}` : '旅程';
+  };
+  const KIND_ORDER = { title: 0, date: 1, 'ambiguous-date': 2, type: 3 } as const;
+  const fixRows: FixRow[] = [...(rep?.flags ?? [])].sort((a, b) => KIND_ORDER[a.kind] - KIND_ORDER[b.kind]).map((f) => {
+    if (f.kind === 'title') return { id: f.id, kind: 'title', where: '旅程标题', value: '', onChange: (v: string) => v.trim() && fix((r) => setTripTitle(r, v)) };
+    if (f.kind === 'date')
+      return { id: f.id, kind: 'date', where: dayLabel(f.dayIdx), raw: f.raw, value: result.days[f.dayIdx]?.date ?? '', onChange: (v: string) => fix((r) => setDayDate(r, f.dayIdx, v, f.id)) };
+    if (f.kind === 'ambiguous-date')
+      return {
+        id: f.id,
+        kind: 'ambiguous',
+        where: dayLabel(f.dayIdx),
+        raw: f.raw,
+        options: [
+          { value: f.iso, label: `${fmtDate(f.iso)}（日-月-年，当前）` },
+          { value: f.alt, label: `${fmtDate(f.alt)}（月-日-年）` },
+        ],
+        onChange: (v: string) => fix((r) => (v === f.iso ? confirmFlag(r, f.id) : setDayDate(r, f.dayIdx, v, f.id))),
+      };
+    const it = result.days[f.dayIdx]?.items[f.itemIdx];
+    return {
+      id: f.id,
+      kind: 'type',
+      where: `${dayLabel(f.dayIdx)}${SEP}${it?.title ?? ''}`,
+      raw: f.raw,
+      options: TYPE_OPTIONS,
+      onChange: (v: string) => fix((r) => setItemType(r, f.dayIdx, f.itemIdx, v as ItemType, f.id)),
+    };
+  });
+  const unmappedRows: UnmappedRow[] = (rep?.unmapped ?? []).map((u) => {
+    const it = u.level === 'item' && u.dayIdx != null && u.itemIdx != null ? result.days[u.dayIdx]?.items[u.itemIdx] : undefined;
+    const where = u.level === 'trip' ? '旅程信息' : u.level === 'day' ? dayLabel(u.dayIdx ?? 0) : `${dayLabel(u.dayIdx ?? 0)}${SEP}${it?.title ?? ''}`;
+    return {
+      id: u.id,
+      where,
+      field: u.field,
+      value: u.value,
+      keptAs: u.level === 'item' ? '保留在「其他信息」' : u.level === 'day' ? '保留在当天备注' : '只保存在原始文本里',
+      targets: u.level === 'item' ? MAP_TARGETS : u.level === 'day' ? [MAP_TARGETS[0]] : [],
+      onMap: (t: string) => fix((r) => mapUnmapped(r, u.id, t as UnmappedTarget)),
+    };
+  });
+  const summary = {
+    format: FORMAT_LABEL[draft.format ?? rep?.format ?? 'md'],
+    days: result.days.length,
+    items: result.itemCount,
+    errors: result.errors.length,
+    toConfirm: fixRows.length,
+    unmapped: unmappedRows.length,
+    dropped: rep?.dropped.length ?? 0,
+  };
+  // 同名旅程：不能未经确认就覆盖，让用户选新建还是更新
+  const dupes = !fixedTarget ? (trips ?? []).filter((t) => t.title === result.trip.title) : [];
+  const chooseTarget = (id: string | undefined) => {
+    setDiff(null);
+    setDraft({ ...draft, targetTripId: id });
   };
 
   const back = () => {
@@ -113,9 +192,27 @@ export default function PreviewPage() {
         </>
       }
     >
+      <div className={p.mt8}>
+        <MappingSummaryCard sum={summary} />
+      </div>
+      {fixRows.length > 0 && (
+        <div className={p.mt12}>
+          <FixList rows={fixRows} />
+        </div>
+      )}
+      {unmappedRows.length > 0 && (
+        <div className={p.mt12}>
+          <UnmappedList rows={unmappedRows} />
+        </div>
+      )}
+      {(rep?.dropped.length ?? 0) > 0 && (
+        <div className={p.mt12}>
+          <DroppedList rows={rep!.dropped} />
+        </div>
+      )}
       {blocked ? (
         <div className={p.mt8}>
-          <InfoBanner variant="warning">{empty ? '没有识别到任何行程项' : '这份内容不是 App 能用的格式，不能导入'}</InfoBanner>
+          <InfoBanner variant="warning">{empty ? '没有识别到任何行程项' : fixRows.length ? '还缺必要信息，暂时不能导入' : '这份内容不是 App 能用的格式，不能导入'}</InfoBanner>
           {result.errors.length > 0 && (
             <ul className={p.warnList}>
               {result.errors.map((e) => (
@@ -123,7 +220,8 @@ export default function PreviewPage() {
               ))}
             </ul>
           )}
-          <p className={p.lead}>把下面的「修复提示词」复制给 ChatGPT 或 Claude（已经附上你的原文），把它回复的内容重新粘贴进来即可。</p>
+          {fixRows.length > 0 && <p className={p.lead}>先试试在上面「需要你确认」里补上缺的信息；补全后就能导入。</p>}
+          <p className={p.lead}>也可以把下面的「修复提示词」复制给 ChatGPT 或 Claude（已经附上你的原文），把它回复的内容重新粘贴进来。</p>
           <div className={p.mt12}>
             <Button block icon="Copy" onClick={() => void copyWithToast(repairPrompt)}>
               复制修复提示词
@@ -132,10 +230,26 @@ export default function PreviewPage() {
         </div>
       ) : (
         <>
+          {dupes.length > 0 && (
+            <div className={p.mt12}>
+              <InfoBanner variant="warning">已经有同名旅程「{result.trip.title}」，请选择怎么处理</InfoBanner>
+              <div className={p.mt8} role="radiogroup" aria-label="同名旅程处理方式">
+                <button type="button" role="radio" aria-checked={!target} className={`${p.option} ${!target ? p.optionOn : ''}`} onClick={() => chooseTarget(undefined)}>
+                  另存为新旅程（原旅程不变）
+                </button>
+                {dupes.map((t) => (
+                  <button key={t.id} type="button" role="radio" aria-checked={target === t.id} className={`${p.option} ${target === t.id ? p.optionOn : ''}`} onClick={() => chooseTarget(t.id)}>
+                    更新「{t.title}」{t.startDate ? `（${fmtDateRange(t.startDate, t.endDate)}）` : ''}，保留完成状态、证明和账本
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <div className={p.mt8}>
             <KeyValueCard
               rows={[
                 ['目的地', result.trip.title],
+                ['人数', result.trip.participants ? `${result.trip.participants} 人` : '未设置'],
                 ['日期范围', result.trip.startDate ? fmtDateRange(result.trip.startDate, result.trip.endDate) : '—'],
                 ['天数', result.trip.startDate ? `${tripDays(result.trip.startDate, result.trip.endDate)}天` : `${result.days.length}天`],
                 ['行程项数', String(result.itemCount)],

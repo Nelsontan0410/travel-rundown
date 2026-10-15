@@ -4,6 +4,7 @@ import type { BookingStatus, FlightInfo, ItemType, LodgingInfo, MealKind, Place,
 import { deviceTz, isValidTz, addDays, findDates, parseDateAny, parseMoney } from '../domain/format';
 import { migrateItemV2 } from '../domain/migrate';
 import { makeItemKey } from '../domain/itemKey';
+import { canonField, typeOf } from './mapping';
 
 export interface ParseWarning {
   line?: number;
@@ -53,6 +54,35 @@ export interface TripDraft {
   homeTz: string;
   destination?: string;
   budget?: number; // 分
+  participants?: number;
+}
+
+export type ImportFormat = 'md' | 'text' | 'json' | 'csv';
+
+/** 认不出的字段：原样保留（放进行程项的「其他信息」），并在预览里列出来，可以改映射 */
+export interface UnmappedField {
+  id: string;
+  level: 'trip' | 'day' | 'item';
+  dayIdx?: number;
+  itemIdx?: number;
+  field: string;
+  value: string;
+  line?: number;
+}
+
+/** 低可信字段：需要用户在预览里确认或修正 */
+export type MappingFlag =
+  | { id: string; kind: 'type'; dayIdx: number; itemIdx: number; raw: string; line?: number }
+  | { id: string; kind: 'date'; dayIdx: number; raw: string; line?: number }
+  | { id: string; kind: 'ambiguous-date'; dayIdx: number; raw: string; iso: string; alt: string }
+  | { id: string; kind: 'title'; raw: string };
+
+export interface MappingReport {
+  format: ImportFormat;
+  unmapped: UnmappedField[];
+  flags: MappingFlag[];
+  /** 输入里有、但没能变成任何行程项的内容（例如 CSV 里缺标题的行），原样列出 */
+  dropped: { where: string; raw: string; reason: string }[];
 }
 
 export interface ParseResult {
@@ -62,6 +92,7 @@ export interface ParseResult {
   /** 致命问题：内容不是 App 的格式，不允许导入（预览页会给出修复提示词） */
   errors: string[];
   itemCount: number;
+  mapping?: MappingReport;
 }
 
 const TYPES: ItemType[] = ['flight', 'lodging', 'spot', 'transit', 'meal', 'note'];
@@ -145,6 +176,8 @@ function restoreMarkers(raw: string[]): string[] {
 
 export function parseMd(input: string): ParseResult {
   const warnings: ParseWarning[] = [];
+  const unmapped: UnmappedField[] = [];
+  const flags: MappingFlag[] = [];
   const lines = restoreMarkers(input.replace(/\r\n?/g, '\n').split('\n'));
 
   const trip: TripDraft = { title: '', startDate: '', endDate: '', homeTz: '' };
@@ -220,12 +253,17 @@ export function parseMd(input: string): ParseResult {
       let type: ItemType = 'note';
       let mealKind: MealKind | undefined;
       const alias = TYPE_ALIAS[rawType] ?? TYPE_ALIAS[(m?.[1] ?? '').trim()];
+      const loose = rawType ? typeOf(rawType) : undefined;
       if (TYPES.includes(rawType as ItemType)) type = rawType as ItemType;
       else if (alias) {
         type = alias.type;
         mealKind = alias.meal;
+      } else if (loose) {
+        type = loose as ItemType;
+        mealKind = mealFrom(rawType);
       } else {
         untyped++;
+        flags.push({ id: `type-${ln}`, kind: 'type', dayIdx: days.length - 1, itemIdx: curDay.items.length, raw: rawType, line: ln });
         warnings.push({
           line: ln,
           message: rawType ? `第 ${ln} 行：不认识的类型「${rawType}」，已当作 note` : `第 ${ln} 行：缺少类型，已当作 note`,
@@ -273,9 +311,13 @@ export function parseMd(input: string): ParseResult {
 
     const f = line.match(FIELD_RE);
     if (!f) return; // 其他文字忽略
-    const key = f[1].trim();
+    const rawKey = f[1].trim();
+    const scope = curItem ? 'item' : curDay ? 'day' : 'trip';
+    const canon = canonField(rawKey, scope);
+    // 统一字段名：各种写法（Location / Place / 地点…）都落到同一个中文字段上；必逛类保留原名
+    const key = LIST_KEYS.includes(rawKey) ? rawKey : canon === '必逛' ? '必逛' : (canon ?? rawKey);
     const value = f[2].trim();
-    if (curItem && LIST_KEYS.includes(key)) {
+    if (curItem && (LIST_KEYS.includes(key) || canon === '必逛')) {
       const it = curItem as ItemDraft;
       const list = value.split(LIST_SPLIT).map((x) => x.trim()).filter(Boolean);
       if (list.length) it.mustDo = [...(it.mustDo ?? []), ...list];
@@ -367,14 +409,61 @@ export function parseMd(input: string): ParseResult {
         case '时间说明':
           it.timeNote = value;
           break;
+        case '时间':
+        case '开始':
+        case '结束': {
+          const tm = value.match(/^(\d{1,2}:\d{2})(?:\s*[-–—~～至]\s*(\d{1,2}:\d{2}))?$/);
+          if (tm && validTime(tm[1]) && (!tm[2] || validTime(tm[2]))) {
+            if (key === '结束') it.end = pad(tm[1]);
+            else {
+              it.start = pad(tm[1]);
+              if (tm[2]) it.end = pad(tm[2]);
+            }
+          } else if (key === '时间') it.timeNote = value;
+          else {
+            it.meta = { ...(it.meta ?? {}), [rawKey]: value };
+            unmapped.push({ id: `u-${ln}`, level: 'item', dayIdx: days.length - 1, itemIdx: curDay!.items.length - 1, field: rawKey, value, line: ln });
+          }
+          break;
+        }
+        case '当地名':
+          it.place = { ...(it.place ?? { name: it.title }), localName: value };
+          break;
+        case '当地地址':
+          it.place = { ...(it.place ?? { name: it.title }), localAddress: value };
+          break;
+        case '终点当地名':
+          it.toPlace = { ...(it.toPlace ?? { name: value }), localName: value };
+          break;
+        case '标题':
+          if (it.title === '未命名') it.title = value;
+          else {
+            it.meta = { ...(it.meta ?? {}), [rawKey]: value };
+            unmapped.push({ id: `u-${ln}`, level: 'item', dayIdx: days.length - 1, itemIdx: curDay!.items.length - 1, field: rawKey, value, line: ln });
+          }
+          break;
         default:
-          it.meta = { ...(it.meta ?? {}), [key]: value };
+          it.meta = { ...(it.meta ?? {}), [rawKey]: value };
+          unmapped.push({ id: `u-${ln}`, level: 'item', dayIdx: days.length - 1, itemIdx: curDay!.items.length - 1, field: rawKey, value, line: ln });
       }
       return;
     }
 
     if (curDay) {
-      if (key === '备注') curDay.note = value;
+      const d = curDay as DayDraft;
+      if (key === '备注') d.note = value;
+      else if (key === '当天主题' && !d.title) d.title = value;
+      else if (key === '城市' && !d.city) d.city = value;
+      else if (key === '时区' && !rawDayTz) {
+        rawDayTz = value;
+        const pend = pendingDayTz[pendingDayTz.length - 1];
+        if (pend && pend.day === d) pend.raw = value;
+      } else if (key === '日期' && !d.date) d.date = parseDateAny(value);
+      else {
+        // 认不出的当天字段放进当天备注，不丢
+        d.note = d.note ? `${d.note}；${rawKey}：${value}` : `${rawKey}：${value}`;
+        unmapped.push({ id: `u-${ln}`, level: 'day', dayIdx: days.length - 1, field: rawKey, value, line: ln });
+      }
       return;
     }
 
@@ -393,6 +482,20 @@ export function parseMd(input: string): ParseResult {
       tripTzLine = ln;
     } else if (key === '目的地') {
       trip.destination = value;
+    } else if (key === '旅程标题') {
+      if (!trip.title) trip.title = value;
+    } else if (key === '出发日期') {
+      const d = parseDateAny(value);
+      if (d) trip.startDate = d;
+    } else if (key === '结束日期') {
+      const d = parseDateAny(value);
+      if (d) trip.endDate = d;
+    } else if (key === '人数') {
+      const n = Number(value.replace(/[^\d]/g, ''));
+      if (Number.isInteger(n) && n > 0 && n < 1000) trip.participants = n;
+      else warnings.push({ line: ln, message: `第 ${ln} 行：人数只能写正整数` });
+    } else {
+      unmapped.push({ id: `u-${ln}`, level: 'trip', field: rawKey, value, line: ln });
     }
   });
   void curDayLine;
@@ -426,6 +529,7 @@ export function parseMd(input: string): ParseResult {
   if (!trip.title) {
     trip.title = '未命名旅程';
     warnings.push({ message: '缺少行程标题（# 开头的一行）' });
+    flags.push({ id: 'title', kind: 'title', raw: '' });
   }
   // 标题就是目的地，例如「北海道，日本」；没写「目的地」时取最后一段当国家/地区
   if (!trip.destination) {
@@ -496,6 +600,15 @@ export function parseMd(input: string): ParseResult {
     }
   }
 
+  days.forEach((d, i) => {
+    if (!d.date) flags.push({ id: `date-${i}`, kind: 'date', dayIdx: i, raw: '' });
+  });
+  const errors = computeErrors(trip, days, untyped, itemCount);
+  return { trip, days, warnings, errors, itemCount, mapping: { format: 'md', unmapped, flags, dropped: [] } };
+}
+
+/** 致命问题（会阻止导入）。导入预览里改了日期、类型之后会重新计算 */
+export function computeErrors(trip: TripDraft, days: DayDraft[], untyped: number, itemCount: number): string[] {
   const errors: string[] = [];
   if (!days.length) errors.push('没有识别到任何一天（需要「Day 1 | DD-MM-YYYY | 城市 | 时区」这样的行；如果是从 AI 聊天里复制的，可能丢了标题符号，请让 AI 放进代码块再复制）');
   else if (!trip.startDate) errors.push('没有识别到行程日期');
@@ -504,6 +617,11 @@ export function parseMd(input: string): ParseResult {
     if (noDate.length) errors.push(`Day ${noDate.join('、')} 没有日期`);
   }
   if (itemCount > 0 && untyped === itemCount) errors.push('行程项都没有类型标记（需要「[flight] 08:30 标题」这样的写法）');
+  return errors;
+}
 
-  return { trip, days, warnings, errors, itemCount };
+/** 按日期、类型、标题重新生成全部 key（导入预览里修正了日期或类型之后调用） */
+export function rekey(days: DayDraft[]): void {
+  const used = new Set<string>();
+  for (const d of days) for (const it of d.items) it.key = makeItemKey(d.date, it.type, it.title, used);
 }
