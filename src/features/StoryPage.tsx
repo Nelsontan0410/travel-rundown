@@ -5,6 +5,7 @@ import p from './Story.module.css';
 import { Icon } from '../components/Icon';
 import { TripThemeScope } from '../components/TripTheme';
 import { Parallax, Photo, type PhotoSrc } from '../components/Story';
+import FlightCountdown from '../components/FlightCountdown';
 import { PhotoRing, SoloPostcard } from '../components/PhotoRing';
 import { useBlobUrl, useTripData } from '../hooks/data';
 import { buildLanding } from '../domain/landing';
@@ -101,6 +102,8 @@ export default function StoryPage() {
         <Icon name="ChevronLeft" size="sm" />
         回到行程
       </Link>
+
+      <FlightCountdown key={trip.id} td={td} />
 
       {/* 首屏：旅程照片围成一圈缓慢转动，标题在中央（手机上环在上、标题在下） */}
       <header className={`${p.hero} ${plan.mode === 'none' ? p.heroPlain : ''} ${backdrop ? p.hasBackdrop : ''}`}>

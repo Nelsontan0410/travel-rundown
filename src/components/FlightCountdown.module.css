@@ -1,0 +1,52 @@
+.module { margin: calc(var(--h-header) + var(--space-6)) auto var(--space-6); width: calc(100% - 2 * var(--page-x)); max-width: 1440px; }
+.card { position: relative; isolation: isolate; min-height: 310px; overflow: hidden; border-radius: var(--radius-md); border: 1px solid var(--color-border); background: var(--color-surface-subtle); box-shadow: var(--shadow-card); color: var(--color-text); }
+.scenery { position: absolute; inset: 0; z-index: -1; pointer-events: none; }
+.leftImage, .rightImage { position: absolute; top: 0; bottom: 0; width: 52%; overflow: hidden; }
+.leftImage { left: 0; mask-image: linear-gradient(to right, black 15%, transparent 100%); }
+.rightImage { right: 0; mask-image: linear-gradient(to left, black 15%, transparent 100%); }
+.landmark { width: 100%; height: 100%; object-fit: cover; opacity: .72; }
+.flag { position: absolute; top: 0; width: 100%; height: 65%; object-fit: cover; opacity: .3; mask-image: linear-gradient(to bottom, black 45%, transparent); }
+.leftImage .flag { left: 0; }.rightImage .flag { right: 0; }
+.information { position: relative; margin: 0 auto; padding: 28px 12px 122px; text-align: center; width: 100%; background: linear-gradient(to bottom, var(--color-surface-subtle), transparent); }
+.heading { font-size: var(--fs-section); font-weight: 700; margin: 0 24px 6px; }
+.date { font-size: var(--fs-caption); color: var(--color-text-2); margin: 0 12px 12px; overflow-wrap: anywhere; }
+.numbers { display: grid; grid-template-columns: repeat(4, 1fr); max-width: 390px; margin: 0 auto; gap: 8px; }
+.numbers > div { display: flex; flex-direction: column; }
+.numbers strong { font-size: clamp(28px, 5vw, 48px); line-height: 1.15; font-variant-numeric: tabular-nums; font-weight: 700; }
+.numbers span { font-size: var(--fs-caption); margin-top: 6px; color: var(--color-text-2); }
+.pin { position: absolute; bottom: 18px; display: flex; flex-direction: column; align-items: center; min-width: 92px; min-height: 80px; padding: 4px; border: 0; background: transparent; color: var(--color-text); cursor: pointer; font: inherit; border-radius: var(--radius-sm); }
+.pin strong, .pin > span:last-child { background: var(--color-surface-subtle); padding: 0 4px; border-radius: 4px; font-size: var(--fs-small); }
+.pinIcon { position: relative; height: 46px; color: var(--color-primary); }
+.pinIcon img { position: absolute; top: 8px; left: 12px; width: 22px; height: 17px; border-radius: 50%; object-fit: cover; }
+.origin { left: 5px; }.destination { right: 5px; }
+.route { position: absolute; left: 96px; right: 96px; bottom: 20px; border-top: 2px dashed var(--color-icon); height: 1px; }
+.route::before, .route::after { content: ''; position: absolute; top: -5px; width: 8px; height: 8px; border-radius: 50%; background: var(--color-primary); }
+.route::before { left: 0; }.route::after { right: 0; }
+.aircraft { position: absolute; left: 0; bottom: 0; width: 100%; height: 34px; color: var(--color-primary); pointer-events: none; }
+.aircraft svg { transform: translateX(-50%) rotate(45deg); }
+.trail { position: absolute; top: -2px; height: 2px; width: 100%; background: var(--color-accent); transform-origin: left; transform: scaleX(0); }
+.flying .aircraft { animation: flight 4.6s linear both; }
+.flying .trail { animation: trail 4.6s linear both; }
+.arrived .aircraft { transform: translateX(100%); opacity: 0; }.arrived .trail { transform: scaleX(1); }
+@keyframes flight { from { transform: translate(0, 0); } 40% { transform: translate(40%, -12px); } to { transform: translate(100%, 0); } }
+@keyframes trail { to { transform: scaleX(1); } }
+.edit { position: absolute; z-index: 2; right: 0; top: 0; width: 44px; height: 44px; display: grid; place-items: center; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--color-text); cursor: pointer; }
+.edit:hover, .pin:hover { background: var(--color-primary-soft); }
+.edit:focus-visible, .pin:focus-visible, .countryGrid button:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; }
+.notice { font-size: var(--fs-caption); color: var(--color-text-2); min-height: 0; margin: 4px 0 0; }.notice:empty { display: none; }
+.transitionNote { margin-top: 24px; font-size: var(--fs-small); }
+.form { display: flex; flex-direction: column; gap: 14px; color: var(--color-text); }
+.form p { font-size: var(--fs-small); color: var(--color-text-2); }
+.form label { display: flex; flex-direction: column; gap: 6px; font-size: var(--fs-body); }
+.form input, .form select { width: 100%; min-width: 0; min-height: 44px; padding: 10px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-surface-subtle); color: var(--color-text); font: inherit; }
+.actions { display: flex; justify-content: flex-end; gap: 12px; }
+.countryGrid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; }
+.countryGrid button { display: flex; gap: 10px; align-items: center; min-height: 56px; padding: 10px; color: var(--color-text); background: var(--color-surface-subtle); border: 1px solid var(--color-border); border-radius: var(--radius-sm); cursor: pointer; text-align: left; }
+.countryGrid img { width: 30px; height: 20px; object-fit: cover; }.countryGrid small { display: block; }.countryGrid button[aria-pressed=true] { background: var(--color-primary-soft); }.form .error { color: var(--color-warning-ink); }
+@media (min-width: 768px) {
+  .card { min-height: 230px; }.information { width: 60%; min-height: 230px; padding: 24px 12px 46px; background: linear-gradient(to right, transparent, var(--color-surface-subtle) 20% 80%, transparent); }
+  .leftImage, .rightImage { width: 42%; }.pin { bottom: 24px; }.origin { left: 20px; }.destination { right: 20px; }.route { left: 150px; right: 150px; bottom: 24px; }.numbers strong { font-size: 46px; }
+}
+@media (prefers-reduced-motion: reduce) { .flying .aircraft, .flying .trail { animation: none; }.flying .aircraft { transform: translateX(100%); } }
+
+.credits { font-size: var(--fs-caption); color: var(--color-text-2); }.credits summary { cursor: pointer; min-height: 44px; padding-top: 12px; }.credits a { color: var(--color-primary); text-decoration: underline; }.credits ul { padding-left: 20px; overflow-wrap: anywhere; }

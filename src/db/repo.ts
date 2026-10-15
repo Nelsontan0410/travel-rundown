@@ -1,3 +1,4 @@
+import { validFlightSettings } from '../domain/flightCountdown';
 import { zipSync, unzipSync, strToU8, strFromU8 } from 'fflate';
 import { db } from './schema';
 import { uuid } from './uuid';
@@ -75,6 +76,7 @@ export async function saveImport(
       participants: result.trip.participants ?? existing?.participants,
       theme: existing?.theme,
       departTime: existing?.departTime,
+      flightCountdown: existing?.flightCountdown,
       sourceMd,
       importedAt: ts,
       updatedAt: ts,
@@ -923,4 +925,11 @@ export async function updateTripInfo(tripId: string, patch: { title?: string; de
     await db.trips.put(next);
     await afterEdit(tripId);
   });
+}
+
+/** 仅保存 Landing 航班卡配置，不修改行程项目、出发日期或其他设置。 */
+export async function setFlightCountdown(tripId: string, value: import('../domain/types').FlightCountdownSettings): Promise<void> {
+  if (!validFlightSettings(value)) throw new Error('请检查国家、时区及起飞时间，回程必须晚于去程。');
+  const updated = await db.trips.update(tripId, { flightCountdown: value, updatedAt: now() });
+  if (!updated) throw new Error('旅程已不存在，无法保存。');
 }
