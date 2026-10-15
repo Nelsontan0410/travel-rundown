@@ -21,7 +21,7 @@ try:
             ctx = b.new_context(viewport={'width': w, 'height': h}, locale='zh-CN', timezone_id='Asia/Kuala_Lumpur')
             page = ctx.new_page(); errs = []
             page.on('pageerror', lambda e: errs.append(str(e)))
-            theme = lambda: page.evaluate('document.documentElement.dataset.theme || "classic"')
+            theme = lambda: page.evaluate('document.documentElement.dataset.theme || "summer"')
             shot = lambda n: page.screenshot(path=os.path.join(OUT, f'{w}-{n}.png'), full_page=True)
             # 北海道（粘贴文字）+ 首尔（JSON）
             page.goto(BASE + '/import/paste'); page.locator('textarea').fill(md); page.get_by_text('解析并预览').click()
@@ -38,7 +38,11 @@ try:
             page.get_by_role('checkbox', name='标记完成：抵达东京羽田机场').click(); page.wait_for_timeout(300)
             # 设置里改成 Winter
             page.goto(f'{BASE}/trip/{hk}/settings'); page.wait_for_timeout(300)
-            assert theme() == 'classic'
+            assert theme() == 'summer'          # 2026-10-15：没设置 = 夏季（暖色）
+            page.get_by_text('主题', exact=True).click()
+            assert page.get_by_role('dialog').get_by_role('button').count() == 4   # 只有四季
+            expect(page.get_by_text('Classic 暖色')).to_have_count(0)
+            page.keyboard.press('Escape'); page.wait_for_timeout(200)
             page.get_by_text('主题', exact=True).click(); page.get_by_text('Winter 冬季').click(); page.wait_for_timeout(300)
             assert theme() == 'winter', theme()
             shot('01-settings-winter')
@@ -49,16 +53,19 @@ try:
             page.goto(f'{BASE}/trip/{hk}/story'); page.wait_for_timeout(1200)
             assert theme() == 'winter'
             page.screenshot(path=os.path.join(OUT, f'{w}-03-story-winter.png'))
-            # 首尔仍是 Classic；旅程列表是 Classic
+            # 首尔仍是夏季；旅程列表跟随最近打开的旅程（首尔 → 夏季）
             page.goto(f'{BASE}/itinerary/{se}'); page.wait_for_timeout(400)
-            assert theme() == 'classic', theme()
+            assert theme() == 'summer', theme()
             page.goto(BASE + '/trips'); page.wait_for_timeout(400)
-            assert theme() == 'classic'
-            # 页面内导航（不刷新）：从列表打开北海道 → winter；回列表 → classic
+            assert theme() == 'summer'
+            # 页面内导航（不刷新）：从列表打开北海道 → winter；回列表 → 跟着北海道，也是 winter
             page.get_by_role('button', name='打开旅程：东京・富士山・北海道，日本').click(); page.wait_for_url('**/itinerary**'); page.wait_for_timeout(400)
             assert theme() == 'winter'
             page.get_by_role('link', name='旅程').first.click(); page.wait_for_timeout(400)
-            assert theme() == 'classic'
+            assert theme() == 'winter', theme()
+            shot('04-trips-follow-winter')
+            page.goto(BASE + '/import/template'); page.wait_for_timeout(400)
+            assert theme() == 'winter'           # 导入模板等公共页面也跟随
             # 刷新后仍保留
             page.goto(f'{BASE}/itinerary/{hk}'); page.reload(); page.wait_for_timeout(500)
             assert theme() == 'winter'
@@ -82,7 +89,8 @@ try:
                 page.goto(f'{BASE}/itinerary/{se}'); page.wait_for_timeout(400)
                 assert theme() == 'spring', theme()
             page.goto(BASE + '/trips'); page.wait_for_timeout(400)
-            assert theme() == 'classic'
+            assert theme() == 'spring', theme()   # 最后打开的是首尔（春季）
+            shot('05-trips-follow-spring')
             assert not errs, errs
             print('ok', w)
             ctx.close()

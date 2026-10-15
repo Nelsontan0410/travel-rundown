@@ -1,7 +1,8 @@
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { useEffect } from 'react';
 import { Toast } from './components/Layout';
-import { useTrips } from './hooks/data';
+import { useCurrentTripTheme, useTrips } from './hooks/data';
+import { AppThemeBase } from './components/TripTheme';
 import TripsPage from './features/TripsPage';
 import ItineraryPage from './features/ItineraryPage';
 import ItemPage from './features/ItemPage';
@@ -25,6 +26,11 @@ function Home() {
   return <Navigate to={trips.length ? '/itinerary' : '/trips'} replace />;
 }
 
+function ThemeBase() {
+  const theme = useCurrentTripTheme();
+  return theme ? <AppThemeBase theme={theme} /> : null;
+}
+
 function ScrollTop() {
   const { pathname } = useLocation();
   useEffect(() => window.scrollTo(0, 0), [pathname]);
@@ -35,6 +41,7 @@ export default function App() {
   return (
     <>
       <ScrollTop />
+      <ThemeBase />
       <UpdateBanner />
       <RestoreConfirm />
       <Routes>

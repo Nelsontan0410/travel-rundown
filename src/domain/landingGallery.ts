@@ -3,6 +3,7 @@
 import type { LandingContent } from './landing';
 import type { LandingMedia } from './landingMedia';
 import type { TripTheme } from './types';
+import { seasonOf } from './theme';
 
 export interface GalleryPhoto {
   /** 稳定 ID：图库照片用图库 id，用户封面固定为 cover */
@@ -98,7 +99,7 @@ export function landingGallery(
     seen.add(m.id);
     lib.push(m);
   }
-  const season = opts.theme && opts.theme !== 'classic' ? opts.theme : undefined;
+  const season = seasonOf(opts.theme);
   if (season) lib = [...lib.filter((m) => m.season === season), ...lib.filter((m) => m.season !== season)];
 
   const photos: GalleryPhoto[] = [

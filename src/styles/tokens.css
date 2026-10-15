@@ -172,13 +172,13 @@
   --shadow-overlay: inset 1px 1px 0 rgba(255, 252, 244, 0.8), 0 2px 0 rgba(90, 62, 38, 0.15), 0 18px 40px -8px rgba(46, 30, 18, 0.45);
 }
 
-/* ———————— 修订 2026-10：季节主题（Winter / Spring / Summer / Autumn） ————————
-   四个季节共用「B 旅行摄影杂志氛围 + A 极简卡片」的材质：不用纸纹和皮革纹理，卡片平、阴影轻，
+/* ———————— 修订 2026-10：季节主题 ————————
+   主题只有春夏秋冬四季。夏季 = 上面 :root 的暖色复古拟物化（没有 data-theme）；
+   春、秋、冬共用「B 旅行摄影杂志氛围 + A 极简卡片」的材质：不用纸纹和皮革纹理，卡片平、阴影轻，
    圆角、间距、层级、交互与 Classic 完全一致。每个季节只换色板和阴影色调（--tint）。
    每份旅程在旅程设置里独立选择，打开旅程时由页面设置 <html data-theme>。 */
 :root[data-theme="winter"],
 :root[data-theme="spring"],
-:root[data-theme="summer"],
 :root[data-theme="autumn"] {
   --tex-paper: none;
   --tex-leather: none;
@@ -306,50 +306,6 @@
   --color-on-photo-2: #F3D6E0;
 }
 
-/* Summer 夏季 · 海盐与正午：深潟湖青为主色，向日葵黄只做点缀 */
-:root[data-theme="summer"] {
-  --tint: 14, 66, 78;
-  --color-primary: #0E4D5C;
-  --color-primary-soft: #DCEDEE;
-  --color-primary-ink: #123F49;
-  --color-accent: #E2A532;
-  --color-accent-text: #8A5F0E;
-  --color-accent-soft: #FBEFD2;
-  --color-info-bg: #E2F0F0;
-  --color-tile-bg: #DDEDEC;
-  --color-tag-bg: #E3F0EF;
-  --color-success: #2E7D63;
-  --color-success-soft: #DCF0E8;
-  --color-success-ink: #23634E;
-  --color-text: #1D3A41;
-  --color-text-2: #4D6A70;
-  --color-text-3: #7A9297;
-  --color-icon: #4D6A70;
-  --color-border: #C8DCDB;
-  --color-hairline: #DDEAE9;
-  --color-rail: #BDD6D5;
-  --color-dot-pending: #A5C2C2;
-  --color-neutral-soft: #E2ECEB;
-  --color-surface-muted: #EEF5F3;
-  --color-surface-subtle: #F8FAF7;
-  --color-page: #F7F6F0;
-  --color-page-hi: #FCFBF7;
-  --color-page-lo: #EEF2EC;
-  --color-viewer-bg: #DCE9E8;
-  --color-leather: #0E4D5C;
-  --color-leather-dark: #0A3843;
-  --color-leather-light: #16606F;
-  --color-leather-edge: #0A3843;
-  --color-on-leather: #EAF5F4;
-  --color-on-leather-2: #A6CACC;
-  --color-on-leather-hi: #FFFFFF;
-  --color-plate-1: #1F7182;
-  --color-plate-2: #16606F;
-  --color-tile-1: #F8FAF7;
-  --color-tile-2: #E3EFEE;
-  --color-ink-press: #0E4D5C;
-  --color-on-photo-2: #F8E2B0;
-}
 
 /* Autumn 秋季 · 红叶与银杏：枫叶酒红为主色，银杏金做点缀；纸面偏暖灰，与 Classic 的奶油纸区分开 */
 :root[data-theme="autumn"] {
