@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import p from './Page.module.css';
+import { TripThemeScope } from '../components/TripTheme';
 import { Screen, BigHeader } from '../components/Layout';
 import { Button, Caption, EmptyState, FilterChips, InfoBanner } from '../components/Basics';
 import { BookingCard } from '../components/Cards';
@@ -54,6 +55,8 @@ export default function DocsPage() {
   const fileOf = (d: Doc) => ({ id: d.id, title: d.title, mime: d.mime, blobKey: d.blobKey, saved: td.savedBlobs.has(d.blobKey), locked: !!d.lock });
 
   return (
+    <>
+    <TripThemeScope theme={td.trip.theme} />
     <Screen
       tab="docs"
       header={<BigHeader title="预订资料" sub={td.trip.title} action={{ label: '添加', onClick: () => setAdd({ keys: [] }) }} />}
@@ -128,5 +131,6 @@ export default function DocsPage() {
         />
       )}
     </Screen>
+    </>
   );
 }

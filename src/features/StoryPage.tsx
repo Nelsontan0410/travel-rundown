@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import p from './Story.module.css';
 import { Icon } from '../components/Icon';
+import { TripThemeScope } from '../components/TripTheme';
 import { Montage, Parallax, Photo, type PhotoSrc } from '../components/Story';
 import { useBlobUrl, useTripData } from '../hooks/data';
 import { buildLanding } from '../domain/landing';
@@ -41,13 +42,16 @@ export default function StoryPage() {
     selectDay(trip.id, dayId);
     nav(`/itinerary/${trip.id}`);
   };
-  const montage: PhotoSrc[] = [...(cover ? [{ src: cover, alt: `${L.place} 封面` }] : []), ...L.montage.map(ph)].slice(0, 6);
+  // Winter：雪景照片排在首屏前面（只调整顺序，不换成别处的照片）
+  const shots = trip.theme === 'winter' ? [...L.montage.filter((m) => m.snowy), ...L.montage.filter((m) => !m.snowy)] : L.montage;
+  const montage: PhotoSrc[] = [...(cover ? [{ src: cover, alt: `${L.place} 封面` }] : []), ...shots.map(ph)].slice(0, 6);
   const [lead, ...rest] = L.highlights;
   // 有照片的美食排前面撑起拼版，没有照片的放后面只出文字
   const food = [...L.food.filter((f) => f.media), ...L.food.filter((f) => !f.media)];
 
   return (
     <div className={p.page}>
+      <TripThemeScope theme={trip.theme} />
       <Link to={`/itinerary/${trip.id}`} className={p.back}>
         <Icon name="ChevronLeft" size="sm" />
         回到行程

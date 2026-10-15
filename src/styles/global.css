@@ -11,7 +11,7 @@ body {
   line-height: var(--lh);
   color: var(--color-text);
   background-color: var(--color-page);
-  background-image: var(--tex-paper), radial-gradient(140% 90% at 0% 0%, #FAF5EA 0%, var(--color-page) 50%, #EFE5D1 100%);
+  background-image: var(--tex-paper), radial-gradient(140% 90% at 0% 0%, var(--color-page-hi) 0%, var(--color-page) 50%, var(--color-page-lo) 100%);
   background-attachment: fixed;
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;

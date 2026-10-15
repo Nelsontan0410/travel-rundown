@@ -29,6 +29,8 @@ export interface LandingMedia {
   /** 旧的示意插画标记；真实照片一律为 false */
   sample: boolean;
   credit?: LandingCredit;
+  /** 雪景：Winter 主题时首屏优先 */
+  snowy?: boolean;
 }
 
 export const LANDING_CREDITS = credits as LandingCredit[];
@@ -44,6 +46,8 @@ const m = (id: string, kind: MediaKind, alt: string, keywords: string[], caption
   sample: false,
   credit: byFile.get(`${id}.jpg`),
 });
+
+const SNOWY = new Set(['fuji-lake', 'canal-night', 'snow-city', 'snow-field', 'onsen']);
 
 export const LANDING_MEDIA: LandingMedia[] = [
   m('fuji-lake', 'scene', '冬天从河口湖望富士山，湖面倒影', ['富士', '河口湖', '山中湖', '忍野', '新仓', '新倉', '浅间', '本町通', '大石公园']),
@@ -65,6 +69,8 @@ export const LANDING_MEDIA: LandingMedia[] = [
   m('sweets', 'food', '小樽 LeTAO 的蒙布朗', ['LeTAO', '蒙布朗', '芝士蛋糕', '甜点'], '图为 LeTAO 蒙布朗'),
   m('kaiseki', 'food', '日式旅馆的怀石料理', ['怀石']),
 ];
+
+for (const x of LANDING_MEDIA) if (SNOWY.has(x.id)) x.snowy = true;
 
 const byId = new Map(LANDING_MEDIA.map((x) => [x.id, x]));
 export function mediaById(id: string): LandingMedia {

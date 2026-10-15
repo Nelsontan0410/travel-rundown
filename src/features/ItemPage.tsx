@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import p from './Page.module.css';
+import { TripThemeScope } from '../components/TripTheme';
 import { Screen, BackHeader, Menu } from '../components/Layout';
 import { Button, Caption, NoteBox, SectionTitle, StatusChip } from '../components/Basics';
 import { BookingCard, KeyValueCard, LocationCard } from '../components/Cards';
@@ -93,6 +94,8 @@ export default function ItemPage() {
     void setItemChecked(td.trip.id, item.key, checked.includes(t) ? checked.filter((x) => x !== t) : [...checked, t]);
 
   return (
+    <>
+    <TripThemeScope theme={td.trip.theme} />
     <Screen
       tab="itinerary"
       header={<BackHeader title="行程详情" right={{ icon: 'MoreHorizontal', label: '更多', onClick: () => setMenu(true) }} />}
@@ -221,5 +224,6 @@ export default function ItemPage() {
       {item.src && <SourceSheet open={srcOpen} onClose={() => setSrcOpen(false)} md={td.trip.sourceMd} from={item.src.from} to={item.src.to} />}
       <AddDocSheet open={add} onClose={() => setAdd(false)} td={td} presetKeys={[item.key]} presetType={item.type} />
     </Screen>
+    </>
   );
 }

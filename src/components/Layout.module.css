@@ -13,7 +13,7 @@
 /* AppHeader */
 .header {
   position: sticky; top: 0; z-index: 15;
-  background-color: var(--color-page); background-image: var(--tex-paper), linear-gradient(180deg, #F8F2E6 0%, var(--color-page) 100%);
+  background-color: var(--color-page); background-image: var(--tex-paper), linear-gradient(180deg, var(--color-page-hi) 0%, var(--color-page) 100%);
   padding: var(--safe-top) var(--space-2) 0 var(--page-x);
   box-shadow: 0 1px 0 var(--color-hairline), 0 2px 0 rgba(255, 252, 244, 0.7);
 }
@@ -51,13 +51,13 @@
 }
 .tab:hover { color: var(--color-on-leather); }
 .tabOn {
-  color: #E3C58A; font-weight: 600; --color-surface: var(--color-leather-dark);
+  color: var(--color-on-leather-hi); font-weight: 600; --color-surface: var(--color-leather-dark);
   background: linear-gradient(180deg, rgba(0, 0, 0, 0.22), rgba(0, 0, 0, 0.1)); box-shadow: var(--shadow-emboss);
 }
 
 /* ActionBar / BottomBar：纸张托盘 */
 .actionBar {
-  background-color: var(--color-page); background-image: var(--tex-paper), linear-gradient(180deg, var(--color-page), #EFE5D1);
+  background-color: var(--color-page); background-image: var(--tex-paper), linear-gradient(180deg, var(--color-page), var(--color-page-lo));
   box-shadow: 0 -1px 0 var(--color-hairline), inset 0 1px 0 rgba(255, 252, 244, 0.8);
   padding: var(--space-2) var(--page-x); display: flex; gap: var(--space-2);
 }
@@ -145,7 +145,7 @@
     display: flex; flex-direction: column; align-items: stretch; gap: var(--space-2);
     padding: calc(var(--space-6) + var(--safe-top)) var(--space-4) calc(var(--space-4) + var(--safe-bottom));
     border-radius: 0 var(--radius-md) var(--radius-md) 0;
-    box-shadow: inset -1px 0 0 rgba(255, 225, 180, 0.12), inset 0 1px 0 rgba(255, 225, 180, 0.15), 3px 0 0 #2E1E12, 6px 0 18px -4px rgba(46, 30, 18, 0.45);
+    box-shadow: inset -1px 0 0 rgba(255, 225, 180, 0.12), inset 0 1px 0 rgba(255, 225, 180, 0.15), 3px 0 0 var(--color-leather-edge), 6px 0 18px -4px rgba(46, 30, 18, 0.45);
   }
   /* 缝线：距边 8px 的虚线压边 */
   .tabbar::before {
@@ -154,14 +154,14 @@
   }
   .navLogo {
     display: flex; align-items: center; gap: var(--space-2); height: var(--h-header); padding: 0 var(--space-3); margin-bottom: var(--space-4); flex-shrink: 0;
-    --color-primary: #D7B676; color: var(--color-on-leather);
+    --color-primary: var(--color-on-leather-hi); color: var(--color-on-leather);
     border-bottom: 1px solid rgba(0, 0, 0, 0.28); box-shadow: 0 1px 0 rgba(255, 225, 180, 0.1);
   }
-  .navLogo::after { content: '旅程 Rundown'; font-family: var(--font-serif); font-style: italic; font-size: var(--fs-title); letter-spacing: 0.02em; color: #E3C58A; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.5); }
+  .navLogo::after { content: '旅程 Rundown'; font-family: var(--font-serif); font-style: italic; font-size: var(--fs-title); letter-spacing: 0.02em; color: var(--color-on-leather-hi); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.5); }
   .tab { flex-direction: row; justify-content: flex-start; gap: var(--space-3); height: var(--size-hit); padding: 0 var(--space-3); border-radius: var(--radius-sm); font-size: var(--fs-body); }
   .tab:hover { background: rgba(255, 225, 180, 0.06); }
-  .tabOn { background: linear-gradient(180deg, #7A5838 0%, #5E412A 100%); color: #F4DDA8; box-shadow: inset 1px 1px 0 rgba(255, 225, 180, 0.25), inset -1px -1px 0 rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.4); --color-surface: #5E412A; }
-  .tabOn:hover { background: linear-gradient(180deg, #7A5838 0%, #5E412A 100%); }
+  .tabOn { background: linear-gradient(180deg, var(--color-plate-1) 0%, var(--color-plate-2) 100%); color: var(--color-on-leather-hi); box-shadow: inset 1px 1px 0 rgba(255, 225, 180, 0.25), inset -1px -1px 0 rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.4); --color-surface: var(--color-plate-2); }
+  .tabOn:hover { background: linear-gradient(180deg, var(--color-plate-1) 0%, var(--color-plate-2) 100%); }
   body:has(.withSidebar) .toast {
     left: calc(50% + var(--sidebar-w) / 2 + (env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)) / 2);
     bottom: calc(var(--safe-bottom) + var(--h-btn-lg) + var(--space-4) * 2);
