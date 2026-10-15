@@ -16,6 +16,7 @@ import { currentItemId, defaultDay, docsForItem, itemIcon, itemSubtitle, ledgerS
 import { openExternal } from '../links/openLink';
 import { setLastTrip } from '../db/repo';
 import PhaseCard from '../components/PhaseCard';
+import { pickToday } from '../domain/today';
 
 /** 01 每日行程（行程 Tab 的首页） */
 export default function ItineraryPage() {
@@ -85,6 +86,18 @@ export default function ItineraryPage() {
       header={<RootHeader title={trip.title} icon="Settings" iconLabel="旅程设置" onIcon={() => nav(`/trip/${trip.id}/settings`)} />}
     >
       <HeroCover coverUrl={cover} dateRange={fmtDateRange(trip.startDate, trip.endDate)} offline={ready.allGreen} />
+      {(() => {
+        // 2026-10：「今天」页入口。行程中最显眼；出发前和结束后用来预览
+        const t = pickToday(td.days, now);
+        if (!t.day) return null;
+        return (
+          <div className={p.todayEntry}>
+            <Button block variant={t.mode === 'today' ? 'primary' : 'outline'} icon="CalendarDays" onClick={() => nav(`/trip/${trip.id}/today`)}>
+              {t.mode === 'today' ? `今天 · Day ${t.day.index}：下一项、酒店、穿搭` : t.mode === 'before' ? '预览「今天」页（从 Day 1 开始）' : '「今天」页（回看最后一天）'}
+            </Button>
+          </div>
+        );
+      })()}
       <div className={`${p.mt8} ${p.btnRow}`}>
         <Button variant="outline" icon="Image" onClick={() => nav(`/trip/${trip.id}/story`)}>
           翻开旅程介绍

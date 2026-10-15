@@ -97,3 +97,7 @@
 @media (min-width: 1280px) { .outfitGrid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 .wardrobeGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: var(--space-4) var(--space-3); }
 .packList { list-style: none; margin: 0; padding: 0; }
+
+/* 2026-10 今天页 */
+.todayRow { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); flex-wrap: wrap; }
+.todayEntry { margin-top: var(--space-3); }
