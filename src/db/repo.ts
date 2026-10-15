@@ -9,6 +9,7 @@ import { addDays, daysBetween } from '../domain/format';
 import { makeItemKey } from '../domain/itemKey';
 import { migrateItemV2 } from '../domain/migrate';
 import { isLinkDoc, LINK_MIME } from '../domain/bookings';
+import { tripToMd } from '../importer/serialize';
 import {
   DEFAULT_SETTINGS,
   DEFAULT_TRANSLATE,
@@ -24,6 +25,7 @@ import {
   type PackCheck,
   type PackGroup,
   type PackItem,
+  type Place,
   type Item,
   type ItemState,
   type ItemStatus,
@@ -707,4 +709,218 @@ export async function deletePackItem(id: string): Promise<void> {
 export async function setPacked(tripId: string, ref: string, packed: boolean): Promise<void> {
   if (packed) await db.packChecks.put({ tripId, ref, updatedAt: now() });
   else await db.packChecks.delete([tripId, ref]);
+}
+
+// ---------- 2026-10-15：导入后在 App 里编辑行程 ----------
+// 每次编辑后：① 按导入时同样的规则（日期|类型|标题，同日重名 #n）重算整份旅程的 key，
+// 有变化的把完成状态、证明、账本绑定一起迁移（和改出发日期同一做法）；
+// ② 把整份旅程写回标准 MD 存进 sourceMd，这样「重新导入」「查看原文」看到的都是改过的内容。
+
+export type ItemPatch = Partial<
+  Pick<
+    Item,
+    | 'type' | 'title' | 'start' | 'end' | 'endDayOffset' | 'timeNote' | 'place' | 'toPlace' | 'bookingRef' | 'bookingStatus'
+    | 'note' | 'alt' | 'fixed' | 'flight' | 'lodging' | 'transit' | 'meal' | 'mustDo' | 'navUrl' | 'meta'
+  >
+> & { dayId?: string };
+
+const EDIT_TABLES = () => [db.trips, db.days, db.items, db.docs, db.itemStates, db.expenses];
+
+/** 去掉空值、不属于这个类型的专属字段 */
+function cleanItem(it: Item): Item {
+  const out = { ...it } as Record<string, unknown>;
+  for (const [k, v] of Object.entries(out)) {
+    if (v === undefined || v === '' || (Array.isArray(v) && v.length === 0)) delete out[k];
+  }
+  const x = out as unknown as Item;
+  const tidyPlace = (p?: Place) => {
+    if (!p) return undefined;
+    const q: Place = { name: p.name?.trim() ?? '' };
+    if (p.localName?.trim()) q.localName = p.localName.trim();
+    if (p.address?.trim()) q.address = p.address.trim();
+    if (p.localAddress?.trim()) q.localAddress = p.localAddress.trim();
+    return q.name || q.localName || q.address || q.localAddress ? q : undefined;
+  };
+  x.place = tidyPlace(x.place);
+  if (x.place && !x.place.name) x.place.name = x.title;
+  x.toPlace = x.type === 'flight' || x.type === 'transit' ? tidyPlace(x.toPlace) : undefined;
+  const tidy = <T extends object>(o: T | undefined): T | undefined => {
+    if (!o) return undefined;
+    const e = Object.entries(o).filter(([, v]) => v !== undefined && String(v).trim() !== '');
+    return e.length ? (Object.fromEntries(e.map(([k, v]) => [k, typeof v === 'string' ? v.trim() : v])) as T) : undefined;
+  };
+  x.flight = x.type === 'flight' ? tidy(x.flight) : undefined;
+  x.lodging = x.type === 'lodging' ? tidy(x.lodging) : undefined;
+  x.transit = x.type === 'transit' ? tidy(x.transit) : undefined;
+  if (x.type !== 'meal') delete x.meal;
+  if (x.type !== 'spot' && x.type !== 'meal') delete x.mustDo;
+  if (x.mustDo) x.mustDo = x.mustDo.map((s) => s.trim()).filter(Boolean);
+  if (!x.end) delete x.endDayOffset;
+  if (x.start) delete x.timeNote;
+  if (!x.fixed) delete x.fixed;
+  if (x.meta && !Object.keys(x.meta).length) delete x.meta;
+  for (const k of Object.keys(x) as (keyof Item)[]) if (x[k] === undefined) delete x[k];
+  return x;
+}
+
+/** 重排某天的 order（0..n），按当前 order 排 */
+async function renumberDay(dayId: string): Promise<void> {
+  const its = (await db.items.where('dayId').equals(dayId).toArray()).sort((a, b) => a.order - b.order);
+  await db.items.bulkPut(its.map((it, i) => ({ ...it, order: i })));
+}
+
+/** 重算整份旅程的 key 并迁移绑定；然后写回 sourceMd 和每项的原文行号 */
+async function afterEdit(tripId: string): Promise<void> {
+  const ts = now();
+  const trip = await db.trips.get(tripId);
+  if (!trip) return;
+  const days = (await db.days.where('tripId').equals(tripId).toArray()).sort((a, b) => a.index - b.index);
+  const items = await db.items.where('tripId').equals(tripId).toArray();
+  const dayOrder = new Map(days.map((d, i) => [d.id, i]));
+  items.sort((a, b) => (dayOrder.get(a.dayId) ?? 0) - (dayOrder.get(b.dayId) ?? 0) || a.order - b.order);
+  const dateOf = new Map(days.map((d) => [d.id, d.date]));
+  const used = new Set<string>();
+  const map: Record<string, string> = {};
+  const next = items.map((it) => {
+    const key = makeItemKey(dateOf.get(it.dayId) ?? '', it.type, it.title, used);
+    if (key !== it.key) map[it.key] = key;
+    return { ...it, key };
+  });
+  if (Object.keys(map).length) {
+    const states = await db.itemStates.where('tripId').equals(tripId).toArray();
+    const moved = states.filter((s) => map[s.itemKey]);
+    await db.itemStates.bulkDelete(moved.map((s) => [tripId, s.itemKey] as [string, string]));
+    await db.itemStates.bulkPut(moved.map((s) => ({ ...s, itemKey: map[s.itemKey], updatedAt: ts })));
+    for (const d of await db.docs.where('tripId').equals(tripId).toArray()) {
+      if (d.itemKeys.some((k) => map[k])) await db.docs.update(d.id, { itemKeys: d.itemKeys.map((k) => map[k] ?? k), updatedAt: ts });
+    }
+    for (const e of await db.expenses.where('tripId').equals(tripId).toArray()) {
+      if (e.itemKey && map[e.itemKey]) await db.expenses.update(e.id, { itemKey: map[e.itemKey], updatedAt: ts });
+    }
+  }
+  const { md, src } = tripToMd(trip, days, next);
+  await db.items.bulkPut(next.map((it) => ({ ...it, src: src.get(it.id) ?? it.src })));
+  await db.trips.update(tripId, { sourceMd: md, updatedAt: ts });
+}
+
+/** 按开始时间找插入位置：排在最后一个开始时间不晚于它的项后面；没有时间就放最后 */
+function orderFor(dayItems: Item[], start?: string): number {
+  const sorted = [...dayItems].sort((a, b) => a.order - b.order);
+  if (!start || !sorted.length) return (sorted[sorted.length - 1]?.order ?? -1) + 1;
+  const after = sorted.findIndex((i) => i.start && i.start > start);
+  if (after === -1) return sorted[sorted.length - 1].order + 1;
+  const prev = sorted[after - 1]?.order ?? sorted[after].order - 1;
+  return (prev + sorted[after].order) / 2;
+}
+
+export async function updateItem(itemId: string, patch: ItemPatch): Promise<void> {
+  await db.transaction('rw', EDIT_TABLES(), async () => {
+    const old = await db.items.get(itemId);
+    if (!old) return;
+    const merged = cleanItem({ ...old, ...patch, id: old.id, key: old.key, tripId: old.tripId } as Item);
+    if (patch.dayId && patch.dayId !== old.dayId) {
+      const others = await db.items.where('dayId').equals(patch.dayId).toArray();
+      merged.order = orderFor(others, merged.start);
+      if (merged.type === 'lodging' && merged.lodging?.checkIn) {
+        const d = await db.days.get(patch.dayId);
+        if (d && !patch.lodging) merged.lodging = { ...merged.lodging, checkIn: d.date };
+      }
+    } else if (patch.start !== undefined && patch.start !== old.start) {
+      const others = (await db.items.where('dayId').equals(old.dayId).toArray()).filter((i) => i.id !== old.id);
+      merged.order = orderFor(others, merged.start);
+    }
+    await db.items.put(merged);
+    await renumberDay(merged.dayId);
+    if (merged.dayId !== old.dayId) await renumberDay(old.dayId);
+    await afterEdit(old.tripId);
+  });
+}
+
+export async function addItem(tripId: string, dayId: string, draft: ItemPatch & { type: Item['type']; title: string }): Promise<string> {
+  const id = uuid();
+  await db.transaction('rw', EDIT_TABLES(), async () => {
+    const day = await db.days.get(dayId);
+    if (!day) return;
+    const others = await db.items.where('dayId').equals(dayId).toArray();
+    const it = cleanItem({
+      ...draft,
+      id,
+      key: '',
+      tripId,
+      dayId,
+      order: orderFor(others, draft.start),
+      ...(draft.type === 'lodging' ? { lodging: { checkIn: day.date, ...draft.lodging } } : {}),
+    } as Item);
+    if (!it.place && (it.type === 'spot' || it.type === 'lodging')) it.place = { name: it.title };
+    await db.items.put(it);
+    await renumberDay(dayId);
+    await afterEdit(tripId);
+  });
+  return id;
+}
+
+/** 删除一项：完成状态一起删；证明和账本只解除关联，不删除 */
+export async function deleteItem(itemId: string): Promise<void> {
+  await db.transaction('rw', EDIT_TABLES(), async () => {
+    const it = await db.items.get(itemId);
+    if (!it) return;
+    const ts = now();
+    await db.items.delete(itemId);
+    await db.itemStates.delete([it.tripId, it.key]);
+    for (const d of await db.docs.where('tripId').equals(it.tripId).toArray()) {
+      if (d.itemKeys.includes(it.key)) await db.docs.update(d.id, { itemKeys: d.itemKeys.filter((k) => k !== it.key), updatedAt: ts });
+    }
+    for (const e of await db.expenses.where('tripId').equals(it.tripId).toArray()) {
+      if (e.itemKey === it.key) await db.expenses.update(e.id, { itemKey: undefined, updatedAt: ts });
+    }
+    await renumberDay(it.dayId);
+    await afterEdit(it.tripId);
+  });
+}
+
+/** 在同一天里上移 / 下移 */
+export async function moveItem(itemId: string, dir: -1 | 1): Promise<void> {
+  await db.transaction('rw', EDIT_TABLES(), async () => {
+    const it = await db.items.get(itemId);
+    if (!it) return;
+    const its = (await db.items.where('dayId').equals(it.dayId).toArray()).sort((a, b) => a.order - b.order);
+    const i = its.findIndex((x) => x.id === itemId);
+    const j = i + dir;
+    if (j < 0 || j >= its.length) return;
+    [its[i], its[j]] = [its[j], its[i]];
+    await db.items.bulkPut(its.map((x, n) => ({ ...x, order: n })));
+    await afterEdit(it.tripId);
+  });
+}
+
+export async function updateDay(dayId: string, patch: { title?: string; city?: string; note?: string }): Promise<void> {
+  await db.transaction('rw', EDIT_TABLES(), async () => {
+    const d = await db.days.get(dayId);
+    if (!d) return;
+    const next = { ...d };
+    if (patch.city !== undefined && patch.city.trim()) next.city = patch.city.trim();
+    for (const k of ['title', 'note'] as const) {
+      if (patch[k] === undefined) continue;
+      const v = patch[k]!.trim();
+      if (v) next[k] = v;
+      else delete next[k];
+    }
+    await db.days.put(next);
+    await afterEdit(d.tripId);
+  });
+}
+
+export async function updateTripInfo(tripId: string, patch: { title?: string; destination?: string }): Promise<void> {
+  await db.transaction('rw', EDIT_TABLES(), async () => {
+    const t = await db.trips.get(tripId);
+    if (!t) return;
+    const next = { ...t };
+    if (patch.title?.trim()) next.title = patch.title.trim();
+    if (patch.destination !== undefined) {
+      if (patch.destination.trim()) next.destination = patch.destination.trim();
+      else delete next.destination;
+    }
+    await db.trips.put(next);
+    await afterEdit(tripId);
+  });
 }

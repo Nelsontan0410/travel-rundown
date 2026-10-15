@@ -132,6 +132,11 @@ export default function ItemPage() {
         {item.type === 'meal' && item.meal ? `${TYPE_LABEL.meal}${SEP}${MEAL_LABEL[item.meal]}` : TYPE_LABEL[item.type]}
       </span>
       <h1 className={p.h1}>{item.title}</h1>
+      <div className={p.editLink}>
+        <Button variant="link" chevron={false} icon="Pencil" onClick={() => nav(`/item/${item.id}/edit`)}>
+          编辑这一项
+        </Button>
+      </div>
       {item.fixed && <span className={p.tag}>固定时间</span>}
       <div className={p.metaRow}>
         <span>{dateLine}</span>
@@ -276,6 +281,7 @@ export default function ItemPage() {
         open={menu}
         onClose={() => setMenu(false)}
         items={[
+          { label: '编辑这一项', onClick: () => nav(`/item/${item.id}/edit`) },
           { label: '改为待完成', onClick: () => set('todo') },
           { label: '复制全部文字', onClick: () => void copyWithToast(allText(item, dateLine)) },
           { label: '记一笔花费', onClick: () => nav(`/trip/${td.trip.id}/ledger?add=1&item=${encodeURIComponent(item.key)}`) },

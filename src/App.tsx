@@ -15,6 +15,7 @@ import PreviewPage from './features/PreviewPage';
 import LedgerPage from './features/LedgerPage';
 import OutfitsPage from './features/OutfitsPage';
 import TodayPage from './features/TodayPage';
+import ItemEditPage from './features/ItemEditPage';
 import StoryPage from './features/StoryPage';
 import CreditsPage from './features/CreditsPage';
 import RestoreConfirm from './components/RestoreConfirm';
@@ -50,6 +51,8 @@ export default function App() {
         <Route path="/itinerary" element={<ItineraryPage />} />
         <Route path="/itinerary/:tripId" element={<ItineraryPage />} />
         <Route path="/item/:itemId" element={<ItemPage />} />
+        <Route path="/item/:itemId/edit" element={<ItemEditPage />} />
+        <Route path="/trip/:tripId/add" element={<ItemEditPage />} />
         <Route path="/docs" element={<DocsPage />} />
         <Route path="/trip/:tripId/settings" element={<TripSettingsPage />} />
         <Route path="/trip/:tripId/ledger" element={<LedgerPage />} />
