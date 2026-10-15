@@ -75,11 +75,46 @@
 .down { transform: rotate(90deg); animation: bob 2.4s ease-in-out infinite; }
 @keyframes bob { 0%, 100% { translate: 0 0; } 50% { translate: 0 4px; } }
 
+/* 首屏背景图：铺满首屏，标题所在的中央是浅纸面，往外慢慢透出图片；图片本身载入后缓缓浮现 */
+.hasBackdrop { isolation: isolate; }
+.backdrop {
+  position: absolute; inset: 0; z-index: -1; overflow: hidden; pointer-events: none;
+  /* 底边淡出，直接融进页面底色（不管页面底是纯色还是纸纹） */
+  -webkit-mask-image: linear-gradient(to bottom, var(--color-text) 72%, transparent 100%);
+  mask-image: linear-gradient(to bottom, var(--color-text) 72%, transparent 100%);
+}
+.backdrop img {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+  animation: backdropIn 2.4s var(--ease-out-soft, ease-out) both;
+}
+.backdrop::after {
+  content: ''; position: absolute; inset: 0;
+  background:
+    /* 手机：标题在环下方，浅色中心放在下半部 */
+    radial-gradient(ellipse 100% 38% at 50% 70%,
+      var(--color-page) 0%,
+      color-mix(in srgb, var(--color-page) 92%, transparent) 45%,
+      color-mix(in srgb, var(--color-page) 55%, transparent) 78%,
+      color-mix(in srgb, var(--color-page) 18%, transparent) 100%);
+}
+@keyframes backdropIn { from { opacity: 0; transform: scale(1.04); } to { opacity: 1; transform: scale(1); } }
+@media (min-width: 768px) {
+  .backdrop::after {
+    background:
+      radial-gradient(ellipse 42% 40% at 50% 51%,
+        var(--color-page) 0%,
+        color-mix(in srgb, var(--color-page) 96%, transparent) 46%,
+        color-mix(in srgb, var(--color-page) 70%, transparent) 74%,
+        color-mix(in srgb, var(--color-page) 22%, transparent) 100%);
+  }
+}
+
 /* 只有一张照片：一张静止的明信片 + 标题 */
 .soloHero { display: flex; flex-direction: column; align-items: center; padding-top: calc(72px + var(--safe-top)); }
 /* 没有照片：只出文字，不拿别处的图凑 */
 .heroPlain { padding-top: calc(96px + var(--safe-top)); padding-bottom: var(--space-6); }
 
+.hasBackdrop .hubNum { text-shadow: none; }
 .hubNum { font-family: var(--font-serif); font-size: 26px; line-height: 1; color: var(--color-primary); }
 
 /* 旅程相册 */

@@ -9,7 +9,7 @@ import { PhotoRing, SoloPostcard } from '../components/PhotoRing';
 import { useBlobUrl, useTripData } from '../hooks/data';
 import { buildLanding } from '../domain/landing';
 import type { LandingMedia } from '../domain/landingMedia';
-import { landingGallery } from '../domain/landingGallery';
+import { landingBackdrop, landingGallery } from '../domain/landingGallery';
 import { fmtDate, fmtMonthDay } from '../domain/format';
 import { useUI } from '../store/ui';
 
@@ -37,6 +37,8 @@ export default function StoryPage() {
   const L = useMemo(() => (td ? buildLanding(td.trip, td.days, td.items) : null), [td]);
   // 首屏照片环与页面其他段落同一份照片源；切换旅程、换封面后跟着变
   const plan = useMemo(() => (L && td ? landingGallery(L, { cover, theme: td.trip.theme }) : null), [L, td, cover]);
+  // 首屏背景：只有对得上地点和季节的旅程才有，中央淡成纸面
+  const backdrop = useMemo(() => (L && td ? landingBackdrop(L, td.trip.startDate) : undefined), [L, td]);
 
   if (td === null) return <Navigate to="/itinerary" replace />;
   if (!td || !L || !plan) return <div className={p.page} />;
@@ -101,7 +103,18 @@ export default function StoryPage() {
       </Link>
 
       {/* 首屏：旅程照片围成一圈缓慢转动，标题在中央（手机上环在上、标题在下） */}
-      <header className={`${p.hero} ${plan.mode === 'none' ? p.heroPlain : ''}`}>
+      <header className={`${p.hero} ${plan.mode === 'none' ? p.heroPlain : ''} ${backdrop ? p.hasBackdrop : ''}`}>
+        {backdrop && (
+          <div className={p.backdrop} aria-hidden>
+            <img
+              src={backdrop.src}
+              srcSet={`${backdrop.srcSmall} 800w, ${backdrop.src} 1586w`}
+              sizes="100vw"
+              alt=""
+              decoding="async"
+            />
+          </div>
+        )}
         {plan.mode === 'ring' ? (
           <PhotoRing
             photos={plan.photos}

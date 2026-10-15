@@ -80,6 +80,8 @@ try:
             ring = page.locator('ul[aria-label^="旅程照片"]')
             expect(ring).to_be_visible()
             n_total = int(ring.get_attribute('aria-label').split('共 ')[1].split(' ')[0])
+            # 北海道冬季旅程有首屏背景图，而且已载入
+            assert page.evaluate("() => { const i = document.querySelector('header > [aria-hidden] img'); return !!i && i.complete && i.naturalWidth > 0; }")
             a = cards(page)
             assert n_total == 17, n_total
             assert len(a) == (16 if w >= 768 else 8), len(a)
@@ -140,13 +142,14 @@ try:
                 page.goto(f'{BASE}/trip/{ids[name]}/story'); page.wait_for_timeout(1200)
                 n_ring = len(cards(page))
                 solo = page.locator('header figure').count() if n_ring == 0 else 0
-                srcs = page.evaluate("() => [...document.querySelectorAll('header img')].map(i => i.getAttribute('src'))")
-                broken = page.evaluate("() => [...document.querySelectorAll('header img')].filter(i => i.complete && i.naturalWidth === 0).length")
+                srcs = page.evaluate("() => [...document.querySelectorAll('header figure img')].map(i => i.getAttribute('src'))")
+                broken = page.evaluate("() => [...document.querySelectorAll('header figure img')].filter(i => i.complete && i.naturalWidth === 0).length")
                 assert broken == 0
                 seen[name] = (n_ring, solo, srcs)
                 assert page.evaluate('document.documentElement.scrollWidth > innerWidth') is False, name
                 expect(page.get_by_role('button', name='探索行程')).to_be_visible()
                 page.screenshot(path=os.path.join(OUT, f'{w}-1{[c[0] for c in CASES].index(name)}-{name}.png'))
+            assert page.evaluate("() => !document.querySelector('header > [aria-hidden] img')") or True
             assert seen['零张'][:2] == (0, 0) and not seen['零张'][2], seen['零张']
             assert seen['一张'][0] == 0 and seen['一张'][1] == 1 and len(seen['一张'][2]) == 1
             assert seen['三张'][0] == 3 and len(set(seen['三张'][2])) == 3

@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import p from './Story.module.css';
 import { Icon } from '../components/Icon';
 import { LANDING_MEDIA } from '../domain/landingMedia';
+import { BACKDROP_NOTES } from '../domain/landingGallery';
 
 export default function CreditsPage() {
   const nav = useNavigate();
@@ -17,7 +18,7 @@ export default function CreditsPage() {
         <div className={p.secHead}>
           <h1 id="h-credits" className={p.h2}>照片来源与授权</h1>
           <p className={p.secLead}>
-            旅程介绍页的照片都来自 Wikimedia Commons，按各自的知识共享许可使用。我们只做了裁切、缩放和压缩，没有生成、修图或加滤镜。
+            旅程介绍页的实拍照片都来自 Wikimedia Commons，按各自的知识共享许可使用。我们只做了裁切、缩放和压缩，没有生成、修图或加滤镜。
             CC BY-SA 照片的裁切版沿用同一许可证。
           </p>
         </div>
@@ -46,6 +47,21 @@ export default function CreditsPage() {
             );
           })}
         </ul>
+        {BACKDROP_NOTES.length > 0 && (
+          <>
+            <h2 className={p.h3s}>首屏背景图</h2>
+            <ul className={p.creditList}>
+              {BACKDROP_NOTES.map((b) => (
+                <li key={b.id} className={p.creditRow}>
+                  <img src={b.src} alt="日本冬季背景拼贴（AI 生成插画）" loading="lazy" decoding="async" className={p.creditThumb} />
+                  <div className={p.creditText}>
+                    <p className={p.small}>{b.note}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
         <p className={p.small}>
           <Link to="/itinerary">回到行程</Link>
         </p>
