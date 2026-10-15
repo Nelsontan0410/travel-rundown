@@ -80,3 +80,7 @@
 .lockNote { display: flex; align-items: center; gap: var(--space-2); font-size: var(--fs-small); color: var(--color-text-2); }
 .lockPanel { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-3); padding: var(--space-6) var(--page-x); text-align: center; background: var(--grad-inset); box-shadow: var(--shadow-inset); }
 .lockPanel svg { color: var(--color-accent); }
+
+/* 2026-10 导出旅行包 */
+.exportList { display: flex; flex-direction: column; gap: var(--space-2); padding-bottom: var(--space-4); }
+.exportNote { font-size: var(--fs-caption); color: var(--color-text-2); line-height: 1.6; margin: 0 0 var(--space-3); }

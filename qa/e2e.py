@@ -74,12 +74,20 @@ try:
         # 4. 导出备份
         page.get_by_text('行程', exact=True).click()
         page.get_by_label('旅程设置').click()
+        page.get_by_role('button', name='导出旅行包').click()
         with page.expect_download() as dl:
-            page.get_by_text('导出完整备份').click()
+            page.get_by_role('button', name=re.compile('^含附件')).click()
+        assert '含附件' in dl.value.suggested_filename, dl.value.suggested_filename
         zip_path = os.path.join(tmp, 'backup.zip')
         dl.value.save_as(zip_path)
         assert os.path.getsize(zip_path) > 1000
-        print('ok export backup')
+        page.get_by_role('button', name='导出旅行包').click()
+        with page.expect_download() as dl2:
+            page.get_by_role('button', name=re.compile('^不含附件')).click()
+        lite_path = os.path.join(tmp, 'lite.zip')
+        dl2.value.save_as(lite_path)
+        assert os.path.getsize(lite_path) < os.path.getsize(zip_path)
+        print('ok export trip package (with / without attachments)')
         ctx.close()
 
         # 5. 全新环境（等于清空）→ 恢复
@@ -94,7 +102,20 @@ try:
         page.get_by_text('行程', exact=True).click()
         page.get_by_text(FLIGHT).first.click()
         expect(page.get_by_text('改为待完成')).to_be_visible()      # 状态随备份恢复
+        expect(page.get_by_text('航班证明').first).to_be_visible()  # 附件随包恢复
         print('ok restore (status kept)')
+
+        # 5b. 不含附件的包恢复到全新环境：资料在，提示缺附件
+        ctx2, page2 = new_ctx()
+        page2.goto(BASE + '/trips')
+        page2.get_by_text('恢复备份').first.click()
+        with page2.expect_file_chooser() as fc2:
+            page2.get_by_text('选择备份文件').click()
+        fc2.value.set_files(lite_path)
+        expect(page2.get_by_text('附件不在包里')).to_be_visible()
+        expect(page2.get_by_text('北海道冬季旅程').first).to_be_visible()
+        ctx2.close()
+        print('ok restore lite package')
 
         # 6. 断网
         page.evaluate('navigator.serviceWorker.ready.then(() => true)')
