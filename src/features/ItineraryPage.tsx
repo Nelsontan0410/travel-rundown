@@ -85,9 +85,12 @@ export default function ItineraryPage() {
       header={<RootHeader title={trip.title} icon="Settings" iconLabel="旅程设置" onIcon={() => nav(`/trip/${trip.id}/settings`)} />}
     >
       <HeroCover coverUrl={cover} dateRange={fmtDateRange(trip.startDate, trip.endDate)} offline={ready.allGreen} />
-      <div className={p.mt8}>
-        <Button variant="outline" block icon="Image" onClick={() => nav(`/trip/${trip.id}/story`)}>
+      <div className={`${p.mt8} ${p.btnRow}`}>
+        <Button variant="outline" icon="Image" onClick={() => nav(`/trip/${trip.id}/story`)}>
           翻开旅程介绍
+        </Button>
+        <Button variant="outline" icon="StickyNote" onClick={() => nav(`/trip/${trip.id}/outfits`)}>
+          穿搭与打包
         </Button>
       </div>
       <PhaseCard td={td} now={now} />

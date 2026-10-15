@@ -4,7 +4,7 @@ import { db } from '../db/schema';
 import { buildLanding } from '../domain/landing';
 import { isLinkDoc } from '../domain/bookings';
 import { tripPackageInfo, type PackageInfo } from '../db/repo';
-import { DEFAULT_SETTINGS, type Day, type Doc, type Expense, type Item, type ItemStatus, type Settings, type Trip } from '../domain/types';
+import { DEFAULT_SETTINGS, type Day, type Doc, type Expense, type Garment, type Item, type ItemStatus, type Outfit, type PackItem, type Settings, type Trip } from '../domain/types';
 
 export function useSettings(): Settings | undefined {
   return useLiveQuery(async () => (await db.settings.get('app')) ?? DEFAULT_SETTINGS, []);
@@ -150,4 +150,28 @@ export function readiness(td: TripData | null | undefined, app: boolean): Readin
 /** 2026-10：旅行包里附件的数量和大小（导出前显示） */
 export function useTripPackageInfo(tripId: string | undefined): PackageInfo | undefined {
   return useLiveQuery(async () => (tripId ? tripPackageInfo(tripId) : undefined), [tripId]);
+}
+
+/** 2026-10：衣橱（所有旅程共用），按添加顺序 */
+export function useWardrobe(): Garment[] | undefined {
+  return useLiveQuery(async () => (await db.garments.toArray()).sort((a, b) => a.createdAt.localeCompare(b.createdAt)), []);
+}
+
+export interface TripPacking {
+  outfits: Outfit[];
+  items: PackItem[];
+  packed: Set<string>;
+}
+
+/** 2026-10：这份旅程的每日穿搭和打包清单 */
+export function useTripPacking(tripId: string | null | undefined): TripPacking | undefined {
+  return useLiveQuery(async () => {
+    if (!tripId) return { outfits: [], items: [], packed: new Set<string>() };
+    const [outfits, items, checks] = await Promise.all([
+      db.outfits.where('tripId').equals(tripId).toArray(),
+      db.packItems.where('tripId').equals(tripId).toArray(),
+      db.packChecks.where('tripId').equals(tripId).toArray(),
+    ]);
+    return { outfits, items, packed: new Set(checks.map((c) => c.ref)) };
+  }, [tripId]);
 }

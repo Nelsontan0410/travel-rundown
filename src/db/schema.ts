@@ -1,5 +1,5 @@
 import Dexie, { type Table } from 'dexie';
-import type { BlobRecord, Day, Doc, Expense, Item, ItemState, Settings, Trip } from '../domain/types';
+import type { BlobRecord, Day, Doc, Expense, Garment, Item, ItemState, Outfit, PackCheck, PackItem, Settings, Trip } from '../domain/types';
 import { migrateItemV2 } from '../domain/migrate';
 
 export class RundownDB extends Dexie {
@@ -11,6 +11,10 @@ export class RundownDB extends Dexie {
   itemStates!: Table<ItemState, [string, string]>;
   settings!: Table<Settings, string>;
   expenses!: Table<Expense, string>;
+  garments!: Table<Garment, string>;
+  outfits!: Table<Outfit, [string, number]>;
+  packItems!: Table<PackItem, string>;
+  packChecks!: Table<PackCheck, [string, string]>;
 
   constructor() {
     super('travel-rundown');
@@ -34,6 +38,13 @@ export class RundownDB extends Dexie {
             Object.assign(it, migrateItemV2(it));
           });
       });
+    // v3（2026-10）：衣橱（所有旅程共用）、每日穿搭、打包清单
+    this.version(3).stores({
+      garments: 'id',
+      outfits: '[tripId+dayIndex], tripId',
+      packItems: 'id, tripId',
+      packChecks: '[tripId+ref], tripId',
+    });
   }
 }
 

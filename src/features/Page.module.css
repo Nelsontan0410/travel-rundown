@@ -84,3 +84,16 @@
 /* 2026-10 导出旅行包 */
 .exportList { display: flex; flex-direction: column; gap: var(--space-2); padding-bottom: var(--space-4); }
 .exportNote { font-size: var(--fs-caption); color: var(--color-text-2); line-height: 1.6; margin: 0 0 var(--space-3); }
+
+/* 2026-10 穿搭与打包 */
+.garmentPhotoRow { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-3); }
+.garmentPhoto { width: 88px; aspect-ratio: 4 / 5; border-radius: var(--radius-sm); overflow: hidden; display: inline-flex; align-items: center; justify-content: center; border: 2px dashed var(--color-border); color: var(--color-text-2); font-size: var(--fs-small); background: var(--color-surface-subtle); }
+.garmentPhoto img { width: 100%; height: 100%; object-fit: cover; }
+.sheetActions { display: flex; flex-direction: column; gap: var(--space-2); margin-top: var(--space-4); padding-bottom: var(--space-2); }
+.pickGroup { margin: var(--space-3) 0; }
+.pickGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--space-2); margin-top: var(--space-2); }
+.outfitGrid { display: grid; gap: var(--space-3); }
+@media (min-width: 768px) { .outfitGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 1280px) { .outfitGrid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.wardrobeGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: var(--space-4) var(--space-3); }
+.packList { list-style: none; margin: 0; padding: 0; }
