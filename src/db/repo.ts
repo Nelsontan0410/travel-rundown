@@ -18,6 +18,12 @@ import {
   type DocKind,
   type Expense,
   type ExpenseCategory,
+  type Garment,
+  type GarmentCategory,
+  type Outfit,
+  type PackCheck,
+  type PackGroup,
+  type PackItem,
   type Item,
   type ItemState,
   type ItemStatus,
@@ -389,9 +395,13 @@ export async function setTripTheme(tripId: string, theme: TripTheme): Promise<vo
 }
 
 export async function deleteTrip(tripId: string): Promise<void> {
-  await db.transaction('rw', [db.trips, db.days, db.items, db.docs, db.blobs, db.itemStates, db.settings, db.expenses], async () => {
+  await db.transaction('rw', [db.trips, db.days, db.items, db.docs, db.blobs, db.itemStates, db.settings, db.expenses, db.outfits, db.packItems, db.packChecks], async () => {
     const trip = await db.trips.get(tripId);
     await db.expenses.where('tripId').equals(tripId).delete();
+    // 穿搭、打包清单跟着旅程删；衣橱是所有旅程共用的，保留
+    await db.outfits.where('tripId').equals(tripId).delete();
+    await db.packItems.where('tripId').equals(tripId).delete();
+    await db.packChecks.where('tripId').equals(tripId).delete();
     const docs = await db.docs.where('tripId').equals(tripId).toArray();
     await db.blobs.bulkDelete([...docs.map((d) => d.blobKey), ...(trip?.coverBlobKey ? [trip.coverBlobKey] : [])]);
     await db.docs.bulkDelete(docs.map((d) => d.id));
@@ -425,6 +435,11 @@ interface BackupJson {
   /** 2026-10：没打包进来的附件数量（attachments=false 时） */
   omittedFiles?: number;
   expenses?: Expense[];
+  /** 2026-10 v3：衣橱、穿搭、打包清单（旧备份没有） */
+  garments?: Garment[];
+  outfits?: Outfit[];
+  packItems?: PackItem[];
+  packChecks?: PackCheck[];
   trips: Trip[];
   days: Day[];
   items: Item[];
@@ -452,7 +467,7 @@ async function zipBackup(data: BackupData, blobs: BlobRecord[]): Promise<Blob> {
 
 /** 本机全部旅程，含全部附件 */
 export async function exportBackup(): Promise<Blob> {
-  const [trips, days, items, docs, itemStates, settings, blobs, expenses] = await Promise.all([
+  const [trips, days, items, docs, itemStates, settings, blobs, expenses, garments, outfits, packItems, packChecks] = await Promise.all([
     db.trips.toArray(),
     db.days.toArray(),
     db.items.toArray(),
@@ -461,15 +476,34 @@ export async function exportBackup(): Promise<Blob> {
     db.settings.toArray(),
     db.blobs.toArray(),
     db.expenses.toArray(),
+    db.garments.toArray(),
+    db.outfits.toArray(),
+    db.packItems.toArray(),
+    db.packChecks.toArray(),
   ]);
-  return zipBackup({ scope: 'all', attachments: true, trips, days, items, docs, itemStates, settings, expenses }, blobs);
+  return zipBackup(
+    { scope: 'all', attachments: true, trips, days, items, docs, itemStates, settings, expenses, garments, outfits, packItems, packChecks },
+    blobs,
+  );
 }
 
-/** 一份旅程的附件：证明文件 + 封面。返回 blob 键（本机已保存的才算） */
+/** 这份旅程穿搭里用到的衣橱单品 */
+async function tripGarments(tripId: string): Promise<Garment[]> {
+  const outfits = await db.outfits.where('tripId').equals(tripId).toArray();
+  const ids = [...new Set(outfits.flatMap((o) => o.garmentIds))];
+  return ids.length ? ((await db.garments.bulkGet(ids)).filter(Boolean) as Garment[]) : [];
+}
+
+/** 一份旅程的附件：证明文件 + 封面 + 穿搭用到的衣物照片。返回 blob 键（本机已保存的才算） */
 async function tripBlobKeys(tripId: string): Promise<{ keys: string[]; missing: number }> {
   const trip = await db.trips.get(tripId);
   const docs = await db.docs.where('tripId').equals(tripId).toArray();
-  const wanted = [...docs.filter((d) => !isLinkDoc(d)).map((d) => d.blobKey), ...(trip?.coverBlobKey ? [trip.coverBlobKey] : [])];
+  const garments = await tripGarments(tripId);
+  const wanted = [
+    ...docs.filter((d) => !isLinkDoc(d)).map((d) => d.blobKey),
+    ...(trip?.coverBlobKey ? [trip.coverBlobKey] : []),
+    ...garments.flatMap((g) => (g.photoBlobKey ? [g.photoBlobKey] : [])),
+  ];
   const present = wanted.length ? ((await db.blobs.where('key').anyOf(wanted).primaryKeys()) as string[]) : [];
   return { keys: present, missing: wanted.length - present.length };
 }
@@ -491,12 +525,16 @@ export async function tripPackageInfo(tripId: string): Promise<PackageInfo> {
 export async function exportTripPackage(tripId: string, opts: { attachments: boolean }): Promise<Blob> {
   const trip = await db.trips.get(tripId);
   if (!trip) throw new Error('旅程不存在');
-  const [days, items, docs, itemStates, expenses] = await Promise.all([
+  const [days, items, docs, itemStates, expenses, outfits, packItems, packChecks, garments] = await Promise.all([
     db.days.where('tripId').equals(tripId).toArray(),
     db.items.where('tripId').equals(tripId).toArray(),
     db.docs.where('tripId').equals(tripId).toArray(),
     db.itemStates.where('tripId').equals(tripId).toArray(),
     db.expenses.where('tripId').equals(tripId).toArray(),
+    db.outfits.where('tripId').equals(tripId).toArray(),
+    db.packItems.where('tripId').equals(tripId).toArray(),
+    db.packChecks.where('tripId').equals(tripId).toArray(),
+    tripGarments(tripId),
   ]);
   const { keys } = await tripBlobKeys(tripId);
   const blobs = opts.attachments && keys.length ? ((await db.blobs.bulkGet(keys)).filter(Boolean) as BlobRecord[]) : [];
@@ -512,6 +550,10 @@ export async function exportTripPackage(tripId: string, opts: { attachments: boo
       itemStates,
       settings: [],
       expenses,
+      garments,
+      outfits,
+      packItems,
+      packChecks,
     },
     blobs,
   );
@@ -531,9 +573,13 @@ export async function restoreBackupDetailed(file: Blob): Promise<RestoreResult> 
   if (!raw) throw new Error('不是有效的备份文件');
   const json = JSON.parse(strFromU8(raw)) as BackupJson;
   if (json.app !== 'travel-rundown') throw new Error('不是有效的备份文件');
-  await db.transaction('rw', [db.trips, db.days, db.items, db.docs, db.blobs, db.itemStates, db.settings, db.expenses], async () => {
+  await db.transaction('rw', [db.trips, db.days, db.items, db.docs, db.blobs, db.itemStates, db.settings, db.expenses, db.garments, db.outfits, db.packItems, db.packChecks], async () => {
     await db.trips.bulkPut(json.trips);
     if (json.expenses?.length) await db.expenses.bulkPut(json.expenses);
+    if (json.garments?.length) await db.garments.bulkPut(json.garments);
+    if (json.outfits?.length) await db.outfits.bulkPut(json.outfits);
+    if (json.packItems?.length) await db.packItems.bulkPut(json.packItems);
+    if (json.packChecks?.length) await db.packChecks.bulkPut(json.packChecks);
     await db.days.bulkPut(json.days);
     await db.items.bulkPut(json.version === 1 ? json.items.map(migrateItemV2) : json.items);
     await db.docs.bulkPut(json.docs);
@@ -560,4 +606,105 @@ export async function restoreBackupDetailed(file: Blob): Promise<RestoreResult> 
 /** 旧接口：只返回恢复的旅程数 */
 export async function restoreBackup(file: Blob): Promise<number> {
   return (await restoreBackupDetailed(file)).trips;
+}
+
+// ---------- 2026-10 第一批 ④：衣橱、每日穿搭、打包清单 ----------
+
+async function putGarmentPhoto(id: string, photo: Blob): Promise<string> {
+  const key = `garment:${id}`;
+  await db.blobs.put({ key, blob: photo });
+  return key;
+}
+
+export async function addGarment(input: { name: string; category: GarmentCategory; note?: string; photo?: Blob }): Promise<string> {
+  const id = uuid();
+  const ts = now();
+  const photoBlobKey = input.photo ? await putGarmentPhoto(id, input.photo) : undefined;
+  await db.garments.put({
+    id,
+    name: input.name.trim(),
+    category: input.category,
+    ...(input.note?.trim() ? { note: input.note.trim() } : {}),
+    ...(photoBlobKey ? { photoBlobKey } : {}),
+    createdAt: ts,
+    updatedAt: ts,
+  });
+  requestPersist();
+  return id;
+}
+
+/** photo：传 Blob 换照片，传 null 删除照片，不传保持不变 */
+export async function updateGarment(id: string, patch: { name?: string; category?: GarmentCategory; note?: string }, photo?: Blob | null): Promise<void> {
+  const g = await db.garments.get(id);
+  if (!g) return;
+  let photoBlobKey = g.photoBlobKey;
+  if (photo) photoBlobKey = await putGarmentPhoto(id, photo);
+  if (photo === null && g.photoBlobKey) {
+    await db.blobs.delete(g.photoBlobKey);
+    photoBlobKey = undefined;
+  }
+  const next: Garment = {
+    ...g,
+    ...(patch.name !== undefined ? { name: patch.name.trim() } : {}),
+    ...(patch.category ? { category: patch.category } : {}),
+    updatedAt: now(),
+  };
+  if (patch.note !== undefined) {
+    if (patch.note.trim()) next.note = patch.note.trim();
+    else delete next.note;
+  }
+  if (photoBlobKey) next.photoBlobKey = photoBlobKey;
+  else delete next.photoBlobKey;
+  await db.garments.put(next);
+}
+
+/** 删除单品：同时从所有旅程的穿搭里拿掉，打包勾选也一起清掉 */
+export async function deleteGarment(id: string): Promise<void> {
+  await db.transaction('rw', [db.garments, db.outfits, db.packChecks, db.blobs], async () => {
+    const g = await db.garments.get(id);
+    if (g?.photoBlobKey) await db.blobs.delete(g.photoBlobKey);
+    await db.garments.delete(id);
+    const ts = now();
+    await db.outfits
+      .filter((o) => o.garmentIds.includes(id))
+      .modify((o) => {
+        o.garmentIds = o.garmentIds.filter((x) => x !== id);
+        o.updatedAt = ts;
+      });
+    await db.packChecks.filter((c) => c.ref === `garment:${id}`).delete();
+  });
+}
+
+export async function setOutfit(tripId: string, dayIndex: number, garmentIds: string[], note?: string): Promise<void> {
+  const ids = [...new Set(garmentIds)];
+  if (!ids.length && !note?.trim()) {
+    await db.outfits.delete([tripId, dayIndex]);
+    return;
+  }
+  await db.outfits.put({ tripId, dayIndex, garmentIds: ids, ...(note?.trim() ? { note: note.trim() } : {}), updatedAt: now() });
+}
+
+export async function addPackItems(tripId: string, rows: { name: string; group: PackGroup; qty?: number }[]): Promise<number> {
+  const have = new Set((await db.packItems.where('tripId').equals(tripId).toArray()).map((p) => p.name.trim()));
+  const ts = now();
+  const fresh = rows
+    .map((r) => ({ ...r, name: r.name.trim() }))
+    .filter((r) => r.name && !have.has(r.name) && (have.add(r.name), true))
+    .map((r) => ({ id: uuid(), tripId, name: r.name, group: r.group, ...(r.qty && r.qty > 1 ? { qty: r.qty } : {}), createdAt: ts }));
+  await db.packItems.bulkPut(fresh);
+  return fresh.length;
+}
+
+export async function deletePackItem(id: string): Promise<void> {
+  await db.transaction('rw', db.packItems, db.packChecks, async () => {
+    const it = await db.packItems.get(id);
+    if (!it) return;
+    await db.packItems.delete(id);
+    await db.packChecks.delete([it.tripId, `item:${id}`]);
+  });
+}
+
+export async function setPacked(tripId: string, ref: string, packed: boolean): Promise<void> {
+  if (packed) await db.packChecks.put({ tripId, ref, updatedAt: now() });
+  else await db.packChecks.delete([tripId, ref]);
 }

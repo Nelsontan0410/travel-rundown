@@ -1,0 +1,47 @@
+/* 2026-10 衣橱 / 穿搭 / 打包 */
+.thumb { flex: none; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; border-radius: var(--radius-sm); background: var(--color-tile-bg); box-shadow: var(--shadow-photo); }
+.thumb img { width: 100%; height: 100%; object-fit: cover; }
+.sm { width: 40px; height: 48px; }
+.md { width: 64px; height: 80px; }
+.lg { width: 100%; aspect-ratio: 4 / 5; height: auto; }
+.ph { font-family: var(--font-serif); font-size: 20px; color: var(--color-primary); }
+.lg .ph { font-size: 32px; }
+
+.empty { font-size: var(--fs-small); color: var(--color-text-3); padding: var(--space-2) 0; }
+.strip { list-style: none; margin: 0; padding: 0; display: flex; gap: var(--space-3); overflow-x: auto; padding-bottom: var(--space-1); }
+.piece { flex: none; width: 72px; display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; }
+.pieceName { font-size: var(--fs-caption); color: var(--color-text); width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: var(--space-1); }
+.pieceCat { font-size: 11px; color: var(--color-text-2); }
+
+.day { padding: var(--space-4); border-radius: var(--radius-md); background-color: var(--color-surface); background-image: var(--tex-paper), var(--grad-paper); border: var(--border-w) solid var(--color-border); box-shadow: var(--shadow-card); display: flex; flex-direction: column; gap: var(--space-3); }
+.dayHead { display: flex; align-items: center; gap: var(--space-2); }
+.dayText { flex: 1; min-width: 0; }
+.dayLabel { font-family: var(--font-serif); font-size: var(--fs-card); font-weight: 600; }
+.daySub { font-size: var(--fs-small); color: var(--color-text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.edit { display: inline-flex; align-items: center; gap: var(--space-1); min-height: var(--size-hit); padding: 0 var(--space-3); border-radius: var(--radius-full); color: var(--color-primary); font-size: var(--fs-small); font-weight: 600; }
+.note { font-size: var(--fs-small); color: var(--color-text-2); }
+
+.tile { display: flex; flex-direction: column; gap: var(--space-1); text-align: left; min-width: 0; }
+.tileName { font-size: var(--fs-body); color: var(--color-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: var(--space-1); }
+.tileMeta { font-size: var(--fs-caption); color: var(--color-text-2); }
+
+.pick { display: flex; align-items: center; gap: var(--space-3); width: 100%; min-height: 56px; padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); border: var(--border-w) solid var(--color-border); background: var(--color-surface); text-align: left; }
+.pickOn { border-color: var(--color-primary); box-shadow: 0 0 0 1px var(--color-primary); }
+.pickName { flex: 1; min-width: 0; font-size: var(--fs-body); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pickBox { width: 24px; height: 24px; flex: none; border-radius: var(--radius-full); border: 2px solid var(--color-border); display: inline-flex; align-items: center; justify-content: center; color: var(--color-primary); }
+.pickOn .pickBox { border-color: transparent; }
+
+.pack { display: flex; align-items: center; gap: var(--space-1); border-bottom: var(--border-w) solid var(--color-hairline); }
+.packMain { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--space-3); min-height: 52px; padding: var(--space-1) 0; text-align: left; }
+.box { width: 24px; height: 24px; flex: none; border-radius: var(--radius-xs); border: 2px solid var(--color-border); display: inline-flex; align-items: center; justify-content: center; color: var(--color-success-ink); }
+.packed .box { border-color: var(--color-success); background: var(--color-success-soft); }
+.packText { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.packLabel { font-size: var(--fs-body); color: var(--color-text); overflow-wrap: anywhere; }
+.packed .packLabel { text-decoration: line-through; text-decoration-color: var(--color-text-3); color: var(--color-text-2); }
+.packSub { font-size: var(--fs-caption); color: var(--color-text-2); }
+.del { width: var(--size-hit); height: var(--size-hit); flex: none; display: inline-flex; align-items: center; justify-content: center; color: var(--color-text-2); border-radius: var(--radius-full); }
+
+.progress { display: flex; flex-direction: column; gap: var(--space-2); }
+.progressText { display: flex; justify-content: space-between; font-size: var(--fs-small); color: var(--color-text-2); }
+.bar { height: 8px; border-radius: var(--radius-full); background: var(--color-neutral-soft); overflow: hidden; }
+.bar span { display: block; height: 100%; background: var(--color-success); border-radius: inherit; transition: width var(--duration) var(--ease); }

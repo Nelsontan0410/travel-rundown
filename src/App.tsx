@@ -12,6 +12,7 @@ import TemplatePage from './features/TemplatePage';
 import PastePage from './features/PastePage';
 import PreviewPage from './features/PreviewPage';
 import LedgerPage from './features/LedgerPage';
+import OutfitsPage from './features/OutfitsPage';
 import StoryPage from './features/StoryPage';
 import CreditsPage from './features/CreditsPage';
 import RestoreConfirm from './components/RestoreConfirm';
@@ -44,6 +45,7 @@ export default function App() {
         <Route path="/docs" element={<DocsPage />} />
         <Route path="/trip/:tripId/settings" element={<TripSettingsPage />} />
         <Route path="/trip/:tripId/ledger" element={<LedgerPage />} />
+        <Route path="/trip/:tripId/outfits" element={<OutfitsPage />} />
         <Route path="/trip/:tripId/story" element={<StoryPage />} />
         <Route path="/credits/photos" element={<CreditsPage />} />
         <Route path="/doc/:docId" element={<DocPage />} />

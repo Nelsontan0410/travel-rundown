@@ -163,6 +163,50 @@ export interface Expense {
 
 export const CURRENCY = 'MYR';
 
+// ---- 2026-10 第一批 ④：衣橱、每日穿搭、打包清单 ----
+
+export type GarmentCategory = 'outer' | 'top' | 'bottom' | 'dress' | 'shoes' | 'accessory' | 'other';
+
+/** 衣橱单品：所有旅程共用一个衣橱 */
+export interface Garment {
+  id: string;
+  name: string;
+  category: GarmentCategory;
+  /** 照片（可选），存在 blobs 表，键为 garment:<id> */
+  photoBlobKey?: string;
+  note?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** 某份旅程某一天的穿搭；按 Day.index 绑定，改出发日期时不用迁移 */
+export interface Outfit {
+  tripId: string;
+  dayIndex: number;
+  garmentIds: string[];
+  note?: string;
+  updatedAt: string;
+}
+
+export type PackGroup = 'docs' | 'electronics' | 'toiletries' | 'health' | 'weather' | 'other';
+
+/** 打包清单里衣物以外的物品（衣物从每日穿搭自动汇总） */
+export interface PackItem {
+  id: string;
+  tripId: string;
+  name: string;
+  group: PackGroup;
+  qty?: number;
+  createdAt: string;
+}
+
+/** 已装进行李的东西；ref = garment:<id> 或 item:<PackItem.id> */
+export interface PackCheck {
+  tripId: string;
+  ref: string;
+  updatedAt: string;
+}
+
 export interface BlobRecord {
   key: string;
   blob: Blob;

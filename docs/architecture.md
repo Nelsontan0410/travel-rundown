@@ -1,6 +1,6 @@
 # 架构与数据结构 v2（B 线只读）
 
-本地优先：所有数据在浏览器 IndexedDB（Dexie，版本 2），无后端、无 App 内 AI。
+本地优先：所有数据在浏览器 IndexedDB（Dexie，版本 3），无后端、无 App 内 AI。
 用户在自己的 ChatGPT / Claude 里用「导入模板」的提示词整理行程，贴回 App 导入。
 
 ## 分层（依赖只能向下）
@@ -51,6 +51,8 @@ erDiagram
 - `Doc { lock? }`：有 `lock` 表示 blob 是密文（AES-GCM，PBKDF2 从密码导出），密码不保存，忘记无法恢复。
 - `Doc { codeKind?, url?, app? }`（2026-10）：`codeKind='static'` 自己保存的二维码 / 票码图片；`'dynamic'` 动态票码（只能现场在 App 打开）。只有链接的资料 `mime='text/uri-list'`、`blobKey='link:<id>'`，本机没有文件，不算附件。离线状态见 `domain/bookings.ts`。
 - `Expense { date, amount(分), title, category, itemKey? }`：账本，目前只有 MYR。
+
+- `Garment`（衣橱，所有旅程共用，照片在 blobs `garment:<id>`）、`Outfit [tripId+dayIndex]`（每日穿搭，按 Day 序号绑定，改出发日期不用迁移）、`PackItem`（衣物以外的打包物品）、`PackCheck [tripId+ref]`（已装，ref = `garment:<id>` / `item:<id>`）。Dexie v3 新增这四张表；旅行包带上这份旅程的穿搭、打包和用到的衣物。
 
 它们都**不引用 Item.id**，只引用 `Item.key = 日期|type|标题slug`（同日重名加 `#n`）。
 
