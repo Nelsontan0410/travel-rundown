@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import p from './Page.module.css';
+import { TripThemeScope } from '../components/TripTheme';
 import { Screen, RootHeader } from '../components/Layout';
 import { Button, EmptyLine, EmptyState } from '../components/Basics';
 import { DayHeading, DayTiles, HeroCover, Timeline, TimelineDivider, TimelineRow } from '../components/Itinerary';
@@ -77,6 +78,8 @@ export default function ItineraryPage() {
   const ledger = ledgerSummary(trip.budget, td.expenses);
 
   return (
+    <>
+    <TripThemeScope theme={td.trip.theme} />
     <Screen
       tab="itinerary"
       header={<RootHeader title={trip.title} icon="Settings" iconLabel="旅程设置" onIcon={() => nav(`/trip/${trip.id}/settings`)} />}
@@ -147,5 +150,6 @@ export default function ItineraryPage() {
         />
       </div>
     </Screen>
+    </>
   );
 }

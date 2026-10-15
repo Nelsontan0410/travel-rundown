@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import p from './Page.module.css';
+import { TripThemeScope } from '../components/TripTheme';
 import { Screen, BackHeader, Dialog, Sheet } from '../components/Layout';
 import { Field, FormActions, TextInput } from '../components/Form';
 import { Button, Card, InfoBanner } from '../components/Basics';
@@ -10,7 +11,8 @@ import { readiness, useAppShellReady, useBlobUrl, useSettings, useTripData } fro
 import { addDays, daysBetween, fmtDate, fmtDateRange, fmtDaysDest, fmtMoney } from '../domain/format';
 import { TRANSLATE_LANGS } from '../links/linkLabel';
 import { NAV_APP_NAME } from '../importer/promptTemplate';
-import { deleteTrip, exportBackup, setCover, setDepartTime, setParticipants, setTranslateTo, shiftTripStart } from '../db/repo';
+import { deleteTrip, exportBackup, setCover, setDepartTime, setParticipants, setTranslateTo, setTripTheme, shiftTripStart } from '../db/repo';
+import { THEME_LABEL } from '../components/TripTheme';
 import { toast } from '../store/ui';
 import { downloadBlob, pickFile, prepareFile } from '../lib/files';
 import { restoreFromFile } from './importFlow';
@@ -20,7 +22,7 @@ import { useStorageInfo } from '../hooks/storage';
 import CheckList from '../components/CheckList';
 import { checkTrip } from '../domain/check';
 import { docsForItem } from '../domain/rules';
-import { DEFAULT_SETTINGS, type TranslateLang } from '../domain/types';
+import { DEFAULT_SETTINGS, type TranslateLang, type TripTheme } from '../domain/types';
 
 /** 05 旅程设置（从 01 的设置图标进入） */
 export default function TripSettingsPage() {
@@ -30,6 +32,7 @@ export default function TripSettingsPage() {
   const app = useAppShellReady();
   const cover = useBlobUrl(td?.trip.coverBlobKey);
   const [langSheet, setLangSheet] = useState(false);
+  const [themeSheet, setThemeSheet] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
   const setPaste = useUI((s) => s.setPasteText);
   const storage = useStorageInfo();
@@ -85,6 +88,8 @@ export default function TripSettingsPage() {
   };
 
   return (
+    <>
+    <TripThemeScope theme={td.trip.theme} />
     <Screen tab="trips" header={<BackHeader title="旅程设置" />}>
       <div className={p.summary}>
         <button type="button" className={p.thumb} aria-label="更换封面" onClick={() => void pickCover()}>
@@ -131,6 +136,10 @@ export default function TripSettingsPage() {
           value={trip.budget !== undefined ? `预算 ${fmtMoney(trip.budget)}` : '未设置预算'}
           onClick={() => nav(`/trip/${trip.id}/ledger`)}
         />
+      </SettingsGroup>
+
+      <SettingsGroup title="外观" note="只影响这份旅程；其他旅程保持各自的外观。">
+        <SettingsRow icon="Image" label="主题" value={THEME_LABEL[trip.theme ?? 'classic']} onClick={() => setThemeSheet(true)} />
       </SettingsGroup>
 
       <SettingsGroup title="外部工具" note="导航和翻译将在外部应用或网页中打开。">
@@ -197,6 +206,14 @@ export default function TripSettingsPage() {
         <SettingsRow icon="Trash2" label="删除这个旅程" danger onClick={() => setConfirmDel(true)} />
       </SettingsGroup>
 
+      <ChoiceSheet
+        open={themeSheet}
+        title="外观主题"
+        options={(Object.keys(THEME_LABEL) as TripTheme[]).map((t) => ({ value: t, label: THEME_LABEL[t] }))}
+        value={trip.theme ?? 'classic'}
+        onPick={(v) => void setTripTheme(trip.id, v)}
+        onClose={() => setThemeSheet(false)}
+      />
       <ChoiceSheet
         open={langSheet}
         title="翻译语言"
@@ -275,5 +292,6 @@ export default function TripSettingsPage() {
         </form>
       </Sheet>
     </Screen>
+    </>
   );
 }

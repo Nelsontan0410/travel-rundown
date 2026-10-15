@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import p from './Page.module.css';
+import { TripThemeScope } from '../components/TripTheme';
 import { Screen, BackHeader, Sheet } from '../components/Layout';
 import { Button, Card, EmptyState, FilterChips, SectionTitle } from '../components/Basics';
 import { Field, FormActions, TextInput } from '../components/Form';
@@ -228,6 +229,8 @@ export default function LedgerPage() {
   };
 
   return (
+    <>
+    <TripThemeScope theme={td.trip.theme} />
     <Screen
       tab="itinerary"
       header={<BackHeader title="旅行账本" right={{ icon: 'Pencil', label: '修改总预算', onClick: () => setSheet('budget') }} />}
@@ -304,5 +307,6 @@ export default function LedgerPage() {
       <ExpenseSheet open={sheet === 'add'} onClose={() => setSheet(null)} td={td} editing={editing} preset={preset} />
       <BudgetSheet open={sheet === 'budget'} onClose={() => setSheet(null)} td={td} />
     </Screen>
+    </>
   );
 }

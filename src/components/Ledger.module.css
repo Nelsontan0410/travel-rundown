@@ -14,7 +14,7 @@
 .cats { padding: var(--space-2) var(--space-3); }
 .cat { display: grid; grid-template-columns: var(--size-thumb) minmax(0, 1fr) auto; align-items: center; gap: var(--space-3); min-height: var(--h-file-row); font-size: var(--fs-body); }
 .catBar { height: var(--space-2); border-radius: var(--radius-full); background: var(--color-neutral-soft); box-shadow: var(--shadow-inset); overflow: hidden; }
-.catFill { height: 100%; border-radius: var(--radius-full); background: linear-gradient(180deg, #8A6440, #5A3E28); }
+.catFill { height: 100%; border-radius: var(--radius-full); background: linear-gradient(180deg, var(--color-primary-ink), var(--color-primary)); }
 .catAmt { font-variant-numeric: tabular-nums; color: var(--color-text-2); font-size: var(--fs-small); }
 .day { font-size: var(--fs-small); font-weight: 600; color: var(--color-text-2); letter-spacing: 0.04em; margin: var(--space-4) 0 var(--space-2); display: flex; justify-content: space-between; font-variant-numeric: tabular-nums; }
 .row { display: flex; align-items: center; gap: var(--space-3); width: 100%; min-height: var(--h-card-min); padding: var(--space-2) var(--space-3); text-align: left; }

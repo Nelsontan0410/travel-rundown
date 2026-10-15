@@ -13,11 +13,11 @@
 .block { width: 100%; }
 .primary {
   background-color: var(--color-leather); background-image: var(--tex-leather), var(--grad-btn-primary);
-  border-color: #2E1E12; color: var(--color-on-leather); text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.45);
+  border-color: var(--color-leather-edge); color: var(--color-on-leather); text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.45);
   box-shadow: var(--shadow-btn-primary);
 }
 .primary::after { content: ''; position: absolute; inset: 3px; border: 1px dashed rgba(231, 207, 160, 0.35); border-radius: calc(var(--radius-sm) - 3px); pointer-events: none; }
-.primary:not(:disabled):active { box-shadow: var(--shadow-pressed), 0 1px 0 #2E1E12; }
+.primary:not(:disabled):active { box-shadow: var(--shadow-pressed), 0 1px 0 var(--color-leather-edge); }
 .outline {
   background: var(--grad-btn-cream); border-color: var(--color-border); color: var(--color-primary);
   box-shadow: var(--shadow-raised); text-shadow: 0 1px 0 rgba(255, 252, 244, 0.7);
@@ -59,8 +59,8 @@
 }
 .filter:active { box-shadow: var(--shadow-inset); }
 .filterOn {
-  background-color: var(--color-leather); background-image: var(--tex-leather), var(--grad-btn-primary); border-color: #2E1E12;
-  color: #F1D9A6; font-weight: 600; box-shadow: var(--shadow-emboss);
+  background-color: var(--color-leather); background-image: var(--tex-leather), var(--grad-btn-primary); border-color: var(--color-leather-edge);
+  color: var(--color-on-leather-hi); font-weight: 600; box-shadow: var(--shadow-emboss);
 }
 
 /* InfoBanner */
@@ -84,7 +84,7 @@
 /* IconTile */
 .tile {
   width: var(--size-tile); height: var(--size-tile); border-radius: var(--radius-sm);
-  background: radial-gradient(120% 120% at 30% 20%, #F3E7D0 0%, #E3D2B4 100%); border: var(--border-w) solid rgba(175, 135, 70, 0.45);
+  background: radial-gradient(120% 120% at 30% 20%, var(--color-tile-1) 0%, var(--color-tile-2) 100%); border: var(--border-w) solid rgba(175, 135, 70, 0.45);
   box-shadow: inset 1px 1px 0 rgba(255, 252, 244, 0.8), 1px 1px 0 rgba(90, 62, 38, 0.15);
   display: flex; align-items: center; justify-content: center; color: var(--color-accent); flex-shrink: 0;
 }

@@ -23,7 +23,7 @@
   "src/domain/itemKey.ts": "9d86f91e557b83131927f2aa213574bfc9c9cf256588043048287749df4e86c1",
   "src/domain/landing.ts": "cd6714bdcc88653703e00e6fd357200214252c54dc6b0ff0c5d01f3d5724c42f",
   "src/domain/landingCredits.json": "2e7f5dc008f544c677193959007b42231b47b10af089cfae13ae909a6a86f6b0",
-  "src/domain/landingMedia.ts": "3f0d51c45f5d9c40d490581da4330203ba23cd9d85ff63336af3280e391ac07d",
+  "src/domain/landingMedia.ts": "89b9b00c94e002c3693384182eaae6f181c4bbed46737204deb7576bdb180627",
   "src/domain/migrate.ts": "9702f3d748236233eb8d5f4022c131cd1766668927526f97e4a45495ab645183",
   "src/domain/phase.ts": "21417b36605ac7a9060a3ce10090677fe5d89195b6fb3709b169c0954d7edf2b",
   "src/domain/rules.ts": "92467e2c5cfc2fcde4b55a9ebce6cba0181b066497cbbe3f93680ae6a2c1170a",

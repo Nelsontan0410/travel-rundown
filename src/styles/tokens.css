@@ -35,6 +35,13 @@
   --color-leather-dark: #3A2617;
   --color-leather-light: #6A4A31;
   --color-leather-edge: #2E1E12;
+  --color-on-leather-hi: #F1D9A6;   /* 皮革上的黄铜色文字 / 图标 */
+  --color-plate-1: #7A5838;         /* 皮革侧栏选中底板 */
+  --color-plate-2: #5E412A;
+  --color-tile-1: #F3E7D0;          /* 图标小方块 */
+  --color-tile-2: #E3D2B4;
+  --color-page-hi: #F8F2E6;
+  --color-page-lo: #EFE5D1;
   --color-on-leather: #F1E4CC;
   --color-on-leather-2: #C9B392;
   --color-stitch: rgba(231, 207, 160, 0.55);
@@ -161,4 +168,82 @@
   --hero-gradient: linear-gradient(to top, rgba(40, 26, 15, 0.6), rgba(40, 26, 15, 0) 60%);
   --scrim: rgba(40, 26, 15, 0.45);
   --shadow-overlay: inset 1px 1px 0 rgba(255, 252, 244, 0.8), 0 2px 0 rgba(90, 62, 38, 0.15), 0 18px 40px -8px rgba(46, 30, 18, 0.45);
+}
+
+/* ———————— 修订 2026-10 · ISSUE-005：Winter 冬季主题 ————————
+   B 旅行摄影杂志的冷色氛围 + A 极简卡片：不用皮革和纸纹，卡片更平、阴影更轻，层级和交互与 Classic 完全一致。
+   只覆盖变量；每份旅程在旅程设置里独立选择，打开旅程时由页面设置 <html data-theme>。 */
+:root[data-theme="winter"] {
+  --color-primary: #243B53;
+  --color-primary-soft: #DCE9F4;
+  --color-primary-ink: #293B4D;
+  --color-accent: #6A9FC0;
+  --color-accent-soft: #DCEBF5;
+  --color-info-bg: #E3EEF7;
+  --color-tile-bg: #DCE9F4;
+  --color-tag-bg: #E1EDF6;
+  --color-success: #3F7A6A;
+  --color-success-soft: #DDEFEA;
+  --color-success-ink: #2F6457;
+  --color-warning: #C08A3E;
+  --color-warning-soft: #F6EADB;
+  --color-warning-ink: #9A3B2A;
+  --color-text: #293B4D;
+  --color-text-2: #546A80;
+  --color-text-3: #7D90A3;
+  --color-icon: #546A80;
+  --color-border: #C9D9E6;
+  --color-hairline: #DCE7F0;
+  --color-rail: #BFD2E2;
+  --color-dot-pending: #A9BED0;
+  --color-neutral-soft: #E1EAF2;
+  --color-surface: #FFFFFF;
+  --color-surface-muted: #EAF3FA;
+  --color-surface-subtle: #F5F9FD;
+  --color-page: #F5F9FD;
+  --color-page-hi: #FAFCFE;
+  --color-page-lo: #EAF3FA;
+  --color-viewer-bg: #DCE7F0;
+  --color-leather: #243B53;
+  --color-leather-dark: #1B2D40;
+  --color-leather-light: #2E4A66;
+  --color-leather-edge: #1B2D40;
+  --color-on-leather: #EAF3FA;
+  --color-on-leather-2: #A9C4DA;
+  --color-on-leather-hi: #FFFFFF;
+  --color-plate-1: #3A5A7A;
+  --color-plate-2: #2E4A66;
+  --color-tile-1: #F5F9FD;
+  --color-tile-2: #E3EEF7;
+  --color-stitch: rgba(234, 243, 250, 0.22);
+  --color-ink-press: #243B53;
+  --color-on-photo: #F5F9FD;
+  --color-on-photo-2: #CFE3F2;
+  --color-snap-paper: #FFFFFF;
+  --color-tape: rgba(106, 159, 192, 0.35);
+  --color-fade: rgba(245, 249, 253, 0.92);
+
+  --tex-paper: none;
+  --tex-leather: none;
+  --grad-paper: linear-gradient(180deg, #FFFFFF 0%, #F7FAFD 100%);
+  --grad-leather: linear-gradient(160deg, #2E4A66 0%, #243B53 55%, #1B2D40 100%);
+  --grad-btn-primary: linear-gradient(180deg, #2E4A66 0%, #243B53 100%);
+  --grad-btn-cream: linear-gradient(180deg, #FFFFFF 0%, #F2F7FB 100%);
+  --grad-inset: linear-gradient(180deg, #EEF4F9 0%, #F7FAFD 100%);
+  --grad-brass: linear-gradient(180deg, #8DB8D4 0%, #6A9FC0 100%);
+
+  --hl-edge: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  --shadow-card: 0 1px 2px rgba(36, 59, 83, 0.06), 0 6px 18px -10px rgba(36, 59, 83, 0.25);
+  --shadow-raised: 0 1px 2px rgba(36, 59, 83, 0.1);
+  --shadow-btn-primary: 0 1px 2px rgba(27, 45, 64, 0.35), 0 4px 10px -4px rgba(27, 45, 64, 0.4);
+  --shadow-pressed: inset 0 2px 4px rgba(27, 45, 64, 0.35);
+  --shadow-inset: inset 0 1px 2px rgba(36, 59, 83, 0.1);
+  --shadow-emboss: inset 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-photo: 0 1px 2px rgba(36, 59, 83, 0.08), 0 10px 24px -12px rgba(36, 59, 83, 0.35);
+  --shadow-overlay: 0 12px 32px -8px rgba(36, 59, 83, 0.3);
+  --text-press: 0 1px 0 rgba(255, 255, 255, 0.9), 0 2px 6px rgba(36, 59, 83, 0.12);
+  --text-emboss-sm: 0 1px 0 rgba(255, 255, 255, 0.9);
+  --hero-gradient: linear-gradient(to top, rgba(27, 45, 64, 0.6), rgba(27, 45, 64, 0) 60%);
+  --scrim-photo: linear-gradient(to top, rgba(27, 45, 64, 0.72), rgba(27, 45, 64, 0.25) 45%, rgba(27, 45, 64, 0) 70%);
+  --scrim: rgba(27, 45, 64, 0.4);
 }
