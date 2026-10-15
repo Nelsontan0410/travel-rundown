@@ -66,5 +66,8 @@ flowchart LR
   G["设置页改出发日期"] --> H["shiftTripStart：整份平移，所有 key 绑定一起迁移"]
 ```
 
+## 导入后编辑（2026-10-15）
+在 App 里新增 / 编辑 / 删除 / 上下移动行程项，改当天主题、城市、旅程名称。每次编辑后：按导入同样的规则重算整份旅程的 `Item.key`，变化的把完成状态、证明、账本绑定迁移过去；再用 `importer/serialize.ts` 把整份旅程写回标准 MD 存进 `Trip.sourceMd`（并更新每项原文行号），所以「重新导入」「查看原文」看到的都是改过的内容。写回的 MD 用 `parseMd` 读回结果一致（`serialize.test.ts`）。
+
 ## 显示格式
 日期 `13-JAN-2027`（`fmtDate`），短格式 `13-JAN`；金额 `RM 1,234.50`（`fmtMoney`）。

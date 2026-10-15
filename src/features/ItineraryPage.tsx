@@ -2,11 +2,13 @@ import { useEffect, useMemo, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import p from './Page.module.css';
 import { TripThemeScope } from '../components/TripTheme';
-import { Screen, RootHeader } from '../components/Layout';
+import { Screen, RootHeader, Sheet } from '../components/Layout';
+import { Field, FormActions, TextInput } from '../components/Form';
 import { Button, EmptyLine, EmptyState } from '../components/Basics';
 import { DayHeading, DayTiles, HeroCover, Timeline, TimelineDivider, TimelineRow } from '../components/Itinerary';
 import { checklistOrder } from '../domain/checklist';
-import { setItemStatus } from '../db/repo';
+import { setItemStatus, updateDay } from '../db/repo';
+import { toast } from '../store/ui';
 import { readiness, statusOf, useAppShellReady, useBlobUrl, useCurrentTripId, useSettings, useTripData } from '../hooks/data';
 import { navLink } from '../links/maps';
 import { LedgerSummaryCard } from '../components/Ledger';
@@ -31,6 +33,7 @@ export default function ItineraryPage() {
   const selected = useUI((s) => (tripId ? s.selectedDay[tripId] : undefined));
   const selectDay = useUI((s) => s.selectDay);
   const [now, setNow] = useState(() => new Date());
+  const [dayEdit, setDayEdit] = useState<{ title: string; city: string; note: string } | null>(null);
 
   useEffect(() => {
     if (paramId) void setLastTrip(paramId);
@@ -109,6 +112,43 @@ export default function ItineraryPage() {
       <PhaseCard td={td} now={now} />
       <DayTiles days={td.days} selectedId={day?.id} onSelect={(id) => selectDay(trip.id, id)} />
       {day && <DayHeading title={dayTitle} sub={daySub} />}
+      {day && (
+        <div className={p.dayTools}>
+          <Button size="sm" variant="outline" icon="Plus" onClick={() => nav(`/trip/${trip.id}/add?day=${day.id}`)}>
+            添加一项
+          </Button>
+          <Button size="sm" variant="outline" icon="Pencil" onClick={() => setDayEdit({ title: day.title ?? '', city: day.city, note: day.note ?? '' })}>
+            编辑当天
+          </Button>
+        </div>
+      )}
+      {day && (
+        <Sheet open={!!dayEdit} onClose={() => setDayEdit(null)} title={`编辑 Day ${day.index}`}>
+          {dayEdit && (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!dayEdit.city.trim()) return toast('城市不能空着');
+                void updateDay(day.id, dayEdit).then(() => toast('已保存'));
+                setDayEdit(null);
+              }}
+            >
+              <Field label="当天主题">
+                <TextInput value={dayEdit.title} placeholder="例如：小樽一日游" onChange={(e) => setDayEdit({ ...dayEdit, title: e.target.value })} />
+              </Field>
+              <Field label="城市">
+                <TextInput value={dayEdit.city} onChange={(e) => setDayEdit({ ...dayEdit, city: e.target.value })} />
+              </Field>
+              <Field label="当天备注">
+                <TextInput value={dayEdit.note} onChange={(e) => setDayEdit({ ...dayEdit, note: e.target.value })} />
+              </Field>
+              <FormActions>
+                <Button type="submit">保存</Button>
+              </FormActions>
+            </form>
+          )}
+        </Sheet>
+      )}
       {items.length === 0 ? (
         <EmptyLine>这一天还没有安排</EmptyLine>
       ) : (

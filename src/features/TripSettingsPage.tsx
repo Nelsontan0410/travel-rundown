@@ -11,7 +11,7 @@ import { readiness, useAppShellReady, useBlobUrl, useSettings, useTripData, useT
 import { addDays, daysBetween, fmtDate, fmtDateRange, fmtDaysDest, fmtMoney } from '../domain/format';
 import { TRANSLATE_LANGS } from '../links/linkLabel';
 import { NAV_APP_NAME } from '../importer/promptTemplate';
-import { deleteTrip, exportBackup, exportTripPackage, setCover, setDepartTime, setParticipants, setTranslateTo, setTripTheme, shiftTripStart } from '../db/repo';
+import { deleteTrip, exportBackup, exportTripPackage, updateTripInfo, setCover, setDepartTime, setParticipants, setTranslateTo, setTripTheme, shiftTripStart } from '../db/repo';
 import { THEME_LABEL } from '../components/TripTheme';
 import { seasonOf, SEASONS } from '../domain/theme';
 import { toast } from '../store/ui';
@@ -40,7 +40,7 @@ export default function TripSettingsPage() {
   const settings = useSettings() ?? DEFAULT_SETTINGS;
   const [dateSheet, setDateSheet] = useState(false);
   const [newStart, setNewStart] = useState('');
-  const [factSheet, setFactSheet] = useState<'people' | 'time' | null>(null);
+  const [factSheet, setFactSheet] = useState<'people' | 'time' | 'title' | null>(null);
   const [factVal, setFactVal] = useState('');
   const [exportSheet, setExportSheet] = useState(false);
   const pkg = useTripPackageInfo(tripId);
@@ -115,6 +115,15 @@ export default function TripSettingsPage() {
       </div>
 
       <SettingsGroup title="行程">
+        <SettingsRow
+          icon="Pencil"
+          label="旅程名称"
+          value={trip.title}
+          onClick={() => {
+            setFactVal(trip.title);
+            setFactSheet('title');
+          }}
+        />
         <SettingsRow
           icon="CalendarDays"
           label="出发日期"
@@ -275,12 +284,15 @@ export default function TripSettingsPage() {
           </Button>
         </div>
       </Sheet>
-      <Sheet open={factSheet !== null} onClose={() => setFactSheet(null)} title={factSheet === 'time' ? '出发时间' : '参与人数'}>
+      <Sheet open={factSheet !== null} onClose={() => setFactSheet(null)} title={factSheet === 'time' ? '出发时间' : factSheet === 'title' ? '旅程名称' : '参与人数'}>
         <form
           onSubmit={(e) => {
             e.preventDefault();
             const v = factVal.trim();
-            if (factSheet === 'time') void setDepartTime(trip.id, v || undefined).then(() => toast(v ? '出发时间已更新' : '已改回按 00:00 倒数'));
+            if (factSheet === 'title') {
+              if (!v) return toast('名称不能空着');
+              void updateTripInfo(trip.id, { title: v }).then(() => toast('名称已更新'));
+            } else if (factSheet === 'time') void setDepartTime(trip.id, v || undefined).then(() => toast(v ? '出发时间已更新' : '已改回按 00:00 倒数'));
             else {
               const n = Number(v);
               if (v && !(Number.isInteger(n) && n > 0 && n < 1000)) return toast('人数请填 1 以上的整数');
@@ -289,7 +301,11 @@ export default function TripSettingsPage() {
             setFactSheet(null);
           }}
         >
-          {factSheet === 'time' ? (
+          {factSheet === 'title' ? (
+            <Field label="旅程名称" hint="一般写成「目的地，国家」，例如「北海道，日本」">
+              <TextInput value={factVal} maxLength={60} onChange={(e) => setFactVal(e.target.value)} />
+            </Field>
+          ) : factSheet === 'time' ? (
             <Field label={`出发时间（${trip.homeTz}）`} hint="倒计时按出发日的这个时间计算；留空则按 00:00。">
               <TextInput type="time" value={factVal} onChange={(e) => setFactVal(e.target.value)} />
             </Field>
