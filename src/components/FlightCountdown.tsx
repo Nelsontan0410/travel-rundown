@@ -11,9 +11,10 @@ import s from './FlightCountdown.module.css';
 import credits from '../../public/landing/flight-countdown/credits.json';
 
 const Scenery = memo(function Scenery({ origin, destination }: { origin: string; destination: string }) {
-  return <div className={s.scenery} aria-hidden="true">{[origin, destination].map((code, i) => <div className={i ? s.rightImage : s.leftImage} key={i}>
+  const photographs = [origin, destination].map((code, i) => <div className={i ? s.rightImage : s.leftImage} key={i}>
     {countryOf(code) && <><img className={s.landmark} src={asset(code, 'landmark')} alt="" /><img className={s.flag} src={asset(code, 'flag')} alt="" /></>}
-  </div>)}<div className={s.blend} /></div>;
+  </div>);
+  return <div className={s.scenery} aria-hidden="true">{photographs}<div className={s.blend}>{photographs}</div></div>;
 });
 
 function Clock({ value, demo = false }: { value: FlightCountdownSettings; demo?: boolean }) {

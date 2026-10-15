@@ -52,6 +52,7 @@
 .credits { font-size: var(--fs-caption); color: var(--color-text-2); }.credits summary { cursor: pointer; min-height: 44px; padding-top: 12px; }.credits a { color: var(--color-primary); text-decoration: underline; }.credits ul { padding-left: 20px; overflow-wrap: anywhere; }
 
 /* Two photographs overlap across the middle; blur the composite, never erase it. */
-.blend { position: absolute; z-index: 2; inset: 0; -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); background: color-mix(in srgb, var(--color-surface-subtle) 28%, transparent); -webkit-mask-image: linear-gradient(to right, transparent, black 38% 62%, transparent); mask-image: linear-gradient(to right, transparent, black 38% 62%, transparent); }
+.blend { position: absolute; z-index: 2; inset: 0; filter: blur(14px); -webkit-mask-image: linear-gradient(to right, transparent, black 38% 62%, transparent); mask-image: linear-gradient(to right, transparent, black 38% 62%, transparent); }
+.blend::after { content: ''; position: absolute; z-index: 2; inset: 0; background: color-mix(in srgb, var(--color-surface-subtle) 28%, transparent); }
 .footer { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); font-size: var(--fs-caption); color: var(--color-text-2); }
 .preview { margin-left: auto; min-height: 44px; padding: 0 8px; color: var(--color-primary); text-decoration: underline; text-underline-offset: 3px; }
