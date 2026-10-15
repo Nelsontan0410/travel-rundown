@@ -12,7 +12,7 @@
 
 /* 05 */
 .summary { display: flex; align-items: center; gap: var(--space-3); margin-top: var(--space-2); }
-.thumb { width: var(--size-thumb); height: var(--size-thumb); border-radius: var(--radius-sm); overflow: hidden; flex-shrink: 0; background: radial-gradient(120% 120% at 30% 20%, var(--color-tile-1) 0%, var(--color-tile-2) 100%); border: var(--border-w) solid rgba(175, 135, 70, 0.45); box-shadow: var(--shadow-raised); display: flex; align-items: center; justify-content: center; color: var(--color-accent); }
+.thumb { width: var(--size-thumb); height: var(--size-thumb); border-radius: var(--radius-sm); overflow: hidden; flex-shrink: 0; background: radial-gradient(120% 120% at 30% 20%, var(--color-tile-1) 0%, var(--color-tile-2) 100%); border: var(--border-w) solid color-mix(in srgb, var(--color-accent) 45%, transparent); box-shadow: var(--shadow-raised); display: flex; align-items: center; justify-content: center; color: var(--color-accent); }
 .thumb img { width: 100%; height: 100%; object-fit: cover; }
 .sumName { font-family: var(--font-serif); font-size: calc(var(--fs-section) + 2px); font-weight: var(--fw-section); }
 .sumLine { font-size: var(--fs-small); color: var(--color-text-2); font-variant-numeric: tabular-nums; }
@@ -49,7 +49,7 @@
   background-color: var(--color-surface-subtle); background-image: var(--tex-paper), var(--grad-inset); box-shadow: var(--shadow-inset);
   transition: border-color var(--duration) var(--ease), box-shadow var(--duration) var(--ease);
 }
-.textarea:focus { border-color: var(--color-accent); box-shadow: var(--shadow-inset), 0 0 0 3px rgba(175, 135, 70, 0.22); }
+.textarea:focus { border-color: var(--color-accent); box-shadow: var(--shadow-inset), 0 0 0 3px var(--focus-glow); }
 .textarea::placeholder { color: var(--color-text-3); }
 .warnList { margin: var(--space-2) 0 0; padding: 0 0 0 var(--space-5); font-size: var(--fs-small); color: var(--color-text-2); display: flex; flex-direction: column; gap: var(--space-1); }
 
@@ -63,7 +63,7 @@
 .pickText { flex: 1; min-width: 0; }
 .pickSub { font-size: var(--fs-caption); color: var(--color-text-2); }
 .check { width: var(--size-icon-sm); height: var(--size-icon-sm); border-radius: var(--radius-full); border: var(--border-w) solid var(--color-border); background: var(--grad-inset); box-shadow: var(--shadow-inset); flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
-.checkOn { border-color: var(--color-leather-edge); background: var(--grad-btn-primary); box-shadow: inset 1px 1px 0 rgba(255, 225, 180, 0.25); color: var(--color-on-leather-hi); }
+.checkOn { border-color: var(--color-leather-edge); background: var(--grad-btn-primary); box-shadow: inset 1px 1px 0 color-mix(in srgb, var(--color-on-leather-hi) 25%, transparent); color: var(--color-on-leather-hi); }
 .sheetList { max-height: 50dvh; overflow-y: auto; }
 
 @media (min-width: 768px) {
@@ -76,7 +76,7 @@
 
 /* v2：账本、密码等表单里的原生下拉框，外观和输入框一致 */
 .select { width: 100%; height: var(--h-btn-lg); padding: 0 var(--space-3); border: var(--border-w) solid var(--color-border); border-radius: var(--radius-sm); background: var(--grad-inset); box-shadow: var(--shadow-inset); font-size: var(--fs-body); color: var(--color-text); outline: none; }
-.select:focus { border-color: var(--color-accent); box-shadow: var(--shadow-inset), 0 0 0 3px rgba(175, 135, 70, 0.22); }
+.select:focus { border-color: var(--color-accent); box-shadow: var(--shadow-inset), 0 0 0 3px var(--focus-glow); }
 .lockNote { display: flex; align-items: center; gap: var(--space-2); font-size: var(--fs-small); color: var(--color-text-2); }
 .lockPanel { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-3); padding: var(--space-6) var(--page-x); text-align: center; background: var(--grad-inset); box-shadow: var(--shadow-inset); }
 .lockPanel svg { color: var(--color-accent); }

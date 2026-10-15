@@ -42,8 +42,9 @@ export default function StoryPage() {
     selectDay(trip.id, dayId);
     nav(`/itinerary/${trip.id}`);
   };
-  // Winter：雪景照片排在首屏前面（只调整顺序，不换成别处的照片）
-  const shots = trip.theme === 'winter' ? [...L.montage.filter((m) => m.snowy), ...L.montage.filter((m) => !m.snowy)] : L.montage;
+  // 季节主题：同季节拍的照片排在首屏前面（只调整顺序，不换成别处的照片）
+  const season = trip.theme && trip.theme !== 'classic' ? trip.theme : undefined;
+  const shots = season ? [...L.montage.filter((m) => m.season === season), ...L.montage.filter((m) => m.season !== season)] : L.montage;
   const montage: PhotoSrc[] = [...(cover ? [{ src: cover, alt: `${L.place} 封面` }] : []), ...shots.map(ph)].slice(0, 6);
   const [lead, ...rest] = L.highlights;
   // 有照片的美食排前面撑起拼版，没有照片的放后面只出文字

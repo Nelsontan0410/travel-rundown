@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import type { TripTheme } from '../domain/types';
 
-const BAR = { classic: '#F5EEDF', winter: '#F5F9FD' } as const;
+const BAR: Record<TripTheme, string> = { classic: '#F5EEDF', spring: '#F6F8F2', summer: '#F7F6F0', autumn: '#F6F1EC', winter: '#F5F9FD' };
 
 function apply(theme: TripTheme) {
   const root = document.documentElement;
@@ -29,4 +29,10 @@ export function TripThemeScope({ theme }: { theme?: TripTheme }) {
   return null;
 }
 
-export const THEME_LABEL: Record<TripTheme, string> = { classic: 'Classic 暖色', winter: 'Winter 冬季' };
+export const THEME_LABEL: Record<TripTheme, string> = {
+  classic: 'Classic 暖色',
+  spring: 'Spring 春季',
+  summer: 'Summer 夏季',
+  autumn: 'Autumn 秋季',
+  winter: 'Winter 冬季',
+};

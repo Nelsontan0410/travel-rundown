@@ -5,7 +5,7 @@ export type ItemStatus = 'todo' | 'done' | 'skipped';
 export type BookingStatus = 'confirmed' | 'pending';
 export type TranslateLang = 'zh-CN' | 'en' | 'ja' | 'ko';
 export type NavApp = 'amap' | 'google-maps' | 'apple-maps';
-export type TripTheme = 'classic' | 'winter';
+export type TripTheme = 'classic' | 'spring' | 'summer' | 'autumn' | 'winter';
 
 export interface TripTranslate {
   app: 'google-translate';

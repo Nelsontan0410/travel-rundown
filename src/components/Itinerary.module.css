@@ -56,7 +56,7 @@
   box-shadow: 0 0 0 2px var(--color-page), 1px 1px 2px rgba(70, 48, 28, 0.35);
 }
 .dotDone { background: radial-gradient(circle at 35% 30%, #93AC7E, var(--color-success)); }
-.dotCurrent { background: var(--grad-brass); box-shadow: 0 0 0 2px var(--color-page), 0 0 0 4px rgba(175, 135, 70, 0.35); }
+.dotCurrent { background: var(--grad-brass); box-shadow: 0 0 0 2px var(--color-page), 0 0 0 4px color-mix(in srgb, var(--color-accent) 35%, transparent); }
 
 /* ItemCard */
 .card {
@@ -89,7 +89,7 @@
 .check::before { content: ''; position: absolute; inset: -8px; }
 .check { position: relative; }
 .check:hover { border-color: var(--color-accent); }
-.checkOn { background: var(--grad-btn-primary); border-color: var(--color-leather-edge); box-shadow: inset 1px 1px 0 rgba(255, 225, 180, 0.25); }
+.checkOn { background: var(--grad-btn-primary); border-color: var(--color-leather-edge); box-shadow: inset 1px 1px 0 color-mix(in srgb, var(--color-on-leather-hi) 25%, transparent); }
 .cardDone { opacity: 0.72; box-shadow: var(--shadow-raised); }
 .cardDone .cardTitle { text-decoration: line-through; text-decoration-color: var(--color-text-3); }
 .divider {

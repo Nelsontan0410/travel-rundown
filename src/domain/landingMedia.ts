@@ -29,8 +29,8 @@ export interface LandingMedia {
   /** 旧的示意插画标记；真实照片一律为 false */
   sample: boolean;
   credit?: LandingCredit;
-  /** 雪景：Winter 主题时首屏优先 */
-  snowy?: boolean;
+  /** 照片真实拍摄的季节：选了同季节主题时，旅程介绍页首屏优先用它 */
+  season?: 'spring' | 'summer' | 'autumn' | 'winter';
 }
 
 export const LANDING_CREDITS = credits as LandingCredit[];
@@ -47,7 +47,11 @@ const m = (id: string, kind: MediaKind, alt: string, keywords: string[], caption
   credit: byFile.get(`${id}.jpg`),
 });
 
-const SNOWY = new Set(['fuji-lake', 'canal-night', 'snow-city', 'snow-field', 'onsen']);
+// 依据 credits 里的拍摄说明：雪景为冬季；洞爷湖那张是 5 月拍的。夏季、秋季目前图库里没有对应照片
+const SEASON: Record<string, LandingMedia['season']> = {
+  'fuji-lake': 'winter', 'canal-night': 'winter', 'snow-city': 'winter', 'snow-field': 'winter', onsen: 'winter',
+  'lake-volcano': 'spring',
+};
 
 export const LANDING_MEDIA: LandingMedia[] = [
   m('fuji-lake', 'scene', '冬天从河口湖望富士山，湖面倒影', ['富士', '河口湖', '山中湖', '忍野', '新仓', '新倉', '浅间', '本町通', '大石公园']),
@@ -70,7 +74,7 @@ export const LANDING_MEDIA: LandingMedia[] = [
   m('kaiseki', 'food', '日式旅馆的怀石料理', ['怀石']),
 ];
 
-for (const x of LANDING_MEDIA) if (SNOWY.has(x.id)) x.snowy = true;
+for (const x of LANDING_MEDIA) if (SEASON[x.id]) x.season = SEASON[x.id];
 
 const byId = new Map(LANDING_MEDIA.map((x) => [x.id, x]));
 export function mediaById(id: string): LandingMedia {
