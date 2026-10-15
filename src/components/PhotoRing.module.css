@@ -1,0 +1,129 @@
+/* finesse · component · photo-ring — postcards orbit the title; D=css-orbit (sine-eased X/Y, phase by negative delay)
+ * 运动原理：x、y 各用一段半周期、easeInOutSine、alternate 的位移动画，y 比 x 晚四分之一周期，
+ * 合起来就是匀速的椭圆轨迹；每张卡用负延迟错开相位。全程只动 transform，不改布局。 */
+
+.stage {
+  --sine: cubic-bezier(0.37, 0, 0.63, 1);
+  --nn: var(--nm);
+  /* 手机：上方紧凑的照片环，下方标题 */
+  --track-h: clamp(300px, 96vw, 420px);
+  --card: 74px;
+  --rx: calc(50vw - var(--card) * 0.62 - 6px);
+  --ry: calc(var(--track-h) / 2 - var(--card) * 0.7);
+  --swing: 8deg;
+  position: relative; display: flex; flex-direction: column;
+  padding-top: calc(56px + var(--safe-top));
+}
+.few { --card: 92px; }
+
+.track { position: relative; height: var(--track-h); }
+.ring {
+  position: absolute; inset: 0; z-index: 1; margin: 0; padding: 0; list-style: none;
+  pointer-events: none; isolation: isolate; outline: none; border-radius: var(--radius-md);
+}
+.ring:focus-visible { box-shadow: inset 0 0 0 2px var(--color-accent); }
+
+/* 每张卡三层：slot 管上下和前后层级，x 管左右和随位置的摆角，card 管远近缩放 */
+.slot {
+  --d: calc(var(--i) / var(--nn) * var(--T) * -1);
+  position: absolute; left: 50%; top: 50%; width: 0; height: 0;
+  animation: ringY calc(var(--T) / 2) var(--sine) calc(var(--d) - var(--T) / 4) infinite alternate both;
+}
+.x { position: absolute; width: 0; height: 0; animation: ringX calc(var(--T) / 2) var(--sine) var(--d) infinite alternate both; }
+.card {
+  position: absolute; left: calc(var(--card) / -2); top: calc(var(--card) * -0.625);
+  width: var(--card); aspect-ratio: 4 / 5; margin: 0; padding: 3px;
+  border-radius: var(--radius-sm); background: var(--color-surface); box-shadow: var(--shadow-photo);
+  rotate: var(--lean, 0deg); pointer-events: auto;
+  animation: ringS calc(var(--T) / 2) var(--sine) calc(var(--d) - var(--T) / 4) infinite alternate both;
+}
+.card img, .missing {
+  display: block; width: 100%; height: 100%; object-fit: cover; border-radius: calc(var(--radius-sm) - 3px);
+  background: var(--color-viewer-bg);
+}
+.missing { display: flex; align-items: center; justify-content: center; color: var(--color-text-3); background: var(--grad-paper, var(--color-page)); }
+.cap {
+  position: absolute; left: 6px; right: 6px; bottom: 6px; z-index: 1;
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis; text-align: center;
+  font-size: 10px; line-height: 1.5; padding: 0 var(--space-1); border-radius: var(--radius-full);
+  background: var(--color-fade); color: var(--color-text-2);
+}
+
+@keyframes ringY {
+  from { transform: translate3d(0, var(--ry), 0); z-index: 20; }
+  to { transform: translate3d(0, calc(var(--ry) * -1), 0); z-index: 1; }
+}
+@keyframes ringX {
+  from { transform: translate3d(calc(var(--rx) * -1), 0, 0) rotate(calc(var(--swing) * -1)); }
+  to { transform: translate3d(var(--rx), 0, 0) rotate(var(--swing)); }
+}
+@keyframes ringS {
+  from { transform: scale(1.04); }
+  to { transform: scale(0.86); }
+}
+
+/* 暂停：按钮、离开视口、切到后台、悬停或键盘聚焦照片。恢复时从原位置继续 */
+.stage[data-paused] :is(.slot, .x, .card),
+.ring:hover :is(.slot, .x, .card),
+.ring:focus-visible :is(.slot, .x, .card) { animation-play-state: paused; }
+
+/* 手机环中央的小标记 */
+.hub {
+  position: absolute; left: 50%; top: 50%; translate: -50% -50%; z-index: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  width: 76px; height: 76px; border-radius: var(--radius-full);
+  border: 1px dashed var(--color-accent); color: var(--color-text-2); font-size: var(--fs-caption); line-height: 1.2; text-align: center;
+}
+
+.center { position: relative; z-index: 5; }
+
+.toggle {
+  position: absolute; z-index: 6; right: calc(var(--space-4) + env(safe-area-inset-right, 0px)); top: calc(var(--space-4) + var(--safe-top));
+  display: inline-flex; align-items: center; gap: var(--space-2); height: 40px; padding: 0 var(--space-3);
+  border-radius: var(--radius-full); font-size: var(--fs-small); color: var(--color-text-2);
+  background: var(--color-fade); border: var(--border-w) solid var(--color-border); box-shadow: var(--shadow-raised);
+}
+.toggle:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--focus-glow); }
+/* 暂停 / 播放的小图形，用边框画，不额外引图标 */
+.glyph { width: 8px; height: 10px; border-left: 3px solid currentColor; border-right: 3px solid currentColor; }
+.glyphPlay { width: 0; height: 0; border-style: solid; border-width: 5px 0 5px 9px; border-color: transparent transparent transparent currentColor; }
+
+/* 单张照片 */
+.solo {
+  position: relative; margin: 0; width: min(64vw, 280px); aspect-ratio: 4 / 5; padding: 6px;
+  border-radius: var(--radius-sm); background: var(--color-surface); box-shadow: var(--shadow-photo); rotate: -2deg;
+}
+.solo img, .solo .missing { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: calc(var(--radius-sm) - 3px); background: var(--color-viewer-bg); }
+
+@media (max-width: 767px) {
+  .wideOnly { display: none; }
+}
+
+/* 平板 / 电脑：环铺满首屏，标题在环中央 */
+@media (min-width: 768px) {
+  .stage {
+    --nn: var(--n);
+    --stage-h: max(640px, min(100dvh, 960px));
+    --card: clamp(96px, 10vw, 160px);
+    --rx: min(calc(50vw - var(--card) * 0.62 - 20px), 660px);
+    --ry: calc(var(--stage-h) / 2 - var(--card) * 0.78);
+    --swing: 10deg;
+    display: grid; place-items: center; height: var(--stage-h); padding: 0;
+  }
+  .few { --card: clamp(120px, 12.5vw, 196px); }
+  /* 照片多时卡片小一点，左右两端不挤成一堆 */
+  .many { --card: clamp(88px, 8.8vw, 140px); }
+  .track { position: absolute; inset: 0; height: auto; }
+  .card { padding: 5px; }
+  .hub { display: none; }
+  .center { width: min(620px, 62vw); padding-top: var(--space-6); }
+  .solo { width: clamp(220px, 26vw, 340px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* 静态展示：不放动画（全局样式会把动画时长压成 0），直接用三角函数把卡片摆成一圈 */
+  .slot { --a: calc(var(--i) / var(--nn) * 360deg); animation: none; transform: translate3d(0, calc(sin(var(--a)) * var(--ry) * -1), 0); }
+  .x { animation: none; transform: translate3d(calc(cos(var(--a)) * var(--rx) * -1), 0, 0) rotate(calc(cos(var(--a)) * var(--swing) * -1)); }
+  .card { animation: none; transform: scale(calc(0.95 - sin(var(--a)) * 0.09)); }
+  .toggle { display: none; }
+}

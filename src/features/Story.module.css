@@ -1,5 +1,5 @@
 /* finesse · register=brand · A=cream-paper+leather+brass(locked by brief) · B=serif-display/sans-body
- * C=split-hero → editorial-stagger → log-rows → bleed → mosaic → collage → ticket · D=css-crossfade+scroll-driven
+ * C=orbit-hero → editorial-stagger → log-rows → bleed → mosaic → collage → ticket · D=css-orbit+scroll-driven
  * E=travel-journal-paper · SOUL=7 SPECTACLE=4 DENSITY=5 */
 /* 旅程介绍页：旅行杂志 × 复古手帐。颜色、材质、阴影都来自 tokens.css */
 .page {
@@ -44,70 +44,66 @@
   text-decoration: underline; text-decoration-color: var(--color-accent); text-underline-offset: 4px;
 }
 
-/* ———————— 首屏 ———————— */
+/* ———————— 首屏：照片环 + 中央标题（照片环本身的样式在 components/PhotoRing.module.css） ———————— */
 .hero { position: relative; display: flex; flex-direction: column; }
-.heroMedia {
-  position: relative; order: 2; height: 62vh; min-height: 360px; margin-top: calc(-1 * var(--space-12, 48px));
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0, var(--color-text) 14%, var(--color-text) 84%, transparent 100%);
-  mask-image: linear-gradient(to bottom, transparent 0, var(--color-text) 14%, var(--color-text) 84%, transparent 100%);
-}
-.heroText { position: relative; z-index: 2; order: 1; padding: calc(80px + var(--safe-top)) var(--gutter) 0; max-width: 640px; }
-.country { font-size: var(--fs-body); color: var(--color-text-2); letter-spacing: 0.12em; margin-bottom: var(--space-2); }
+.heroText { position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center; text-align: center; padding: var(--space-6) var(--gutter) 0; }
+.country { font-size: var(--fs-small); color: var(--color-text-2); letter-spacing: 0.24em; margin-bottom: var(--space-2); }
 .title {
-  font-family: var(--font-serif); font-weight: 700; line-height: 1.08; letter-spacing: 0.01em;
-  font-size: clamp(40px, 11vw, 64px); color: var(--color-ink-press);
+  font-family: var(--font-serif); font-weight: 700; line-height: 1.1; letter-spacing: 0.01em;
+  font-size: clamp(34px, 10vw, 48px); color: var(--color-ink-press);
   /* 压印：上方一道暗边、下方一道纸面高光、短距离投影 */
   text-shadow: var(--text-press); text-wrap: balance;
   overflow-wrap: anywhere;
 }
 .titleSeg { white-space: nowrap; }
 .titleSep { display: inline-block; margin: 0 0.12em; color: var(--color-accent); font-weight: 400; }
-.title::after { content: ''; display: block; width: 48px; height: 2px; margin-top: var(--space-4); background: var(--grad-brass); border-radius: 1px; box-shadow: 0 1px 0 rgba(255, 252, 244, 0.7); }
-.theme { font-family: var(--font-serif); font-size: clamp(17px, 4.6vw, 21px); line-height: 1.5; margin-top: var(--space-4); color: var(--color-text); }
-.intro { margin-top: var(--space-3); display: flex; flex-direction: column; gap: var(--space-1); color: var(--color-text-2); font-size: var(--fs-card); line-height: 1.7; }
-.facts { display: grid; grid-template-columns: repeat(2, max-content); gap: var(--space-3) var(--space-8, 40px); margin: var(--space-6) 0 0; }
-.facts div:first-child { grid-column: 1 / -1; }
-.facts div { display: flex; flex-direction: column; gap: 2px; }
+.title::after { content: ''; display: block; width: 40px; height: 2px; margin: var(--space-3) auto 0; background: var(--grad-brass); border-radius: 1px; }
+.facts { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-1) var(--space-4); margin: var(--space-3) 0 0; }
+.facts div { display: flex; align-items: baseline; gap: var(--space-1); }
 .facts dt { font-size: var(--fs-caption); color: var(--color-text-3); }
-.facts dd { margin: 0; font-family: var(--font-serif); font-size: var(--fs-section); font-variant-numeric: tabular-nums; }
-.ctas { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--space-6); }
+.facts dd { margin: 0; font-family: var(--font-serif); font-size: var(--fs-card); font-variant-numeric: tabular-nums; }
+.facts div:first-child { flex-basis: 100%; justify-content: center; }
+.ctas { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-3); margin-top: var(--space-5, 20px); }
+.albumLink {
+  margin-top: var(--space-2); min-height: var(--size-hit); display: inline-flex; align-items: center; gap: var(--space-1);
+  font-size: var(--fs-small); color: var(--color-text-2); text-decoration: underline; text-decoration-color: var(--color-accent); text-underline-offset: 4px;
+}
 .scrollHint {
-  order: 3; align-self: center; display: inline-flex; flex-direction: column; align-items: center; gap: var(--space-1);
-  margin-top: var(--space-2); min-height: var(--size-hit); font-size: var(--fs-caption); color: var(--color-text-2);
+  align-self: center; display: inline-flex; flex-direction: column; align-items: center; gap: var(--space-1);
+  margin-top: var(--space-4); min-height: var(--size-hit); font-size: var(--fs-caption); color: var(--color-text-2);
 }
 .down { transform: rotate(90deg); animation: bob 2.4s ease-in-out infinite; }
 @keyframes bob { 0%, 100% { translate: 0 0; } 50% { translate: 0 4px; } }
 
+/* 只有一张照片：一张静止的明信片 + 标题 */
+.soloHero { display: flex; flex-direction: column; align-items: center; padding-top: calc(72px + var(--safe-top)); }
+/* 没有照片：只出文字，不拿别处的图凑 */
+.heroPlain { padding-top: calc(96px + var(--safe-top)); padding-bottom: var(--space-6); }
+
+.hubNum { font-family: var(--font-serif); font-size: 26px; line-height: 1; color: var(--color-primary); }
+
+/* 旅程相册 */
+.album { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: var(--space-4); }
+@media (min-width: 1024px) { .album { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: var(--space-6); } }
+
+/* 首屏下方：精简后挪下来的介绍 */
+.lede { width: min(100% - var(--gutter) * 2, 720px); margin: var(--space-8, 40px) auto 0; text-align: center; }
+.theme { font-family: var(--font-serif); font-size: clamp(18px, 4.6vw, 24px); line-height: 1.5; color: var(--color-text); text-wrap: balance; }
+.intro { margin-top: var(--space-3); display: flex; flex-direction: column; gap: var(--space-1); color: var(--color-text-2); font-size: var(--fs-card); line-height: 1.7; }
+
 @media (min-width: 768px) {
-  .title { font-size: clamp(56px, 8vw, 80px); }
-  .heroMedia { height: 64vh; }
+  .heroText { padding: 0; }
+  .title { font-size: clamp(44px, 5.6vw, 76px); }
+  .titleSegBreak { display: block; }
+  /* 放在左下角：椭圆环的四角是空的，不会和照片叠在一起 */
+  .scrollHint { position: absolute; z-index: 6; left: var(--gutter); bottom: var(--space-4); margin: 0; flex-direction: row; }
+  .soloHero { flex-direction: row; justify-content: center; gap: clamp(32px, 6vw, 96px); min-height: min(100dvh, 860px); padding: calc(64px + var(--safe-top)) var(--gutter) 96px; }
+  .soloHero .heroText { align-items: flex-start; text-align: left; max-width: 520px; }
+  .soloHero .facts, .soloHero .ctas { justify-content: flex-start; }
+  .soloHero .facts div:first-child { justify-content: flex-start; }
+  .soloHero .title::after { margin-left: 0; }
+  .heroPlain { min-height: min(80dvh, 720px); justify-content: center; }
 }
-
-/* 电脑：30% 标题 + 70% 画面，画面向左融进纸面，标题可以跨进画面 */
-@media (min-width: 1024px) {
-  .hero { display: block; height: min(100dvh, 920px); min-height: 640px; }
-  .heroMedia {
-    position: absolute; top: 0; right: 0; bottom: 0; width: 78%; height: auto; margin: 0;
-    -webkit-mask-image: linear-gradient(to right, transparent 0, rgba(0, 0, 0, 0.55) 12%, var(--color-text) 30%), linear-gradient(to top, transparent 0, var(--color-text) 16%);
-    -webkit-mask-composite: source-in;
-    mask-image: linear-gradient(to right, transparent 0, rgba(0, 0, 0, 0.55) 12%, var(--color-text) 30%), linear-gradient(to top, transparent 0, var(--color-text) 16%);
-    mask-composite: intersect;
-  }
-  /* 标题背后一层很淡的纸面晕染，任何一张图下都能看清 */
-  .hero::before {
-    content: ''; position: absolute; z-index: 1; left: 0; top: 0; bottom: 0; width: 58%; pointer-events: none;
-    background: radial-gradient(70% 60% at 22% 50%, var(--color-fade) 0%, color-mix(in srgb, var(--color-page) 60%, transparent) 55%, transparent 100%);
-  }
-  .heroText {
-    position: absolute; z-index: 2; top: 50%; transform: translateY(-50%); left: 0; width: 30%; min-width: 360px; max-width: none;
-    padding: 0 0 0 var(--gutter);
-  }
-  .title { font-size: clamp(64px, 6.2vw, 104px); width: 46vw; }
-  .theme, .intro { max-width: 30ch; }
-  .intro { max-width: 34ch; }
-  .scrollHint { position: absolute; z-index: 2; left: 50%; bottom: var(--space-4); transform: translateX(-50%); }
-}
-
 /* ———————— 通用段落 ———————— */
 .section { width: min(100% - var(--gutter) * 2, var(--wrap)); margin: var(--sec-gap) auto 0; scroll-margin-top: var(--space-6); outline: none; }
 .secHead { max-width: 640px; margin-bottom: clamp(32px, 5vw, 56px); }
@@ -324,10 +320,6 @@
 }
 .closingText .btnLeather { margin-top: var(--space-3); }
 .credits { margin-top: var(--space-2); min-height: var(--size-hit); display: inline-flex; align-items: center; font-size: var(--fs-small); color: var(--color-text-2); text-decoration: underline; text-decoration-color: var(--color-accent); text-underline-offset: 4px; }
-/* 没有可用照片时的退路：只出文字，不拿别处的图凑 */
-.heroPlain { height: auto !important; min-height: 0 !important; padding-bottom: var(--space-8, 40px); }
-.heroPlain::before { display: none; }
-.heroPlain .heroText { position: relative; top: auto; transform: none; width: auto; max-width: 720px; padding-top: calc(80px + var(--safe-top)); }
 .hlLeadPlain .hlLeadText { margin: 0; grid-column: 1 / -1; }
 .foodPlain { padding: var(--space-4); border: var(--border-w) solid var(--color-border); border-radius: var(--radius-md); background: var(--grad-paper); box-shadow: var(--shadow-card); align-self: start; }
 .foodPlain .h3s { margin-top: 0; }

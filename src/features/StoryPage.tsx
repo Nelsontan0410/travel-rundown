@@ -4,10 +4,12 @@ import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import p from './Story.module.css';
 import { Icon } from '../components/Icon';
 import { TripThemeScope } from '../components/TripTheme';
-import { Montage, Parallax, Photo, type PhotoSrc } from '../components/Story';
+import { Parallax, Photo, type PhotoSrc } from '../components/Story';
+import { PhotoRing, SoloPostcard } from '../components/PhotoRing';
 import { useBlobUrl, useTripData } from '../hooks/data';
 import { buildLanding } from '../domain/landing';
 import type { LandingMedia } from '../domain/landingMedia';
+import { landingGallery } from '../domain/landingGallery';
 import { fmtDate, fmtMonthDay } from '../domain/format';
 import { useUI } from '../store/ui';
 
@@ -33,22 +35,62 @@ export default function StoryPage() {
   const cover = useBlobUrl(td?.trip.coverBlobKey);
   const selectDay = useUI((s) => s.selectDay);
   const L = useMemo(() => (td ? buildLanding(td.trip, td.days, td.items) : null), [td]);
+  // 首屏照片环与页面其他段落同一份照片源；切换旅程、换封面后跟着变
+  const plan = useMemo(() => (L && td ? landingGallery(L, { cover, theme: td.trip.theme }) : null), [L, td, cover]);
 
   if (td === null) return <Navigate to="/itinerary" replace />;
-  if (!td || !L) return <div className={p.page} />;
+  if (!td || !L || !plan) return <div className={p.page} />;
 
   const trip = td.trip;
   const openDay = (dayId: string) => {
     selectDay(trip.id, dayId);
     nav(`/itinerary/${trip.id}`);
   };
-  // 季节主题：同季节拍的照片排在首屏前面（只调整顺序，不换成别处的照片）
-  const season = trip.theme && trip.theme !== 'classic' ? trip.theme : undefined;
-  const shots = season ? [...L.montage.filter((m) => m.season === season), ...L.montage.filter((m) => m.season !== season)] : L.montage;
-  const montage: PhotoSrc[] = [...(cover ? [{ src: cover, alt: `${L.place} 封面` }] : []), ...shots.map(ph)].slice(0, 6);
   const [lead, ...rest] = L.highlights;
   // 有照片的美食排前面撑起拼版，没有照片的放后面只出文字
   const food = [...L.food.filter((f) => f.media), ...L.food.filter((f) => !f.media)];
+
+  const heroText = (
+    <div className={p.heroText}>
+      {L.country && <p className={p.country}>{L.country}</p>}
+      <h1 className={p.title} aria-label={L.place}>
+        {L.place.split(/\s*[・·]\s*/).map((seg, i) => (
+          <span key={seg + i} className={p.titleSeg} aria-hidden>
+            {i > 0 && <span className={p.titleSep}>·</span>}
+            {seg}
+          </span>
+        ))}
+      </h1>
+      <dl className={p.facts}>
+        <div>
+          <dt>日期</dt>
+          <dd>{span(trip.startDate, trip.endDate)}</dd>
+        </div>
+        <div>
+          <dt>天数</dt>
+          <dd>{L.stats.days} 天</dd>
+        </div>
+        <div>
+          <dt>地点</dt>
+          <dd>{L.stats.spots} 个景点</dd>
+        </div>
+      </dl>
+      <div className={p.ctas}>
+        <button type="button" className={p.btnLeather} onClick={() => scrollToId('days')}>
+          探索行程
+        </button>
+        <button type="button" className={p.btnCream} onClick={() => scrollToId('highlights')}>
+          查看旅行亮点
+        </button>
+      </div>
+      {plan.needsAlbum && (
+        <button type="button" className={p.albumLink} onClick={() => scrollToId('album')}>
+          全部 {plan.photos.length} 张照片
+          <Icon name="ChevronRight" size="xs" />
+        </button>
+      )}
+    </div>
+  );
 
   return (
     <div className={p.page}>
@@ -58,57 +100,44 @@ export default function StoryPage() {
         回到行程
       </Link>
 
-      {/* 首屏：左 30% 标题，右 70% 动态画面 */}
-      <header className={`${p.hero} ${montage.length ? '' : p.heroPlain}`}>
-        {montage.length > 0 && (
-          <div className={p.heroMedia}>
-            <Montage photos={montage} />
+      {/* 首屏：旅程照片围成一圈缓慢转动，标题在中央（手机上环在上、标题在下） */}
+      <header className={`${p.hero} ${plan.mode === 'none' ? p.heroPlain : ''}`}>
+        {plan.mode === 'ring' ? (
+          <PhotoRing
+            photos={plan.photos}
+            count={plan.ring}
+            countMobile={plan.ringMobile}
+            hub={
+              <>
+                <strong className={p.hubNum}>{L.stats.days}</strong>天
+              </>
+            }
+          >
+            {heroText}
+          </PhotoRing>
+        ) : plan.mode === 'single' ? (
+          <div className={p.soloHero}>
+            <SoloPostcard photo={plan.photos[0]} />
+            {heroText}
           </div>
+        ) : (
+          heroText
         )}
-        <div className={p.heroText}>
-          {L.country && <p className={p.country}>{L.country}</p>}
-          <h1 className={p.title} aria-label={L.place}>
-            {L.place.split(/\s*[・·]\s*/).map((seg, i) => (
-              <span key={seg + i} className={p.titleSeg} aria-hidden>
-                {i > 0 && <span className={p.titleSep}>·</span>}
-                {seg}
-              </span>
-            ))}
-          </h1>
-          <p className={p.theme}>{L.theme}</p>
-          <div className={p.intro}>
-            {L.intro.map((t) => (
-              <p key={t}>{t}</p>
-            ))}
-          </div>
-          <dl className={p.facts}>
-            <div>
-              <dt>日期</dt>
-              <dd>{span(trip.startDate, trip.endDate)}</dd>
-            </div>
-            <div>
-              <dt>天数</dt>
-              <dd>{L.stats.days} 天</dd>
-            </div>
-            <div>
-              <dt>地点</dt>
-              <dd>{L.stats.spots} 个景点</dd>
-            </div>
-          </dl>
-          <div className={p.ctas}>
-            <button type="button" className={p.btnLeather} onClick={() => scrollToId('days')}>
-              探索行程
-            </button>
-            <button type="button" className={p.btnCream} onClick={() => scrollToId('highlights')}>
-              查看旅行亮点
-            </button>
-          </div>
-        </div>
         <button type="button" className={p.scrollHint} onClick={() => scrollToId('highlights')} aria-label="向下浏览">
           <span>向下浏览</span>
           <Icon name="ChevronRight" size="xs" className={p.down} />
         </button>
       </header>
+
+      {/* 首屏精简后，主题句和介绍放在这里 */}
+      <section className={p.lede} aria-label="旅程简介">
+        <p className={p.theme}>{L.theme}</p>
+        <div className={p.intro}>
+          {L.intro.map((t) => (
+            <p key={t}>{t}</p>
+          ))}
+        </div>
+      </section>
 
       {/* 旅行亮点：一张主图 + 错落的小图 */}
       {lead && (
@@ -280,6 +309,23 @@ export default function StoryPage() {
               ))}
             </dl>
           </div>
+        </section>
+      )}
+
+      {/* 旅程相册：照片环放不下的照片都在这里，减少动态效果时也能逐张看 */}
+      {plan.needsAlbum && (
+        <section id="album" tabIndex={-1} className={p.section} aria-labelledby="h-album">
+          <div className={p.secHead}>
+            <h2 id="h-album" className={p.h2}>旅程相册</h2>
+            <p className={p.secLead}>这份旅程介绍里用到的全部 {plan.photos.length} 张照片。</p>
+          </div>
+          <ul className={p.album}>
+            {plan.photos.map((ph) => (
+              <li key={ph.id}>
+                <Photo photo={{ src: ph.thumb, alt: ph.alt, caption: ph.caption }} ratio="4 / 5" />
+              </li>
+            ))}
+          </ul>
         </section>
       )}
 
