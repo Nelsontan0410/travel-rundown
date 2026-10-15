@@ -1,4 +1,4 @@
-/* finesse · component · photo / montage / parallax — shares the story page soul */
+/* finesse · component · photo / parallax — shares the story page soul */
 /* 旅程介绍页的共用展示件 */
 
 /* 照片框：纸板外框 + 内嵌照片，hover 轻微放大 */
@@ -21,37 +21,10 @@
   background: var(--color-fade); color: var(--color-text-2); box-shadow: inset 0 0 0 1px var(--color-border);
 }
 
-/* 首屏蒙太奇 */
-.montage { position: absolute; inset: 0; overflow: hidden; background: var(--color-viewer-bg); }
-.frame {
-  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
-  opacity: 0; z-index: 0; transition: opacity 1800ms ease-in-out; will-change: opacity, transform;
-  animation: 18s ease-in-out infinite alternate;
-}
-.panR { animation-name: kbR; }
-.panL { animation-name: kbL; }
-.on { opacity: 1; z-index: 2; }
-.prev { opacity: 1; z-index: 1; transition: none; }
-.still .frame { animation: none; transition: none; }
-@keyframes kbR { from { transform: scale(1.04) translate3d(0, 0, 0); } to { transform: scale(1.14) translate3d(-2.5%, -1.5%, 0); } }
-@keyframes kbL { from { transform: scale(1.14) translate3d(-2%, 1%, 0); } to { transform: scale(1.04) translate3d(1.5%, 0, 0); } }
-.captionHero { top: 16%; bottom: auto; right: var(--space-4); }
-.dots { position: absolute; z-index: 3; right: var(--space-4); bottom: 18%; display: flex; gap: var(--space-2); }
-@media (min-width: 1024px) {
-  .captionHero { top: var(--space-6); right: var(--space-6); }
-  .dots { right: var(--space-6); bottom: 20%; }
-}
-.dots span {
-  width: 6px; height: 6px; border-radius: var(--radius-full); background: rgba(245, 238, 223, 0.6);
-  box-shadow: 0 0 0 1px rgba(48, 37, 29, 0.25); transition: background var(--duration) var(--ease), transform var(--duration) var(--ease);
-}
-.dots .dotOn { background: var(--color-accent); transform: scale(1.3); }
-
 /* 视差大图 */
 .parallax { position: relative; overflow: hidden; height: 100%; background: var(--color-viewer-bg); }
 .parallax img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transform: scale(1.12); }
 
 @media (prefers-reduced-motion: reduce) {
-  .frame { animation: none; transition: none; }
   .photo img { transition: none; }
 }
