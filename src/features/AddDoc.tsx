@@ -5,7 +5,8 @@ import { Button, Card, FilterChips, InfoBanner } from '../components/Basics';
 import { FileRow, SettingsGroup, SettingsRow } from '../components/Cards';
 import { CheckFilled } from '../components/Icon';
 import { prepareFile, pickFile, TooLargeError } from '../lib/files';
-import { addDoc } from '../db/repo';
+import { addDoc, addLinkDoc } from '../db/repo';
+import { looksLikeUrl } from '../domain/bookings';
 import { Field, SwitchRow, TextInput } from '../components/Form';
 import { MIN_PASSWORD } from '../lib/crypto';
 import { fmtMonthDay, SEP } from '../domain/format';
@@ -108,6 +109,14 @@ export function AddDocSheet({
   const [pw2, setPw2] = useState('');
   const [hint, setHint] = useState('');
   const [pwErr, setPwErr] = useState('');
+  // 2026-10：二维码图片 / 外部链接 / 动态票码
+  const [isCode, setIsCode] = useState(false);
+  const [linkMode, setLinkMode] = useState(false);
+  const [url, setUrl] = useState('');
+  const [linkTitle, setLinkTitle] = useState('');
+  const [dynamic, setDynamic] = useState(false);
+  const [appName, setAppName] = useState('');
+  const [urlErr, setUrlErr] = useState('');
   const preview = useMemo(() => (file && file.blob.type.startsWith('image/') ? URL.createObjectURL(file.blob) : undefined), [file]);
   useEffect(() => () => {
     if (preview) URL.revokeObjectURL(preview);
@@ -124,6 +133,13 @@ export function AddDocSheet({
       setPw2('');
       setHint('');
       setPwErr('');
+      setIsCode(false);
+      setLinkMode(false);
+      setUrl('');
+      setLinkTitle('');
+      setDynamic(false);
+      setAppName('');
+      setUrlErr('');
     }
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -155,6 +171,26 @@ export function AddDocSheet({
         kind,
         itemKeys: keys,
         ...(lockOn ? { password: pw, hint: hint.trim() || undefined } : {}),
+        ...(isCode ? { codeKind: 'static' as const } : {}),
+      });
+      onClose();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveLink = async () => {
+    if (!looksLikeUrl(url)) return setUrlErr('请填完整的链接，例如 https://…');
+    setSaving(true);
+    try {
+      await addLinkDoc({
+        tripId: td.trip.id,
+        title: linkTitle.trim() || (dynamic ? `动态票码${appName.trim() ? `（${appName.trim()}）` : ''}` : '订单链接'),
+        kind,
+        url,
+        itemKeys: keys,
+        dynamic,
+        app: appName,
       });
       onClose();
     } finally {
@@ -165,13 +201,43 @@ export function AddDocSheet({
   const linked = keys.length ? `${keys.length} 项` : '不关联';
 
   return (
-    <Sheet open={open} onClose={onClose} title="添加预订证明">
-      {!file ? (
+    <Sheet open={open} onClose={onClose} title={linkMode ? '添加链接或动态票码' : '添加预订证明'}>
+      {linkMode ? (
+        <>
+          <Field label="链接" error={urlErr || undefined} hint="订单网页、电子票页面，或 App 里的分享链接">
+            <TextInput type="url" inputMode="url" placeholder="https://" value={url} onChange={(e) => { setUrl(e.target.value); setUrlErr(''); }} />
+          </Field>
+          <Field label="名称（可选）">
+            <TextInput value={linkTitle} maxLength={40} placeholder={dynamic ? '动态票码' : '订单链接'} onChange={(e) => setLinkTitle(e.target.value)} />
+          </Field>
+          <SettingsGroup>
+            <SwitchRow label="这是动态票码（要在官方 App 现场打开）" on={dynamic} onChange={setDynamic} />
+            <SettingsRow label="关联行程项" value={linked} onClick={() => setPicker(true)} />
+          </SettingsGroup>
+          {dynamic && (
+            <div className={p.mt12}>
+              <Field label="在哪个 App 打开（可选）" hint="动态票码会定时变化，截图无效；离线检查会提醒你现场需要联网。">
+                <TextInput value={appName} maxLength={30} placeholder="例如 Klook、JR East" onChange={(e) => setAppName(e.target.value)} />
+              </Field>
+            </div>
+          )}
+          <div className={p.mt12}>
+            <FilterChips options={KIND_OPTIONS} value={kind} onChange={setKind} />
+          </div>
+          <div className={p.mt16}>
+            <Button block disabled={saving} onClick={() => void saveLink()}>
+              保存
+            </Button>
+          </div>
+          <ItemPickerSheet open={picker} td={td} value={keys} onDone={setKeys} onClose={() => setPicker(false)} />
+        </>
+      ) : !file ? (
         <>
           <Card>
             <SettingsRow icon="Camera" label="拍照" onClick={() => void choose('image/*', true)} />
             <SettingsRow icon="Image" label="从相册选择" onClick={() => void choose('image/*')} />
             <SettingsRow icon="FileUp" label="从文件选择" onClick={() => void choose('image/*,application/pdf')} />
+            <SettingsRow icon="Globe" label="添加链接或动态票码" onClick={() => setLinkMode(true)} />
           </Card>
           {tooLarge && (
             <div className={p.mt12}>
@@ -190,6 +256,9 @@ export function AddDocSheet({
           <div className={p.mt12}>
             <SettingsGroup>
               <SettingsRow label="关联行程项" value={linked} onClick={() => setPicker(true)} />
+              {file.blob.type.startsWith('image/') && (
+                <SwitchRow label="这是二维码 / 票码（可离线出示）" on={isCode} onChange={setIsCode} />
+              )}
               <SwitchRow label="设置密码（防止别人打开）" on={lockOn} onChange={setLockOn} />
             </SettingsGroup>
           </div>

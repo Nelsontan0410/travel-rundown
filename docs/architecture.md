@@ -49,6 +49,7 @@ erDiagram
 ### 用户内容（重新导入必须保留）
 - `ItemState { status, checked[] }`：完成 / 跳过；必逛、必吃已勾选的文字。
 - `Doc { lock? }`：有 `lock` 表示 blob 是密文（AES-GCM，PBKDF2 从密码导出），密码不保存，忘记无法恢复。
+- `Doc { codeKind?, url?, app? }`（2026-10）：`codeKind='static'` 自己保存的二维码 / 票码图片；`'dynamic'` 动态票码（只能现场在 App 打开）。只有链接的资料 `mime='text/uri-list'`、`blobKey='link:<id>'`，本机没有文件，不算附件。离线状态见 `domain/bookings.ts`。
 - `Expense { date, amount(分), title, category, itemKey? }`：账本，目前只有 MYR。
 
 它们都**不引用 Item.id**，只引用 `Item.key = 日期|type|标题slug`（同日重名加 `#n`）。

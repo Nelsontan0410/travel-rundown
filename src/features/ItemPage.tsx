@@ -29,6 +29,9 @@ import {
   TYPE_LABEL,
 } from '../domain/rules';
 import { copyWithToast, openExternal } from '../links/openLink';
+import { isLinkDoc, OFFLINE_LABEL, offlineState } from '../domain/bookings';
+import { BookingFooter } from '../components/BookingExtras';
+import { PassViewer } from '../components/PassViewer';
 import { translateUrl } from '../links/linkLabel';
 import { AddDocSheet } from './AddDoc';
 import SourceSheet from '../components/SourceSheet';
@@ -71,6 +74,7 @@ export default function ItemPage() {
   const [menu, setMenu] = useState(false);
   const [add, setAdd] = useState(false);
   const [srcOpen, setSrcOpen] = useState(false);
+  const [show, setShow] = useState(false);
 
   if (item === null) return <Navigate to="/itinerary" replace />;
   if (!item || !td) return <Screen tab="itinerary" header={<BackHeader title="行程详情" />}>{null}</Screen>;
@@ -79,6 +83,7 @@ export default function ItemPage() {
   const status = statusOf(td, item.key);
   const chip = statusChip(status);
   const docs = docsForItem(td.docs, item.key);
+  const fileDocs = docs.filter((d) => !isLinkDoc(d));
   const time = fmtTimeRange(item.start, item.end, item.endDayOffset);
   // 航班起飞时间是出发地当地时间，和当天时区可能不同，所以不标 UTC 偏移
   const dateLine = `${fmtMonthDay(day.date)}${time ? ` ${time}` : ''}${time && item.type !== 'flight' ? `${SEP}${utcOffsetLabel(day.tz)}` : ''}`;
@@ -175,16 +180,46 @@ export default function ItemPage() {
             chip={bookingChip(bookingStatusOf(item, docs.length))}
             bookingRef={item.bookingRef}
             onCopyRef={() => void copyWithToast(item.bookingRef!)}
-            files={docs.map((d) => ({ id: d.id, title: d.title, mime: d.mime, blobKey: d.blobKey, saved: td.savedBlobs.has(d.blobKey), locked: !!d.lock }))}
+            files={fileDocs.map((d) => ({ id: d.id, title: d.title, mime: d.mime, blobKey: d.blobKey, saved: td.savedBlobs.has(d.blobKey), locked: !!d.lock }))}
             onOpenFile={openDoc}
-            onUpload={() => setAdd(true)}
+            onUpload={docs.length ? undefined : () => setAdd(true)}
             footer={
-              docs.length > 0 && (
-                <Button block variant="outline" icon="FileText" onClick={() => openDoc(docs[0].id)}>
-                  查看证明
-                </Button>
-              )
+              <>
+                <BookingFooter
+                  offline={OFFLINE_LABEL[offlineState(item, docs, td.savedBlobs).level]}
+                  links={docs.filter(isLinkDoc).map((d) => ({ id: d.id, title: d.title, dynamic: d.codeKind === 'dynamic', app: d.app }))}
+                  onOpenLink={(id) => {
+                    const d = docs.find((x) => x.id === id);
+                    if (d?.url) openExternal(d.url);
+                  }}
+                  onShow={docs.length || item.bookingRef ? () => setShow(true) : undefined}
+                />
+                {fileDocs.length > 0 && (
+                  <Button block variant="outline" icon="FileText" onClick={() => openDoc(fileDocs[0].id)}>
+                    查看证明
+                  </Button>
+                )}
+                {docs.length > 0 && (
+                  <Button block variant="link" icon="Plus" chevron={false} onClick={() => setAdd(true)}>
+                    再添加一份
+                  </Button>
+                )}
+              </>
             }
+          />
+          <PassViewer
+            open={show}
+            onClose={() => setShow(false)}
+            title={bookingTitle(item)}
+            subtitle={bookingSubtitle(item, day)}
+            bookingRef={item.bookingRef}
+            docs={docs.map((d) => ({
+              id: d.id, title: d.title, mime: d.mime, blobKey: d.blobKey, saved: td.savedBlobs.has(d.blobKey), locked: !!d.lock,
+              codeKind: d.codeKind, url: d.url, app: d.app, link: isLinkDoc(d),
+            }))}
+            onCopyRef={() => void copyWithToast(item.bookingRef!)}
+            onOpenDoc={openDoc}
+            onOpenLink={(url) => openExternal(url)}
           />
         </>
       )}

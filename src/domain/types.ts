@@ -119,6 +119,12 @@ export interface Doc {
   itemKeys: string[];
   /** v2：有值表示文件已用密码加密（AES-GCM，密钥由 PBKDF2 从密码导出），密码不保存 */
   lock?: DocLock;
+  /** 2026-10：static = 自己保存的二维码 / 票码图片（可离线出示）；dynamic = 动态票码，要现场在官方 App 打开 */
+  codeKind?: 'static' | 'dynamic';
+  /** 2026-10：外部链接（订单网页、App 链接）。只有链接时 mime 为 text/uri-list，本机没有文件 */
+  url?: string;
+  /** 2026-10：动态票码在哪个 App 里打开（例如「Klook」「JR East」） */
+  app?: string;
   addedAt: string;
   updatedAt: string;
 }

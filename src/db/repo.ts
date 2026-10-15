@@ -8,6 +8,7 @@ import { encryptBlob, decryptBlob } from '../lib/crypto';
 import { addDays, daysBetween } from '../domain/format';
 import { makeItemKey } from '../domain/itemKey';
 import { migrateItemV2 } from '../domain/migrate';
+import { isLinkDoc, LINK_MIME } from '../domain/bookings';
 import {
   DEFAULT_SETTINGS,
   DEFAULT_TRANSLATE,
@@ -167,6 +168,8 @@ export async function addDoc(input: {
   /** 有值时用这个密码加密后再保存 */
   password?: string;
   hint?: string;
+  /** 2026-10：这是自己保存的二维码 / 票码图片 */
+  codeKind?: 'static';
 }): Promise<string> {
   const id = uuid();
   const blobKey = `doc:${id}`;
@@ -181,6 +184,7 @@ export async function addDoc(input: {
     blobKey,
     itemKeys: input.itemKeys,
     ...(sealed ? { lock: sealed.lock } : {}),
+    ...(input.codeKind ? { codeKind: input.codeKind } : {}),
     addedAt: ts,
     updatedAt: ts,
   };
@@ -190,6 +194,55 @@ export async function addDoc(input: {
   });
   requestPersist();
   return id;
+}
+
+/** 2026-10：只保存链接的资料（订单网页、动态票码）。本机没有文件，离线检查会标出来 */
+export async function addLinkDoc(input: {
+  tripId: string;
+  title: string;
+  kind: DocKind;
+  url: string;
+  itemKeys: string[];
+  dynamic: boolean;
+  app?: string;
+}): Promise<string> {
+  const id = uuid();
+  const ts = now();
+  const doc: Doc = {
+    id,
+    tripId: input.tripId,
+    title: input.title,
+    kind: input.kind,
+    mime: LINK_MIME,
+    blobKey: `link:${id}`,
+    itemKeys: input.itemKeys,
+    url: input.url.trim(),
+    ...(input.dynamic ? { codeKind: 'dynamic' as const } : {}),
+    ...(input.app?.trim() ? { app: input.app.trim() } : {}),
+    addedAt: ts,
+    updatedAt: ts,
+  };
+  await db.docs.put(doc);
+  return id;
+}
+
+/** 2026-10：标记 / 取消「这是二维码 / 票码图片」 */
+export async function setDocCodeKind(docId: string, codeKind: 'static' | undefined): Promise<void> {
+  const doc = await db.docs.get(docId);
+  if (!doc || isLinkDoc(doc)) return;
+  const { codeKind: _old, ...rest } = doc;
+  void _old;
+  await db.docs.put({ ...rest, ...(codeKind ? { codeKind } : {}), updatedAt: now() });
+}
+
+/** 2026-10：删除一份资料（链接或文件） */
+export async function deleteDoc(docId: string): Promise<void> {
+  await db.transaction('rw', db.docs, db.blobs, async () => {
+    const doc = await db.docs.get(docId);
+    if (!doc) return;
+    await db.blobs.delete(doc.blobKey);
+    await db.docs.delete(docId);
+  });
 }
 
 /** 文件缺失时重新上传：沿用原来的 Doc 和绑定，只换文件本体。传密码则重新加密 */
@@ -416,7 +469,7 @@ export async function exportBackup(): Promise<Blob> {
 async function tripBlobKeys(tripId: string): Promise<{ keys: string[]; missing: number }> {
   const trip = await db.trips.get(tripId);
   const docs = await db.docs.where('tripId').equals(tripId).toArray();
-  const wanted = [...docs.map((d) => d.blobKey), ...(trip?.coverBlobKey ? [trip.coverBlobKey] : [])];
+  const wanted = [...docs.filter((d) => !isLinkDoc(d)).map((d) => d.blobKey), ...(trip?.coverBlobKey ? [trip.coverBlobKey] : [])];
   const present = wanted.length ? ((await db.blobs.where('key').anyOf(wanted).primaryKeys()) as string[]) : [];
   return { keys: present, missing: wanted.length - present.length };
 }
@@ -494,7 +547,7 @@ export async function restoreBackupDetailed(file: Blob): Promise<RestoreResult> 
     if (!cur && incoming) await db.settings.put(incoming);
   });
   requestPersist();
-  const keys = json.docs.map((d) => d.blobKey);
+  const keys = json.docs.filter((d) => !isLinkDoc(d)).map((d) => d.blobKey);
   const present = keys.length ? ((await db.blobs.where('key').anyOf(keys).primaryKeys()) as string[]) : [];
   return {
     trips: json.trips.length,

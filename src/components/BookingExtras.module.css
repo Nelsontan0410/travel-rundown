@@ -1,0 +1,26 @@
+/* 2026-10 预订卡片底部与离线准备检查 */
+.chip { flex: none; display: inline-flex; align-items: center; height: 22px; padding: 0 var(--space-2); border-radius: var(--radius-full); font-size: var(--fs-caption); font-weight: 600; white-space: nowrap; }
+.success { background: var(--color-success-soft); color: var(--color-success-ink); }
+.warning { background: var(--color-warning-soft); color: var(--color-warning-ink); }
+.neutral { background: var(--color-neutral-soft); color: var(--color-text-2); }
+
+.footer { display: flex; flex-direction: column; gap: var(--space-2); margin-top: var(--space-2); }
+.row { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+.detail { font-size: var(--fs-caption); color: var(--color-text-2); min-width: 0; }
+.link {
+  display: flex; align-items: center; gap: var(--space-3); width: 100%; min-height: var(--size-hit); padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm); border: var(--border-w) solid var(--color-border); background: var(--color-surface-subtle); color: var(--color-primary); text-align: left;
+}
+.linkText { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.linkTitle { font-size: var(--fs-body); color: var(--color-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.linkSub { font-size: var(--fs-caption); color: var(--color-text-2); }
+
+.summary { border: var(--border-w) solid var(--color-warning); border-radius: var(--radius-md); background: var(--color-warning-soft); padding: var(--space-3) var(--space-4); color: var(--color-warning-ink); }
+.summaryOk { border-color: var(--color-success); background: var(--color-success-soft); color: var(--color-success-ink); }
+.sumHead { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+.sumTitle { font-weight: 600; font-size: var(--fs-body); flex: 1; }
+.sumCount { font-size: var(--fs-small); }
+.sumText { margin-top: var(--space-2); font-size: var(--fs-small); }
+.sumList { list-style: none; margin: var(--space-2) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.sumRow { display: flex; align-items: center; gap: var(--space-3); width: 100%; min-height: var(--size-hit); padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); background: var(--color-surface); text-align: left; }
+.sumRowText { flex: 1; min-width: 0; display: flex; flex-direction: column; }
