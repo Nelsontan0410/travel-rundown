@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import md from '../../qa/fixtures/hokkaido-nomarks.md?raw';
 import { parseMd } from '../importer/parseMd';
 import { buildLanding, type LandingContent } from '../domain/landing';
-import { landingGallery, RING_MAX, RING_MAX_MOBILE } from '../domain/landingGallery';
+import { landingBackdrop, landingGallery, RING_MAX, RING_MAX_MOBILE } from '../domain/landingGallery';
 import { LANDING_MEDIA } from '../domain/landingMedia';
 import type { Day, Item } from '../domain/types';
 
@@ -80,5 +80,13 @@ describe('首屏照片环的照片源', () => {
     const p = landingGallery(withPhotos(18), { cover: 'blob:c' });
     expect(p.photos).toHaveLength(19);
     expect(p.ring).toBe(RING_MAX);
+  });
+
+  it('背景图：北海道冬季旅程有，其他旅程没有', () => {
+    expect(trip.startDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(landingBackdrop(L, trip.startDate)?.id).toBe('japan-winter');
+    expect(landingBackdrop(L, '2027-07-10')).toBeUndefined();
+    expect(landingBackdrop({ ...L, place: '首尔', country: '韩国', days: [] }, trip.startDate)).toBeUndefined();
+    expect(landingBackdrop(withPhotos(3), trip.startDate)).toBeUndefined();
   });
 });

@@ -32,7 +32,41 @@ export interface GalleryPlan {
   needsAlbum: boolean;
 }
 
-const fromMedia = (m: LandingMedia): GalleryPhoto => ({
+/** 首屏背景图：整张铺在照片环后面，中央淡出成纸面，标题始终在浅底上 */
+export interface LandingBackdrop {
+  id: string;
+  src: string;
+  /** 手机用的小图 */
+  srcSmall: string;
+  /** 照片来源说明（显示在照片来源页） */
+  note: string;
+}
+
+// 用户提供的日本冬季拼贴（AI 生成插画，含企鹅、富士山、浅草、涩谷、小樽等）。
+// 只给「日本 + 冬季 + 去北海道或富士山」的旅程用，别的旅程不套这张图。
+const BACKDROPS: (LandingBackdrop & { places: string[]; months: number[] })[] = [
+  {
+    id: 'japan-winter',
+    src: '/landing/backdrop/japan-winter.webp',
+    srcSmall: '/landing/backdrop/japan-winter-800.webp',
+    note: '旅程介绍页首屏的「日本冬季」背景拼贴由你提供，是 AI 生成的插画，不是实拍照片。',
+    places: ['北海道', '札幌', '小樽', '富士'],
+    months: [11, 12, 1, 2, 3],
+  },
+];
+export const BACKDROP_NOTES = BACKDROPS.map((b) => ({ id: b.id, src: b.srcSmall, note: b.note }));
+
+/** 按旅程的地点和出发月份挑背景图；对不上就没有背景，只用纸面 */
+export function landingBackdrop(L: LandingContent, startDate: string): LandingBackdrop | undefined {
+  const month = Number(startDate.slice(5, 7));
+  const text = [L.place, L.country ?? '', ...L.days.map((d) => `${d.city} ${d.title ?? ''}`)].join(' ');
+  const hit = BACKDROPS.find((b) => b.months.includes(month) && (L.country ?? '').includes('日本') && b.places.some((p) => text.includes(p)));
+  if (!hit) return undefined;
+  const { id, src, srcSmall, note } = hit;
+  return { id, src, srcSmall, note };
+}
+
+const fromMedia =(m: LandingMedia): GalleryPhoto => ({
   id: m.id,
   src: m.file,
   thumb: m.file.replace(/^\/landing\/([^/]+)\.jpg$/, '/landing/thumb/$1.webp'),
