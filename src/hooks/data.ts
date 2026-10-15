@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/schema';
 import { buildLanding } from '../domain/landing';
+import { isLinkDoc } from '../domain/bookings';
 import { tripPackageInfo, type PackageInfo } from '../db/repo';
 import { DEFAULT_SETTINGS, type Day, type Doc, type Expense, type Item, type ItemStatus, type Settings, type Trip } from '../domain/types';
 
@@ -138,8 +139,10 @@ export interface Readiness {
 }
 
 export function readiness(td: TripData | null | undefined, app: boolean): Readiness {
-  const total = td?.docs.length ?? 0;
-  const saved = td ? td.docs.filter((d) => td.savedBlobs.has(d.blobKey)).length : 0;
+  // 只有链接的资料没有文件，不算进「附件已保存」
+  const files = td ? td.docs.filter((d) => !isLinkDoc(d)) : [];
+  const total = files.length;
+  const saved = td ? files.filter((d) => td.savedBlobs.has(d.blobKey)).length : 0;
   const data = !!td;
   return { app, data, filesSaved: saved, filesTotal: total, allGreen: app && data && saved === total };
 }

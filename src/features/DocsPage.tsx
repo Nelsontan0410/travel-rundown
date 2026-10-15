@@ -8,19 +8,23 @@ import { BookingCard } from '../components/Cards';
 import { Icon } from '../components/Icon';
 import { useCurrentTripId, useTripData } from '../hooks/data';
 import { bookingChip, bookingIcon, bookingStatusOf, bookingSubtitle, bookingTitle, docsForItem, inBookingList } from '../domain/rules';
-import { copyWithToast } from '../links/openLink';
+import { bookingGroup, GROUP_LABEL, isLinkDoc, OFFLINE_LABEL, offlineReport, offlineState, type BookingGroup } from '../domain/bookings';
+import { BookingFooter, OfflineSummary } from '../components/BookingExtras';
+import { PassViewer, type PassDoc } from '../components/PassViewer';
+import { copyWithToast, openExternal } from '../links/openLink';
 import { setDocItemKeys } from '../db/repo';
 import { AddDocSheet, ItemPickerSheet } from './AddDoc';
 import type { Doc, DocKind, Item, ItemType } from '../domain/types';
 
-type Filter = 'all' | 'flight' | 'lodging' | 'spot';
+// 2026-10：按「酒店 / 交通 / 门票」集中（交通 = 机票 + 交通）
+type Filter = 'all' | BookingGroup;
 const FILTERS: { value: Filter; label: string }[] = [
   { value: 'all', label: '全部' },
-  { value: 'flight', label: '机票' },
-  { value: 'lodging', label: '酒店' },
-  { value: 'spot', label: '景点' },
+  { value: 'lodging', label: GROUP_LABEL.lodging },
+  { value: 'transport', label: GROUP_LABEL.transport },
+  { value: 'ticket', label: GROUP_LABEL.ticket },
 ];
-const DOC_KIND_FOR: Record<Exclude<Filter, 'all'>, DocKind> = { flight: 'flight', lodging: 'lodging', spot: 'ticket' };
+const DOC_KINDS_FOR: Record<BookingGroup, DocKind[]> = { lodging: ['lodging'], transport: ['flight'], ticket: ['ticket'] };
 
 /** 03 预订资料（资料 Tab） */
 export default function DocsPage() {
@@ -30,6 +34,7 @@ export default function DocsPage() {
   const [filter, setFilter] = useState<Filter>('all');
   const [add, setAdd] = useState<{ keys: string[]; type?: ItemType } | null>(null);
   const [linkDoc, setLinkDoc] = useState<Doc | null>(null);
+  const [show, setShow] = useState<Item | null>(null);
 
   if (tripId === undefined || td === undefined) return <Screen tab="docs">{null}</Screen>;
   if (!td) {
@@ -41,18 +46,27 @@ export default function DocsPage() {
   }
 
   const dayDate = (it: Item) => td.dayById.get(it.dayId)?.date ?? '';
-  const listed = td.items
+  const booked = td.items
     .filter((it) => inBookingList(it, docsForItem(td.docs, it.key).length))
-    .filter((it) => filter === 'all' || it.type === filter)
     .sort((a, b) => dayDate(a).localeCompare(dayDate(b)) || (a.start ?? '99').localeCompare(b.start ?? '99') || a.order - b.order);
+  const listed = booked.filter((it) => filter === 'all' || bookingGroup(it) === filter);
+  const report = offlineReport(booked, (k) => docsForItem(td.docs, k), td.savedBlobs);
   const itemKeys = new Set(td.items.map((i) => i.key));
   const unlinked = td.docs
     .filter((d) => !d.itemKeys.some((k) => itemKeys.has(k)))
-    .filter((d) => filter === 'all' || d.kind === DOC_KIND_FOR[filter]);
-  const allSaved = td.docs.length > 0 && td.docs.every((d) => td.savedBlobs.has(d.blobKey));
+    .filter((d) => filter === 'all' || DOC_KINDS_FOR[filter].includes(d.kind));
+  const fileDocs = td.docs.filter((d) => !isLinkDoc(d));
+  const allSaved = fileDocs.length > 0 && fileDocs.every((d) => td.savedBlobs.has(d.blobKey));
   const nothing = listed.length === 0 && unlinked.length === 0 && filter === 'all';
   const openDoc = (id: string, key?: string) => nav(`/doc/${id}${key ? `?item=${encodeURIComponent(key)}` : ''}`);
   const fileOf = (d: Doc) => ({ id: d.id, title: d.title, mime: d.mime, blobKey: d.blobKey, saved: td.savedBlobs.has(d.blobKey), locked: !!d.lock });
+  const passOf = (d: Doc): PassDoc => ({ ...fileOf(d), codeKind: d.codeKind, url: d.url, app: d.app, link: isLinkDoc(d) });
+  const openLink = (id: string) => {
+    const d = td.docs.find((x) => x.id === id);
+    if (d?.url) openExternal(d.url);
+  };
+  const showDocs = show ? docsForItem(td.docs, show.key) : [];
+  const showDay = show ? td.dayById.get(show.dayId) : undefined;
 
   return (
     <>
@@ -66,7 +80,25 @@ export default function DocsPage() {
         <EmptyState title="还没有预订资料" text="点右上角「添加」，或在行程详情里上传" compact />
       ) : (
         <div className={`${p.stack} ${p.mt12}`}>
-          {allSaved && <InfoBanner variant="success">已保存附件可离线查看</InfoBanner>}
+          {booked.length > 0 && (
+            <OfflineSummary
+              total={booked.length}
+              ready={report.counts.ok}
+              rows={report.rows
+                .filter((r) => r.state.level !== 'ok')
+                .map((r) => {
+                  const d = td.dayById.get(r.item.dayId);
+                  return {
+                    id: r.item.id,
+                    title: r.item.title,
+                    sub: `${d ? bookingSubtitle(r.item, d) : ''}${r.state.level === 'dynamic' && r.state.saved ? '（另有已保存的凭证）' : ''}`,
+                    ...OFFLINE_LABEL[r.state.level],
+                  };
+                })}
+              onPick={(id) => nav(`/item/${id}`)}
+            />
+          )}
+          {allSaved && report.todo === 0 && <InfoBanner variant="success">已保存附件可离线查看</InfoBanner>}
 
           {unlinked.length > 0 && (
             <div className={p.bookingGrid}>
@@ -105,10 +137,18 @@ export default function DocsPage() {
                 chip={bookingChip(bookingStatusOf(it, docs.length))}
                 bookingRef={it.bookingRef}
                 onCopyRef={() => void copyWithToast(it.bookingRef!)}
-                files={docs.map(fileOf)}
+                files={docs.filter((d) => !isLinkDoc(d)).map(fileOf)}
                 withEye
                 onOpenFile={(id) => openDoc(id, it.key)}
-                onUpload={() => setAdd({ keys: [it.key], type: it.type })}
+                onUpload={docs.length ? undefined : () => setAdd({ keys: [it.key], type: it.type })}
+                footer={
+                  <BookingFooter
+                    offline={OFFLINE_LABEL[offlineState(it, docs, td.savedBlobs).level]}
+                    links={docs.filter(isLinkDoc).map((d) => ({ id: d.id, title: d.title, dynamic: d.codeKind === 'dynamic', app: d.app }))}
+                    onOpenLink={openLink}
+                    onShow={docs.length || it.bookingRef ? () => setShow(it) : undefined}
+                  />
+                }
               />
             );
           })}
@@ -120,6 +160,19 @@ export default function DocsPage() {
         <Caption>PDF / JPG / PNG · 单份不超过 20 MiB</Caption>
       </div>
 
+      {show && (
+        <PassViewer
+          open
+          onClose={() => setShow(null)}
+          title={bookingTitle(show)}
+          subtitle={showDay ? bookingSubtitle(show, showDay) : undefined}
+          bookingRef={show.bookingRef}
+          docs={showDocs.map(passOf)}
+          onCopyRef={() => void copyWithToast(show.bookingRef!)}
+          onOpenDoc={(id) => openDoc(id, show.key)}
+          onOpenLink={(url) => openExternal(url)}
+        />
+      )}
       <AddDocSheet open={!!add} onClose={() => setAdd(null)} td={td} presetKeys={add?.keys} presetType={add?.type} />
       {linkDoc && (
         <ItemPickerSheet

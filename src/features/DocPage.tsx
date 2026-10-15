@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Navigate, useParams, useSearchParams } from 'react-router-dom';
+import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import p from './Page.module.css';
 import { BackHeader } from '../components/Layout';
@@ -7,7 +7,9 @@ import { Button } from '../components/Basics';
 import { FileRow } from '../components/Cards';
 import { DocViewer } from '../components/DocViewer';
 import { db } from '../db/schema';
-import { lockDoc, openLockedDoc, replaceDocBlob, unlockDoc } from '../db/repo';
+import { deleteDoc, lockDoc, openLockedDoc, replaceDocBlob, setDocCodeKind, unlockDoc } from '../db/repo';
+import { isLinkDoc } from '../domain/bookings';
+import { openExternal } from '../links/openLink';
 import { Icon } from '../components/Icon';
 import PasswordSheet from '../components/PasswordSheet';
 import { WrongPasswordError } from '../lib/crypto';
@@ -17,6 +19,7 @@ import { copyWithToast } from '../links/openLink';
 
 /** 06 证明查看（全屏，没有 TabBar） */
 export default function DocPage() {
+  const nav = useNavigate();
   const { docId } = useParams();
   const [sp] = useSearchParams();
   const itemKey = sp.get('item');
@@ -87,6 +90,48 @@ export default function DocPage() {
     }
   };
 
+  // 2026-10：只有链接的资料（网页订单 / 动态票码）
+  if (isLinkDoc(doc)) {
+    return (
+      <div className={p.docPage}>
+        <BackHeader title={doc.codeKind === 'dynamic' ? '动态票码' : '订单链接'} />
+        <div className={p.lockPanel}>
+          <Icon name={doc.codeKind === 'dynamic' ? 'Ticket' : 'Globe'} size="xl" />
+          <p>{doc.title}</p>
+          <p className={p.lockNote}>
+            {doc.codeKind === 'dynamic'
+              ? `动态票码会定时变化，截图无效。请在${doc.app ? `「${doc.app}」` : '官方 App '}里现场打开，需要联网。`
+              : '这是网页链接，没网时打不开。可以的话，把订单页截图或存成 PDF 再添加一份。'}
+          </p>
+          <p className={p.lockNote} style={{ overflowWrap: 'anywhere' }}>{doc.url}</p>
+          {doc.url && (
+            <Button icon="ExternalLink" onClick={() => openExternal(doc.url!)}>
+              打开链接
+            </Button>
+          )}
+          {doc.url && (
+            <Button variant="outline" icon="Copy" onClick={() => void copyWithToast(doc.url!)}>
+              复制链接
+            </Button>
+          )}
+          <Button
+            variant="link"
+            chevron={false}
+            icon="Trash2"
+            onClick={() => {
+              void deleteDoc(doc.id).then(() => {
+                toast('已删除');
+                nav(-1);
+              });
+            }}
+          >
+            删除这条
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={p.docPage}>
       <BackHeader title="预订证明" right={{ icon: 'Download', label: '下载原文件', onClick: download, primary: true }} />
@@ -95,6 +140,16 @@ export default function DocPage() {
         {blob && (!locked || plain) && (
           <Button variant="link" chevron={false} icon={locked ? 'LockOpen' : 'Lock'} onClick={() => setAsk(locked ? 'remove' : 'set')}>
             {locked ? '移除密码' : '设置密码'}
+          </Button>
+        )}
+        {doc.mime.startsWith('image/') && (
+          <Button
+            variant="link"
+            chevron={false}
+            icon="Ticket"
+            onClick={() => void setDocCodeKind(doc.id, doc.codeKind === 'static' ? undefined : 'static').then(() => toast(doc.codeKind === 'static' ? '已取消票码标记' : '已标记为二维码 / 票码'))}
+          >
+            {doc.codeKind === 'static' ? '取消票码标记' : '标记为票码'}
           </Button>
         )}
       </div>
