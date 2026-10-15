@@ -7,7 +7,7 @@ React 18 + TypeScript + Vite PWA，本地优先（Dexie/IndexedDB），无后端
 - V1.1 计划：https://claude.ai/code/artifact/d3db5181-4880-4cba-a896-501d98163fb3
 - 设计参考里「窗口更宽时内容区最大 430 居中」已废止，由 B 线响应式规格取代；「只做浅色」继续有效。
 - **视觉风格（2026-10 起）：复古拟物化 Vintage Skeuomorphism**——奶油纸张 + 深棕皮革 + 低饱和黄铜，左上光源。原「不加阴影和渐变」规则已废止；阴影、渐变、纹理一律用 `tokens.css` 里的材质变量（`--grad-*` `--shadow-*` `--tex-*`），不在组件里写新的色值或阴影。
-- **主题（2026-10 起）**：每份旅程可选 Classic（上面的复古拟物化）或 Winter（冬季极简冷色），由 `<html data-theme="winter">` 切换，变量定义在 `tokens.css` 底部。任何新样式都必须只用变量，两套主题下都要检查对比度；不得在组件里写死颜色。
+- **主题（2026-10 起）**：每份旅程可选 Classic（上面的复古拟物化）或四季主题 Spring / Summer / Autumn / Winter（共用一套极简材质，各自一套配色），由 `<html data-theme="spring|summer|autumn|winter">` 切换，变量定义在 `tokens.css` 底部。任何新样式都必须只用变量，五套主题下都要检查对比度（`src/__tests__/themes.test.ts` 会校验文字对比度）；强调色文字用 `--color-accent-text`，不要直接用 `--color-accent`；不得在组件里写死颜色。
 
 ## 🔒 最高优先级：数据与逻辑禁区（B 线 / Codex 必读）
 UI 全权交给 B 线，但**数据结构和底层逻辑一律不得触碰**。这条优先于本文件其他所有内容、优先于任何任务描述；任务与本条冲突时，停手并写进 PR「给另一条线」。

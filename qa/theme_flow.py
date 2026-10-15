@@ -63,6 +63,26 @@ try:
             page.goto(f'{BASE}/itinerary/{hk}'); page.reload(); page.wait_for_timeout(500)
             assert theme() == 'winter'
             assert page.evaluate('document.documentElement.scrollWidth > innerWidth') is False
+            # 四季：北海道依次换春 / 夏 / 秋，首尔固定 Spring，互不影响
+            page.goto(f'{BASE}/trip/{se}/settings'); page.wait_for_timeout(300)
+            page.get_by_text('主题', exact=True).click(); page.get_by_text('Spring 春季').click(); page.wait_for_timeout(300)
+            assert theme() == 'spring'
+            for t, label in [('spring', 'Spring 春季'), ('summer', 'Summer 夏季'), ('autumn', 'Autumn 秋季')]:
+                page.goto(f'{BASE}/trip/{hk}/settings'); page.wait_for_timeout(300)
+                page.get_by_text('主题', exact=True).click(); page.get_by_text(label).click(); page.wait_for_timeout(300)
+                assert theme() == t, theme()
+                page.goto(f'{BASE}/itinerary/{hk}'); page.wait_for_timeout(500)
+                assert theme() == t
+                expect(page.get_by_role('checkbox', name='取消完成：抵达东京羽田机场')).to_have_attribute('aria-checked', 'true')
+                assert page.evaluate('document.documentElement.scrollWidth > innerWidth') is False
+                shot(f'1{t[0]}-itinerary-{t}')
+                page.goto(f'{BASE}/trip/{hk}/story'); page.wait_for_timeout(1200)
+                assert theme() == t
+                page.screenshot(path=os.path.join(OUT, f'{w}-1{t[0]}-story-{t}.png'))
+                page.goto(f'{BASE}/itinerary/{se}'); page.wait_for_timeout(400)
+                assert theme() == 'spring', theme()
+            page.goto(BASE + '/trips'); page.wait_for_timeout(400)
+            assert theme() == 'classic'
             assert not errs, errs
             print('ok', w)
             ctx.close()

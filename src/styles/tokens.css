@@ -6,6 +6,7 @@
   --color-primary-soft: #E7D7BC;   /* 选中底板（压印） */
   --color-primary-ink: #5A3E28;
   --color-accent: #AF8746;         /* 黄铜：图标点缀、少量装饰 */
+  --color-accent-text: #80592A;    /* 黄铜色文字（Day 编号等），对比度 ≥ 4.5 */
   --color-accent-soft: #EADBB9;
   --color-info-bg: #EADFCB;
   --color-tile-bg: #E6D7BC;
@@ -80,6 +81,7 @@
   --shadow-photo: inset 0 0 0 1px rgba(48, 37, 29, 0.08), 1px 2px 0 rgba(90, 62, 38, 0.12), 3px 10px 24px -10px rgba(46, 30, 18, 0.45);
   --ease-out-soft: cubic-bezier(.16, 1, .3, 1);
   --focus-ring: 0 0 0 2px var(--color-page), 0 0 0 4px var(--color-accent);
+  --focus-glow: color-mix(in srgb, var(--color-accent) 22%, transparent);
   --ease: cubic-bezier(.3, .7, .4, 1);
 
   --font-sans: -apple-system, "PingFang SC", "Noto Sans SC", "Noto Sans CJK SC", "Microsoft YaHei", system-ui, sans-serif;
@@ -170,14 +172,58 @@
   --shadow-overlay: inset 1px 1px 0 rgba(255, 252, 244, 0.8), 0 2px 0 rgba(90, 62, 38, 0.15), 0 18px 40px -8px rgba(46, 30, 18, 0.45);
 }
 
-/* ———————— 修订 2026-10 · ISSUE-005：Winter 冬季主题 ————————
-   B 旅行摄影杂志的冷色氛围 + A 极简卡片：不用皮革和纸纹，卡片更平、阴影更轻，层级和交互与 Classic 完全一致。
-   只覆盖变量；每份旅程在旅程设置里独立选择，打开旅程时由页面设置 <html data-theme>。 */
+/* ———————— 修订 2026-10：季节主题（Winter / Spring / Summer / Autumn） ————————
+   四个季节共用「B 旅行摄影杂志氛围 + A 极简卡片」的材质：不用纸纹和皮革纹理，卡片平、阴影轻，
+   圆角、间距、层级、交互与 Classic 完全一致。每个季节只换色板和阴影色调（--tint）。
+   每份旅程在旅程设置里独立选择，打开旅程时由页面设置 <html data-theme>。 */
+:root[data-theme="winter"],
+:root[data-theme="spring"],
+:root[data-theme="summer"],
+:root[data-theme="autumn"] {
+  --tex-paper: none;
+  --tex-leather: none;
+  --grad-paper: linear-gradient(180deg, var(--color-surface) 0%, var(--color-surface-subtle) 100%);
+  --grad-leather: linear-gradient(160deg, var(--color-leather-light) 0%, var(--color-leather) 55%, var(--color-leather-dark) 100%);
+  --grad-btn-primary: linear-gradient(180deg, var(--color-leather-light) 0%, var(--color-leather) 100%);
+  --grad-btn-cream: linear-gradient(180deg, var(--color-surface) 0%, var(--color-surface-subtle) 100%);
+  --grad-inset: linear-gradient(180deg, var(--color-surface-muted) 0%, var(--color-surface-subtle) 100%);
+  --grad-brass: linear-gradient(180deg, color-mix(in srgb, var(--color-accent) 75%, white) 0%, var(--color-accent) 100%);
+
+  --hl-edge: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  --shadow-card: 0 1px 2px rgba(var(--tint), 0.06), 0 6px 18px -10px rgba(var(--tint), 0.25);
+  --shadow-raised: 0 1px 2px rgba(var(--tint), 0.1);
+  --shadow-btn-primary: 0 1px 2px rgba(var(--tint), 0.35), 0 4px 10px -4px rgba(var(--tint), 0.4);
+  --shadow-pressed: inset 0 2px 4px rgba(var(--tint), 0.35);
+  --shadow-inset: inset 0 1px 2px rgba(var(--tint), 0.1);
+  --shadow-emboss: inset 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-photo: 0 1px 2px rgba(var(--tint), 0.08), 0 10px 24px -12px rgba(var(--tint), 0.35);
+  --shadow-overlay: 0 12px 32px -8px rgba(var(--tint), 0.3);
+  --text-press: 0 1px 0 rgba(255, 255, 255, 0.9), 0 2px 6px rgba(var(--tint), 0.12);
+  --text-emboss-sm: 0 1px 0 rgba(255, 255, 255, 0.9);
+  --hero-gradient: linear-gradient(to top, rgba(var(--tint), 0.6), rgba(var(--tint), 0) 60%);
+  --scrim-photo: linear-gradient(to top, rgba(var(--tint), 0.72), rgba(var(--tint), 0.25) 45%, rgba(var(--tint), 0) 70%);
+  --scrim: rgba(var(--tint), 0.4);
+  --focus-glow: color-mix(in srgb, var(--color-accent) 25%, transparent);
+
+  --color-surface: #FFFFFF;
+  --color-snap-paper: #FFFFFF;
+  --color-on-photo: #FFFFFF;
+  --color-fade: color-mix(in srgb, var(--color-page) 92%, transparent);
+  --color-stitch: color-mix(in srgb, var(--color-on-leather) 22%, transparent);
+  --color-tape: color-mix(in srgb, var(--color-accent) 35%, transparent);
+  --color-warning: #C08A3E;
+  --color-warning-soft: #F6EADB;
+  --color-warning-ink: #9A3B2A;
+}
+
+/* Winter 冬季 · 雪与海：需求报告指定的五个色 */
 :root[data-theme="winter"] {
+  --tint: 36, 59, 83;
   --color-primary: #243B53;
   --color-primary-soft: #DCE9F4;
   --color-primary-ink: #293B4D;
   --color-accent: #6A9FC0;
+  --color-accent-text: #3B6788;
   --color-accent-soft: #DCEBF5;
   --color-info-bg: #E3EEF7;
   --color-tile-bg: #DCE9F4;
@@ -185,9 +231,6 @@
   --color-success: #3F7A6A;
   --color-success-soft: #DDEFEA;
   --color-success-ink: #2F6457;
-  --color-warning: #C08A3E;
-  --color-warning-soft: #F6EADB;
-  --color-warning-ink: #9A3B2A;
   --color-text: #293B4D;
   --color-text-2: #546A80;
   --color-text-3: #7D90A3;
@@ -197,7 +240,6 @@
   --color-rail: #BFD2E2;
   --color-dot-pending: #A9BED0;
   --color-neutral-soft: #E1EAF2;
-  --color-surface: #FFFFFF;
   --color-surface-muted: #EAF3FA;
   --color-surface-subtle: #F5F9FD;
   --color-page: #F5F9FD;
@@ -215,35 +257,141 @@
   --color-plate-2: #2E4A66;
   --color-tile-1: #F5F9FD;
   --color-tile-2: #E3EEF7;
-  --color-stitch: rgba(234, 243, 250, 0.22);
   --color-ink-press: #243B53;
-  --color-on-photo: #F5F9FD;
   --color-on-photo-2: #CFE3F2;
-  --color-snap-paper: #FFFFFF;
-  --color-tape: rgba(106, 159, 192, 0.35);
-  --color-fade: rgba(245, 249, 253, 0.92);
+}
 
-  --tex-paper: none;
-  --tex-leather: none;
-  --grad-paper: linear-gradient(180deg, #FFFFFF 0%, #F7FAFD 100%);
-  --grad-leather: linear-gradient(160deg, #2E4A66 0%, #243B53 55%, #1B2D40 100%);
-  --grad-btn-primary: linear-gradient(180deg, #2E4A66 0%, #243B53 100%);
-  --grad-btn-cream: linear-gradient(180deg, #FFFFFF 0%, #F2F7FB 100%);
-  --grad-inset: linear-gradient(180deg, #EEF4F9 0%, #F7FAFD 100%);
-  --grad-brass: linear-gradient(180deg, #8DB8D4 0%, #6A9FC0 100%);
+/* Spring 春季 · 新芽与晚樱：苔绿为主色，晚樱玫瑰只做点缀（不铺粉色） */
+:root[data-theme="spring"] {
+  --tint: 38, 61, 47;
+  --color-primary: #2F4A3A;
+  --color-primary-soft: #E2ECE3;
+  --color-primary-ink: #2A3D31;
+  --color-accent: #C47A92;
+  --color-accent-text: #93465F;
+  --color-accent-soft: #F4E3E9;
+  --color-info-bg: #EAF1E8;
+  --color-tile-bg: #E4EDE2;
+  --color-tag-bg: #E8EFE5;
+  --color-success: #4F7F4E;
+  --color-success-soft: #E1EEDC;
+  --color-success-ink: #3A6539;
+  --color-text: #26352B;
+  --color-text-2: #55675A;
+  --color-text-3: #7E8F82;
+  --color-icon: #55675A;
+  --color-border: #CFDCCD;
+  --color-hairline: #E1E9DE;
+  --color-rail: #C6D6C3;
+  --color-dot-pending: #AFC2AE;
+  --color-neutral-soft: #E6ECE3;
+  --color-surface-muted: #EEF3EA;
+  --color-surface-subtle: #F7F9F4;
+  --color-page: #F6F8F2;
+  --color-page-hi: #FBFCF8;
+  --color-page-lo: #ECF1E6;
+  --color-viewer-bg: #E0E8DD;
+  --color-leather: #2F4A3A;
+  --color-leather-dark: #223629;
+  --color-leather-light: #3B5C48;
+  --color-leather-edge: #223629;
+  --color-on-leather: #EEF4EC;
+  --color-on-leather-2: #B4CAB6;
+  --color-on-leather-hi: #FFFFFF;
+  --color-plate-1: #4A6E58;
+  --color-plate-2: #3B5C48;
+  --color-tile-1: #F7F9F4;
+  --color-tile-2: #E6EEE3;
+  --color-ink-press: #2F4A3A;
+  --color-on-photo-2: #F3D6E0;
+}
 
-  --hl-edge: inset 0 1px 0 rgba(255, 255, 255, 0.9);
-  --shadow-card: 0 1px 2px rgba(36, 59, 83, 0.06), 0 6px 18px -10px rgba(36, 59, 83, 0.25);
-  --shadow-raised: 0 1px 2px rgba(36, 59, 83, 0.1);
-  --shadow-btn-primary: 0 1px 2px rgba(27, 45, 64, 0.35), 0 4px 10px -4px rgba(27, 45, 64, 0.4);
-  --shadow-pressed: inset 0 2px 4px rgba(27, 45, 64, 0.35);
-  --shadow-inset: inset 0 1px 2px rgba(36, 59, 83, 0.1);
-  --shadow-emboss: inset 0 1px 3px rgba(0, 0, 0, 0.3);
-  --shadow-photo: 0 1px 2px rgba(36, 59, 83, 0.08), 0 10px 24px -12px rgba(36, 59, 83, 0.35);
-  --shadow-overlay: 0 12px 32px -8px rgba(36, 59, 83, 0.3);
-  --text-press: 0 1px 0 rgba(255, 255, 255, 0.9), 0 2px 6px rgba(36, 59, 83, 0.12);
-  --text-emboss-sm: 0 1px 0 rgba(255, 255, 255, 0.9);
-  --hero-gradient: linear-gradient(to top, rgba(27, 45, 64, 0.6), rgba(27, 45, 64, 0) 60%);
-  --scrim-photo: linear-gradient(to top, rgba(27, 45, 64, 0.72), rgba(27, 45, 64, 0.25) 45%, rgba(27, 45, 64, 0) 70%);
-  --scrim: rgba(27, 45, 64, 0.4);
+/* Summer 夏季 · 海盐与正午：深潟湖青为主色，向日葵黄只做点缀 */
+:root[data-theme="summer"] {
+  --tint: 14, 66, 78;
+  --color-primary: #0E4D5C;
+  --color-primary-soft: #DCEDEE;
+  --color-primary-ink: #123F49;
+  --color-accent: #E2A532;
+  --color-accent-text: #8A5F0E;
+  --color-accent-soft: #FBEFD2;
+  --color-info-bg: #E2F0F0;
+  --color-tile-bg: #DDEDEC;
+  --color-tag-bg: #E3F0EF;
+  --color-success: #2E7D63;
+  --color-success-soft: #DCF0E8;
+  --color-success-ink: #23634E;
+  --color-text: #1D3A41;
+  --color-text-2: #4D6A70;
+  --color-text-3: #7A9297;
+  --color-icon: #4D6A70;
+  --color-border: #C8DCDB;
+  --color-hairline: #DDEAE9;
+  --color-rail: #BDD6D5;
+  --color-dot-pending: #A5C2C2;
+  --color-neutral-soft: #E2ECEB;
+  --color-surface-muted: #EEF5F3;
+  --color-surface-subtle: #F8FAF7;
+  --color-page: #F7F6F0;
+  --color-page-hi: #FCFBF7;
+  --color-page-lo: #EEF2EC;
+  --color-viewer-bg: #DCE9E8;
+  --color-leather: #0E4D5C;
+  --color-leather-dark: #0A3843;
+  --color-leather-light: #16606F;
+  --color-leather-edge: #0A3843;
+  --color-on-leather: #EAF5F4;
+  --color-on-leather-2: #A6CACC;
+  --color-on-leather-hi: #FFFFFF;
+  --color-plate-1: #1F7182;
+  --color-plate-2: #16606F;
+  --color-tile-1: #F8FAF7;
+  --color-tile-2: #E3EFEE;
+  --color-ink-press: #0E4D5C;
+  --color-on-photo-2: #F8E2B0;
+}
+
+/* Autumn 秋季 · 红叶与银杏：枫叶酒红为主色，银杏金做点缀；纸面偏暖灰，与 Classic 的奶油纸区分开 */
+:root[data-theme="autumn"] {
+  --tint: 74, 36, 31;
+  --color-primary: #6B2D2A;
+  --color-primary-soft: #F1E1DD;
+  --color-primary-ink: #4F2522;
+  --color-accent: #C99A2E;
+  --color-accent-text: #7F5B0C;
+  --color-accent-soft: #F6EBCF;
+  --color-info-bg: #F3EAE4;
+  --color-tile-bg: #F0E5DF;
+  --color-tag-bg: #F2E9E3;
+  --color-success: #5B7A3E;
+  --color-success-soft: #E6EEDB;
+  --color-success-ink: #47622F;
+  --color-text: #3A2A26;
+  --color-text-2: #6B5752;
+  --color-text-3: #927C76;
+  --color-icon: #6B5752;
+  --color-border: #E0D2CB;
+  --color-hairline: #EDE3DD;
+  --color-rail: #D9C7BE;
+  --color-dot-pending: #C6B1A7;
+  --color-neutral-soft: #EFE6E0;
+  --color-surface-muted: #F5EEE9;
+  --color-surface-subtle: #FBF8F5;
+  --color-page: #F6F1EC;
+  --color-page-hi: #FBF8F5;
+  --color-page-lo: #EEE5DE;
+  --color-viewer-bg: #EBDFD8;
+  --color-leather: #6B2D2A;
+  --color-leather-dark: #4F2120;
+  --color-leather-light: #7E3A35;
+  --color-leather-edge: #4F2120;
+  --color-on-leather: #FBF1EC;
+  --color-on-leather-2: #DDB9AF;
+  --color-on-leather-hi: #FFFFFF;
+  --color-plate-1: #8E4740;
+  --color-plate-2: #7E3A35;
+  --color-tile-1: #FBF8F5;
+  --color-tile-2: #F0E5DF;
+  --color-ink-press: #6B2D2A;
+  --color-on-photo-2: #F2D9A0;
 }

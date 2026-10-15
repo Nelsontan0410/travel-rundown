@@ -16,7 +16,7 @@
   border-color: var(--color-leather-edge); color: var(--color-on-leather); text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.45);
   box-shadow: var(--shadow-btn-primary);
 }
-.primary::after { content: ''; position: absolute; inset: 3px; border: 1px dashed rgba(231, 207, 160, 0.35); border-radius: calc(var(--radius-sm) - 3px); pointer-events: none; }
+.primary::after { content: ''; position: absolute; inset: 3px; border: 1px dashed color-mix(in srgb, var(--color-on-leather-hi) 35%, transparent); border-radius: calc(var(--radius-sm) - 3px); pointer-events: none; }
 .primary:not(:disabled):active { box-shadow: var(--shadow-pressed), 0 1px 0 var(--color-leather-edge); }
 .outline {
   background: var(--grad-btn-cream); border-color: var(--color-border); color: var(--color-primary);
@@ -29,7 +29,7 @@
 }
 .danger:not(:disabled):active { box-shadow: var(--shadow-pressed); }
 .link { background: none; color: var(--color-primary); padding: 0; height: auto; gap: var(--space-1); font-size: var(--fs-body); min-height: var(--size-hit); text-decoration: underline; text-decoration-color: var(--color-accent); text-underline-offset: 4px; text-decoration-thickness: 1px; }
-.link:not(:disabled):hover { filter: none; color: var(--color-accent); }
+.link:not(:disabled):hover { filter: none; color: var(--color-accent-text); }
 
 /* IconButton */
 .iconBtn {
@@ -47,7 +47,7 @@
   border-radius: var(--radius-sm); font-size: var(--fs-caption); font-weight: var(--fw-caption); white-space: nowrap; flex-shrink: 0;
 }
 .chip-success { background: var(--color-success-soft); color: var(--color-success-ink); box-shadow: inset 0 0 0 1px rgba(74, 102, 56, 0.25); }
-.chip-info { background: var(--color-accent-soft); color: var(--color-primary-ink); box-shadow: inset 0 0 0 1px rgba(175, 135, 70, 0.35); }
+.chip-info { background: var(--color-accent-soft); color: var(--color-primary-ink); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 35%, transparent); }
 .chip-neutral { background: var(--color-neutral-soft); color: var(--color-text-2); box-shadow: inset 0 0 0 1px rgba(110, 93, 77, 0.18); }
 
 /* FilterChips */
@@ -84,7 +84,7 @@
 /* IconTile */
 .tile {
   width: var(--size-tile); height: var(--size-tile); border-radius: var(--radius-sm);
-  background: radial-gradient(120% 120% at 30% 20%, var(--color-tile-1) 0%, var(--color-tile-2) 100%); border: var(--border-w) solid rgba(175, 135, 70, 0.45);
+  background: radial-gradient(120% 120% at 30% 20%, var(--color-tile-1) 0%, var(--color-tile-2) 100%); border: var(--border-w) solid color-mix(in srgb, var(--color-accent) 45%, transparent);
   box-shadow: inset 1px 1px 0 rgba(255, 252, 244, 0.8), 1px 1px 0 rgba(90, 62, 38, 0.15);
   display: flex; align-items: center; justify-content: center; color: var(--color-accent); flex-shrink: 0;
 }
