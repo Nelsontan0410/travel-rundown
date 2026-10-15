@@ -1,6 +1,9 @@
 .stack { display: flex; flex-direction: column; gap: var(--space-2); }
 .bookingGrid, .tripGrid { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-2); align-items: start; }
 .bookingGrid > *, .tripGrid > * { min-width: 0; }
+/* 2026-10：预订卡片一律同样大小（每行同高，并按最高的一张统一），标题最多两行，底部操作贴底 */
+.bookingGrid { grid-auto-rows: 1fr; align-items: stretch; }
+.bookingGrid > .gridFull { grid-row: auto; }
 .gridFull { grid-column: 1 / -1; }
 .importCard { padding: var(--space-4); display: flex; flex-direction: column; align-items: center; gap: var(--space-2); text-align: center; margin-top: var(--space-2); }
 .importTitle { font-family: var(--font-serif); font-size: calc(var(--fs-section) + 2px); font-weight: var(--fw-section); }
