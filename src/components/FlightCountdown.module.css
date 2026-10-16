@@ -1,6 +1,6 @@
 .module { margin: 0 0 var(--space-2); width: 100%; min-width: 0; }
 .card { position: relative; isolation: isolate; min-height: 310px; overflow: hidden; border-radius: var(--radius-md); border: 1px solid var(--color-border); background: var(--color-surface-subtle); box-shadow: var(--shadow-card); color: var(--color-text); }
-.scenery { position: absolute; inset: -8px; z-index: -1; pointer-events: none; filter: grayscale(1) blur(4px); opacity: .5; mix-blend-mode: multiply; }
+.scenery { position: absolute; inset: 0; z-index: -1; pointer-events: none; filter: grayscale(1) contrast(1.2); opacity: 1; mix-blend-mode: overlay; }
 .leftImage, .rightImage { position: absolute; top: 0; bottom: 0; width: 64%; overflow: hidden; }
 .leftImage { left: 0; z-index: 1; -webkit-mask-image: linear-gradient(to right, black 56.25%, transparent); mask-image: linear-gradient(to right, black 56.25%, transparent); }
 .rightImage { right: 0; }
@@ -51,7 +51,7 @@
 
 .credits { font-size: var(--fs-caption); color: var(--color-text-2); }.credits summary { cursor: pointer; min-height: 44px; padding-top: 12px; }.credits a { color: var(--color-primary); text-decoration: underline; }.credits ul { padding-left: 20px; overflow-wrap: anywhere; }
 
-/* Two photographs overlap across the middle; blur the composite, never erase it. */
-.blend { position: absolute; z-index: 2; inset: 0; filter: blur(14px); -webkit-mask-image: linear-gradient(to right, transparent, black 38% 62%, transparent); mask-image: linear-gradient(to right, transparent, black 38% 62%, transparent); }
+/* Keep the original photo detail; only the crossfade between countries remains. */
+.blend { display: none; }
 .footer { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); font-size: var(--fs-caption); color: var(--color-text-2); }
 .preview { margin-left: auto; min-height: 44px; padding: 0 8px; color: var(--color-primary); text-decoration: underline; text-underline-offset: 3px; }
