@@ -13,6 +13,7 @@ with sync_playwright() as pw:
   page.evaluate('''async()=>{const {db}=await import('/src/db/schema.ts');await db.trips.put({id:'motion-qa',title:'东京 · 富士山 · 北海道',startDate:'2027-01-10',endDate:'2027-01-19',homeTz:'Asia/Singapore',destination:'日本',theme:'winter',translate:{app:'google-translate',from:'auto',to:'zh-CN'},sourceMd:'',importedAt:'',updatedAt:'',flightCountdown:{origin:'SG',destination:'JP',departureTz:'Asia/Singapore',returnTz:'Asia/Tokyo',departureAt:Date.now()-100000,returnAt:Date.now()-10000}});await db.days.put({id:'motion-day',tripId:'motion-qa',index:1,date:'2027-01-10',tz:'Asia/Tokyo',city:'东京'});}''')
   page.goto(base+'/itinerary/motion-qa');card=page.locator('section[aria-label="航班倒计时"]');expect(card).to_have_count(1);card.scroll_into_view_if_needed()
   saved=page.evaluate('''async()=>{const {db}=await import('/src/db/schema.ts');return (await db.trips.get('motion-qa')).flightCountdown}''')
+  page.get_by_role('button',name='设置航班时间',exact=True).first.click()
   page.get_by_role('button',name='预览起飞动画').click()
   page.wait_for_selector('[data-flight-phase="flying"]')
   plane=page.locator('[data-flight-route] svg')

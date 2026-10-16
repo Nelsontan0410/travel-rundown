@@ -407,7 +407,7 @@ export async function deleteTrip(tripId: string): Promise<void> {
     await db.packItems.where('tripId').equals(tripId).delete();
     await db.packChecks.where('tripId').equals(tripId).delete();
     const docs = await db.docs.where('tripId').equals(tripId).toArray();
-    await db.blobs.bulkDelete([...docs.map((d) => d.blobKey), ...(trip?.coverBlobKey ? [trip.coverBlobKey] : [])]);
+    await db.blobs.bulkDelete([...docs.map((d) => d.blobKey), ...(trip?.coverBlobKey ? [trip.coverBlobKey] : []), flightBackgroundKey(tripId, 'origin'), flightBackgroundKey(tripId, 'destination')]);
     await db.docs.bulkDelete(docs.map((d) => d.id));
     await db.days.where('tripId').equals(tripId).delete();
     await db.items.where('tripId').equals(tripId).delete();
@@ -503,7 +503,9 @@ async function tripBlobKeys(tripId: string): Promise<{ keys: string[]; missing: 
   const trip = await db.trips.get(tripId);
   const docs = await db.docs.where('tripId').equals(tripId).toArray();
   const garments = await tripGarments(tripId);
+  const flightPhotos = (await db.blobs.bulkGet([flightBackgroundKey(tripId, 'origin'), flightBackgroundKey(tripId, 'destination')])).filter((b): b is BlobRecord => !!b);
   const wanted = [
+    ...flightPhotos.map(b => b.key),
     ...docs.filter((d) => !isLinkDoc(d)).map((d) => d.blobKey),
     ...(trip?.coverBlobKey ? [trip.coverBlobKey] : []),
     ...garments.flatMap((g) => (g.photoBlobKey ? [g.photoBlobKey] : [])),
@@ -932,4 +934,20 @@ export async function setFlightCountdown(tripId: string, value: import('../domai
   if (!validFlightSettings(value)) throw new Error('请检查国家、时区及起飞时间，回程必须晚于去程。');
   const updated = await db.trips.update(tripId, { flightCountdown: value, updatedAt: now() });
   if (!updated) throw new Error('旅程已不存在，无法保存。');
+}
+
+/** Flight-card photos use the existing blob table; deterministic keys survive reimport. */
+export function flightBackgroundKey(tripId: string, side: 'origin' | 'destination'): string {
+  return `flight-background:${tripId}:${side}`;
+}
+export async function setFlightBackground(tripId: string, side: 'origin' | 'destination', blob: Blob | null): Promise<void> {
+  if (blob && (!blob.type.startsWith('image/') || blob.type === 'image/svg+xml' || !blob.size || blob.size > 20 * 1024 * 1024)) throw new Error('请选择 20 MB 以内的有效照片。');
+  // Materialize file-backed data before the transaction (Safari cannot always persist picked File handles).
+  const photo = blob ? new Blob([await blob.arrayBuffer()], { type: blob.type }) : null;
+  await db.transaction('rw', db.trips, db.blobs, async () => {
+    if (!await db.trips.get(tripId)) throw new Error('旅程已不存在，无法保存。');
+    const key = flightBackgroundKey(tripId, side);
+    if (photo) await db.blobs.put({ key, blob: photo });
+    else await db.blobs.delete(key);
+  });
 }

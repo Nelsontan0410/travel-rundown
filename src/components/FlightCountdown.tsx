@@ -1,18 +1,18 @@
 import { memo, useEffect, useRef, useState } from 'react';
 import { Plane, MapPin, Settings2 } from 'lucide-react';
-import type { TripData } from '../hooks/data';
+import { useBlobUrl, type TripData } from '../hooks/data';
 import type { FlightCountdownSettings } from '../domain/types';
 import { asset, countries, countryOf, crossedDeparture, flightPhase, fromLocal, localTime, validFlightSettings, validZone } from '../domain/flightCountdown';
 import { remaining } from '../domain/countdown';
-import { setFlightCountdown } from '../db/repo';
+import { flightBackgroundKey, setFlightBackground, setFlightCountdown } from '../db/repo';
+import { prepareFile, TooLargeError } from '../lib/files';
 import { Sheet } from './Layout';
-import { Button, StatusChip } from './Basics';
+import { Button } from './Basics';
 import s from './FlightCountdown.module.css';
-import credits from '../../public/landing/flight-countdown/credits.json';
 
-const Scenery = memo(function Scenery({ origin, destination }: { origin: string; destination: string }) {
+const Scenery = memo(function Scenery({ origin, destination, left, right }: { origin: string; destination: string; left?: string; right?: string }) {
   const photographs = [origin, destination].map((code, i) => <div className={i ? s.rightImage : s.leftImage} key={i}>
-    {countryOf(code) && <img className={s.landmark} src={asset(code, 'landmark')} alt="" />}
+    {(i ? right : left) || countryOf(code) ? <img className={s.landmark} src={(i ? right : left) || asset(code, 'flag')} alt="" /> : null}
   </div>);
   return <div className={s.scenery} aria-hidden="true">{photographs}</div>;
 });
@@ -70,6 +70,8 @@ function initialDraft(td: TripData): Draft {
 }
 
 export default function FlightCountdown({ td, dateRange, offline }: { td: TripData; dateRange?: string; offline?: boolean }) {
+  const leftPhoto = useBlobUrl(flightBackgroundKey(td.trip.id, 'origin'));
+  const rightPhoto = useBlobUrl(flightBackgroundKey(td.trip.id, 'destination'));
   const value = validFlightSettings(td.trip.flightCountdown) ? td.trip.flightCountdown : undefined;
   const [editing, setEditing] = useState(false);
   const [demo, setDemo] = useState<FlightCountdownSettings>();
@@ -120,9 +122,28 @@ export default function FlightCountdown({ td, dateRange, offline }: { td: TripDa
     catch(e) { setError(e instanceof Error ? e.message : '保存失败，请重试。'); }
     finally { setBusy(false); }
   }
+  async function savePhoto(side: 'origin' | 'destination', file: File | null) {
+    setBusy(true); setError('');
+    try {
+      let blob: Blob | null = null;
+      if (file) {
+        if (!file.type.startsWith('image/') || file.type === 'image/svg+xml') throw new Error('请选择照片文件。');
+        blob = await prepareFile(file);
+        const url = URL.createObjectURL(blob);
+        try {
+          await new Promise<void>((resolve, reject) => {
+            const img = new Image(); img.onload = () => resolve(); img.onerror = () => reject(new Error('无法读取这张照片，请尝试 JPG、PNG 或 WebP。')); img.src = url;
+          });
+        } finally { URL.revokeObjectURL(url); }
+      }
+      await setFlightBackground(td.trip.id, side, blob);
+      setNotice(file ? '照片已保存到本机，已自动应用固定背景效果。' : '已恢复该侧国家的国旗背景。');
+    } catch (e) { setError(e instanceof TooLargeError ? '照片过大，请选择 20 MB 以内的照片。' : e instanceof Error && e.name === 'UnknownError' ? '当前浏览器无法保存照片，请使用普通浏览窗口再试。' : e instanceof Error ? e.message : '照片保存失败，请重试。'); }
+    finally { setBusy(false); }
+  }
   return <section className={s.module} aria-label="航班倒计时">
     <div className={s.card}>
-      <Scenery origin={origin} destination={destination} />
+      <Scenery origin={origin} destination={destination} left={leftPhoto} right={rightPhoto} />
       <button className={s.edit} aria-label="设置航班时间" onClick={openSettings}><Settings2 size={20} /></button>
       {demo || value ? <Clock key={JSON.stringify(demo ?? value)} value={(demo ?? value)!} demo={!!demo} /> : <div className={s.information}><p className={s.heading}>下一段旅程，从这里开始</p><p className={s.date}>设置去程与回程起飞时间，开启准确倒数</p><Button variant="outline" onClick={openSettings}>设置航班时间</Button></div>}
       {!demo && !value && <div className={s.route} aria-hidden="true"><span className={s.aircraft}><Plane size={34} /></span></div>}
@@ -135,20 +156,32 @@ export default function FlightCountdown({ td, dateRange, offline }: { td: TripDa
         </button>;
       })}
     </div>
-    <div className={s.footer}>
-      {dateRange && <span>{dateRange}</span>}
-      {offline && <StatusChip variant="success">行程已离线保存</StatusChip>}
-      <button type="button" className={s.preview} onClick={() => { if (demo) { setDemo(undefined); setNotice('已恢复真实航班状态。'); } else preview(); }}>{demo ? '返回真实倒数' : '预览起飞动画'}</button>
-    </div>
-    <p className={s.notice} role="status">{notice}</p>
-    <details className={s.credits}><summary>地标照片来源</summary><ul>{credits.filter(c => c.country === origin || c.country === destination).map(c => <li key={c.country}><a href={c.source} target="_blank" rel="noreferrer">{countryOf(c.country)?.landmark}</a> · {c.author} · <a href={c.license_url || c.source} target="_blank" rel="noreferrer">{c.license}</a>（已缩小、裁切与渐隐）</li>)}</ul></details>
     <Sheet open={!!pick} onClose={() => !busy && setPick(undefined)} title={pick === 'origin' ? '选择出发国家' : '选择目的地国家'}>
-      <div className={s.form}><p>每国一个固定地标。切换国家保留真实起飞时刻，并换算为该国默认时区。</p>
+      <div className={s.form}><p>默认背景跟随国家显示国旗；自选照片会保留。切换国家保留真实起飞时刻，并换算为该国默认时区。</p>
         <div className={s.countryGrid}>{countries.map(c => <button disabled={busy} key={c.code} onClick={() => void choose(c.code)} aria-pressed={(pick === 'origin' ? origin : destination) === c.code}><img src={asset(c.code,'flag')} alt="" /><span>{c.zh}<small>{c.en}</small></span></button>)}</div>
         {error && <p role="alert">{error}</p>}<Button variant="outline" disabled={busy} onClick={() => setPick(undefined)}>关闭</Button>
       </div>
     </Sheet>
     <Sheet open={editing} onClose={() => !busy && setEditing(false)} title="航班时间设置">
+      <div className={s.form}>
+        <div className={s.settingsMeta}>{dateRange && <span>{dateRange}</span>}{offline && <span>行程已离线保存</span>}</div>
+        <p>默认使用国旗。你可以替换左右照片；所有背景自动使用固定的黑白 Overlay 效果。</p>
+        <div className={s.photos}>
+          {(['origin', 'destination'] as const).map((side, i) => {
+            const photo = i ? rightPhoto : leftPhoto;
+            const country = i ? destination : origin;
+            const label = i ? '右侧' : '左侧';
+            return <div className={s.photoSlot} key={side}>
+              <div className={s.photoPreview}>{(photo || countryOf(country)) && <img src={photo || asset(country, 'flag')} alt={`${label}背景预览`} />}</div>
+              <label className={s.upload}>{label}背景照片<input type="file" accept="image/*" disabled={busy} onChange={e => { const file = e.target.files?.[0]; e.target.value = ''; if (file) void savePhoto(side, file); }} /></label>
+              <Button variant="outline" disabled={busy || !photo} onClick={() => void savePhoto(side, null)}>{label}恢复国旗</Button>
+            </div>;
+          })}
+        </div>
+        <Button variant="outline" disabled={busy} onClick={() => { setEditing(false); preview(); }}>预览起飞动画</Button>
+        <p className={s.notice} role="status">{notice}</p>
+        <details className={s.credits}><summary>国旗素材许可</summary><a href="/landing/flight-countdown/FLAGS-LICENSE.txt" target="_blank" rel="noreferrer">flag-icons · MIT</a></details>
+      </div>
       <form className={s.form} onSubmit={e => void save(e)}>
         <p>时间按各航段出发地的当地时区填写。国家采用默认时区；多时区国家可在下方调整。切换国家会换算已填写的有效时间，保持真实起飞时刻。</p>
         {(['origin','destination'] as const).map((side,i) => <label key={side}>{i ? '目的地国家' : '出发国家'}<select required value={draft[side]} onChange={e => changeCountry(side,e.target.value)}><option value="">请选择国家</option>{countries.map(c=><option key={c.code} value={c.code}>{c.zh} · {c.en}</option>)}</select></label>)}

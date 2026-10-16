@@ -58,3 +58,44 @@ describe('flight persistence is trip-scoped and non-destructive',()=>{
   expect((await db.trips.get(trip.id))?.flightCountdown).toEqual(value);
  });
 });
+
+describe('flight background photo lifecycle', () => {
+ beforeEach(async()=>{await Promise.all(db.tables.map(t=>t.clear()));await db.trips.put(trip);await db.trips.put({...trip,id:'other'});});
+ it('isolates sides and trips, replaces a photo, and restores only that flag',async()=>{
+  const {setFlightBackground,flightBackgroundKey}=await import('../db/repo');
+  const first=new Blob(['first'],{type:'image/jpeg'}),second=new Blob(['second'],{type:'image/png'});
+  await setFlightBackground(trip.id,'origin',first);await setFlightBackground(trip.id,'destination',second);
+  await setFlightBackground(trip.id,'origin',second);
+  expect(await (await db.blobs.get(flightBackgroundKey(trip.id,'origin')))!.blob.text()).toBe('second');
+  expect(await db.blobs.get(flightBackgroundKey('other','origin'))).toBeUndefined();
+  await setFlightBackground(trip.id,'origin',null);
+  expect(await db.blobs.get(flightBackgroundKey(trip.id,'origin'))).toBeUndefined();
+  expect(await (await db.blobs.get(flightBackgroundKey(trip.id,'destination')))!.blob.text()).toBe('second');
+  expect((await db.trips.get(trip.id))?.startDate).toBe(trip.startDate);
+ });
+ it('rejects invalid images and deleted trips without creating orphan blobs',async()=>{
+  const {setFlightBackground}=await import('../db/repo');
+  for(const blob of [new Blob(['bad'],{type:'text/plain'}),new Blob(['<svg/>'],{type:'image/svg+xml'}),new Blob([],{type:'image/jpeg'})]) await expect(setFlightBackground(trip.id,'origin',blob)).rejects.toThrow();
+  await expect(setFlightBackground('missing','origin',new Blob(['x'],{type:'image/jpeg'}))).rejects.toThrow();
+  expect(await db.blobs.count()).toBe(0);
+ });
+ it('includes photos only in this trip package and restores their bytes',async()=>{
+  const {setFlightBackground,flightBackgroundKey,exportTripPackage,restoreBackupDetailed,tripPackageInfo}=await import('../db/repo');
+  await setFlightBackground(trip.id,'origin',new Blob(['my photo'],{type:'image/jpeg'}));
+  await setFlightBackground('other','origin',new Blob(['other photo'],{type:'image/png'}));
+  expect(await tripPackageInfo(trip.id)).toEqual({files:1,bytes:8});
+  const zip=await exportTripPackage(trip.id,{attachments:true});
+  await Promise.all(db.tables.map(t=>t.clear()));await restoreBackupDetailed(zip);
+  expect(await (await db.blobs.get(flightBackgroundKey(trip.id,'origin')))!.blob.text()).toBe('my photo');
+  expect(await db.blobs.get(flightBackgroundKey('other','origin'))).toBeUndefined();
+ });
+ it('preserves photos through itinerary reimport and cleans them up when deleting the trip',async()=>{
+  const {setFlightBackground,flightBackgroundKey,deleteTrip}=await import('../db/repo');
+  await setFlightBackground(trip.id,'origin',new Blob(['photo'],{type:'image/jpeg'}));
+  const parsed=parseMd('# 测试旅程\n- 出发地时区: Asia/Singapore\n## Day 1 | 2027-01-10 | 东京 | Asia/Tokyo\n### 09:00 | spot | 测试景点');
+  await saveImport(parsed,'synthetic QA',trip.id);
+  expect(await db.blobs.get(flightBackgroundKey(trip.id,'origin'))).toBeDefined();
+  await deleteTrip(trip.id);expect(await db.blobs.get(flightBackgroundKey(trip.id,'origin'))).toBeUndefined();
+  expect(await db.trips.get('other')).toBeDefined();
+ });
+});
