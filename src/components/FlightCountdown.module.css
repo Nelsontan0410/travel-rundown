@@ -1,10 +1,10 @@
 .module { margin: 0 0 var(--space-2); width: 100%; min-width: 0; }
 .card { position: relative; isolation: isolate; min-height: 310px; overflow: hidden; border-radius: var(--radius-md); border: 1px solid var(--color-border); background: var(--color-surface-subtle); box-shadow: var(--shadow-card); color: var(--color-text); }
-.scenery { position: absolute; inset: 0; z-index: -1; pointer-events: none; }
+.scenery { position: absolute; inset: -8px; z-index: -1; pointer-events: none; filter: grayscale(1) blur(4px); opacity: .8; mix-blend-mode: soft-light; }
 .leftImage, .rightImage { position: absolute; top: 0; bottom: 0; width: 64%; overflow: hidden; }
 .leftImage { left: 0; z-index: 1; -webkit-mask-image: linear-gradient(to right, black 56.25%, transparent); mask-image: linear-gradient(to right, black 56.25%, transparent); }
 .rightImage { right: 0; }
-.landmark { width: 100%; height: 100%; object-fit: cover; opacity: .94; }
+.landmark { width: 100%; height: 100%; object-fit: cover; opacity: 1; }
 .flag { position: absolute; top: 0; width: 100%; height: 65%; object-fit: cover; opacity: .3; mask-image: linear-gradient(to bottom, black 45%, transparent); }
 .leftImage .flag { left: 0; }.rightImage .flag { right: 0; }
 .information { position: relative; margin: 0 auto; padding: 28px 12px 122px; text-align: center; width: 100%; background: transparent; }
@@ -53,6 +53,5 @@
 
 /* Two photographs overlap across the middle; blur the composite, never erase it. */
 .blend { position: absolute; z-index: 2; inset: 0; filter: blur(14px); -webkit-mask-image: linear-gradient(to right, transparent, black 38% 62%, transparent); mask-image: linear-gradient(to right, transparent, black 38% 62%, transparent); }
-.blend::after { content: ''; position: absolute; z-index: 2; inset: 0; background: color-mix(in srgb, var(--color-surface-subtle) 28%, transparent); }
 .footer { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); font-size: var(--fs-caption); color: var(--color-text-2); }
 .preview { margin-left: auto; min-height: 44px; padding: 0 8px; color: var(--color-primary); text-decoration: underline; text-underline-offset: 3px; }
