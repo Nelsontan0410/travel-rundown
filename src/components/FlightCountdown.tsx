@@ -12,9 +12,9 @@ import credits from '../../public/landing/flight-countdown/credits.json';
 
 const Scenery = memo(function Scenery({ origin, destination }: { origin: string; destination: string }) {
   const photographs = [origin, destination].map((code, i) => <div className={i ? s.rightImage : s.leftImage} key={i}>
-    {countryOf(code) && <><img className={s.landmark} src={asset(code, 'landmark')} alt="" /><img className={s.flag} src={asset(code, 'flag')} alt="" /></>}
+    {countryOf(code) && <img className={s.landmark} src={asset(code, 'landmark')} alt="" />}
   </div>);
-  return <div className={s.scenery} aria-hidden="true">{photographs}<div className={s.blend}>{photographs}</div></div>;
+  return <div className={s.scenery} aria-hidden="true">{photographs}</div>;
 });
 
 function Clock({ value, demo = false }: { value: FlightCountdownSettings; demo?: boolean }) {
@@ -130,7 +130,7 @@ export default function FlightCountdown({ td, dateRange, offline }: { td: TripDa
         const code = i ? destination : origin;
         const c = countryOf(code);
         return <button key={side} className={`${s.pin} ${i ? s.destination : s.origin}`} aria-label={i ? '修改目的地国家' : '修改出发国家'} onClick={() => {setDemo(undefined);setError('');setPick(side);}}>
-          <span className={s.pinIcon}><MapPin size={46} fill="var(--color-surface)" />{c && <img src={asset(code,'flag')} alt="" />}</span>
+          <span className={s.pinIcon}><MapPin size={55.2} fill="var(--color-surface)" />{c && <img src={asset(code,'flag')} alt="" />}</span>
           <strong>{c?.en ?? (i ? '目的地' : '出发地')}</strong><span>{c?.zh ?? '选择国家'}</span>
         </button>;
       })}
