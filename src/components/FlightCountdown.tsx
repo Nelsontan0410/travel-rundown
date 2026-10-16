@@ -10,6 +10,7 @@ import { flightBackgroundKey, setFlightBackground, setFlightCountdown } from '..
 import { prepareFile, TooLargeError } from '../lib/files';
 import { Sheet } from './Layout';
 import { Button } from './Basics';
+import FlightTicketImport from './FlightTicketImport';
 import s from './FlightCountdown.module.css';
 
 const Scenery = memo(function Scenery({ origin, destination, left, right }: { origin: string; destination: string; left?: string; right?: string }) {
@@ -90,6 +91,8 @@ export default function FlightCountdown({ td, dateRange, offline }: { td: TripDa
   const [draft, setDraft] = useState(() => initialDraft(td));
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [readingTicket, setReadingTicket] = useState(false);
+  const [ticketWallTimes, setTicketWallTimes] = useState({origin:false,destination:false});
   const [notice, setNotice] = useState('');
   const defaults = initialDraft(td);
   const origin = demo?.origin ?? value?.origin ?? defaults.origin;
@@ -99,10 +102,11 @@ export default function FlightCountdown({ td, dateRange, offline }: { td: TripDa
     setDemo({ origin: origin || 'SG', destination: destination || 'JP', departureTz: value?.departureTz ?? 'Asia/Singapore', returnTz: value?.returnTz ?? 'Asia/Tokyo', departureAt: now + 1500, returnAt: now + 86400000 });
     setNotice(window.matchMedia('(prefers-reduced-motion: reduce)').matches ? '系统已开启减少动态效果，演示将跳过飞行移动。' : '正在演示起飞过程；真实航班时间和保存数据保持不变。');
   }
-  function openSettings() { setDemo(undefined); setDraft(initialDraft(td)); setError(''); setEditing(true); }
+  function openSettings() { setTicketWallTimes({origin:false,destination:false}); setDemo(undefined); setDraft(initialDraft(td)); setError(''); setEditing(true); }
   async function choose(code: string) {
     if (!pick) return;
     if (!value) {
+      setTicketWallTimes({origin:false,destination:false});
       setDraft({ ...initialDraft(td), [pick]: code, [pick === 'origin' ? 'departureTz' : 'returnTz']: countryOf(code)!.tz });
       setPick(undefined); setEditing(true); return;
     }
@@ -117,7 +121,7 @@ export default function FlightCountdown({ td, dateRange, offline }: { td: TripDa
     const timeKey = side === 'origin' ? 'departure' : 'returning';
     const tz = countryOf(code)?.tz ?? draft[zoneKey];
     const at = fromLocal(draft[timeKey], draft[zoneKey]);
-    setDraft({ ...draft, [side]:code, [zoneKey]:tz, [timeKey]:Number.isFinite(at) ? localTime(at,tz) : draft[timeKey] });
+    setDraft({ ...draft, [side]:code, [zoneKey]:tz, [timeKey]:ticketWallTimes[side] ? draft[timeKey] : Number.isFinite(at) ? localTime(at,tz) : draft[timeKey] });
   }
   async function save(e: React.FormEvent) {
     e.preventDefault(); setError('');
@@ -171,6 +175,7 @@ export default function FlightCountdown({ td, dateRange, offline }: { td: TripDa
     <Sheet open={editing} onClose={() => !busy && setEditing(false)} title="航班时间设置">
       <div className={s.form}>
         <div className={s.settingsMeta}>{dateRange && <span>{dateRange}</span>}{offline && <span>行程已离线保存</span>}</div>
+        <FlightTicketImport documents={td.docs} referenceYear={Number(td.trip.startDate.slice(0,4))} onDates={dates => { setDraft(previous => ({...previous,...dates})); setTicketWallTimes(previous => ({...previous,...(dates.departure !== undefined ? {origin:!!dates.departure} : {}),...(dates.returning !== undefined ? {destination:!!dates.returning} : {})})); }} onBusy={setReadingTicket} />
         <p>默认使用国旗。你可以替换左右照片；所有背景自动使用固定的黑白 Overlay 效果。</p>
         <div className={s.photos}>
           {(['origin', 'destination'] as const).map((side, i) => {
@@ -189,15 +194,15 @@ export default function FlightCountdown({ td, dateRange, offline }: { td: TripDa
         <details className={s.credits}><summary>国旗素材许可</summary><a href="/landing/flight-countdown/FLAGS-LICENSE.txt" target="_blank" rel="noreferrer">flag-icons · MIT</a></details>
       </div>
       <form className={s.form} onSubmit={e => void save(e)}>
-        <p>时间按各航段出发地的当地时区填写。国家采用默认时区；多时区国家可在下方调整。切换国家会换算已填写的有效时间，保持真实起飞时刻。</p>
-        {(['origin','destination'] as const).map((side,i) => <label key={side}>{i ? '目的地国家' : '出发国家'}<select required value={draft[side]} onChange={e => changeCountry(side,e.target.value)}><option value="">请选择国家</option>{countries.map(c=><option key={c.code} value={c.code}>{c.zh} · {c.en}</option>)}</select></label>)}
-        <label>去程起飞（当地时间）<input required type="datetime-local" value={draft.departure} onChange={e=>setDraft({...draft,departure:e.target.value})} /></label>
-        <label>去程 IANA 时区<input required value={draft.departureTz} aria-invalid={!validZone(draft.departureTz)} onChange={e=>setDraft({...draft,departureTz:e.target.value})} /></label>
-        <label>回程起飞（当地时间）<input required type="datetime-local" value={draft.returning} onChange={e=>setDraft({...draft,returning:e.target.value})} /></label>
-        <label>回程 IANA 时区<input required value={draft.returnTz} aria-invalid={!validZone(draft.returnTz)} onChange={e=>setDraft({...draft,returnTz:e.target.value})} /></label>
+        <p>{ticketWallTimes.origin || ticketWallTimes.destination ? 'PDF 填入的是机票当地时间；该航段切换国家时保留票面时间，请核对相应出发地时区。多时区国家可在下方调整。' : '时间按各航段出发地的当地时区填写。国家采用默认时区；多时区国家可在下方调整。切换国家会换算已填写的有效时间，保持真实起飞时刻。'}</p>
+        {(['origin','destination'] as const).map((side,i) => <label key={side}>{i ? '目的地国家' : '出发国家'}<select required disabled={readingTicket} value={draft[side]} onChange={e => changeCountry(side,e.target.value)}><option value="">请选择国家</option>{countries.map(c=><option key={c.code} value={c.code}>{c.zh} · {c.en}</option>)}</select></label>)}
+        <label>去程起飞（当地时间）<input required disabled={readingTicket} type="datetime-local" value={draft.departure} onChange={e=>setDraft({...draft,departure:e.target.value})} /></label>
+        <label>去程 IANA 时区<input required disabled={readingTicket} value={draft.departureTz} aria-invalid={!validZone(draft.departureTz)} onChange={e=>setDraft({...draft,departureTz:e.target.value})} /></label>
+        <label>回程起飞（当地时间）<input required disabled={readingTicket} type="datetime-local" value={draft.returning} onChange={e=>setDraft({...draft,returning:e.target.value})} /></label>
+        <label>回程 IANA 时区<input required disabled={readingTicket} value={draft.returnTz} aria-invalid={!validZone(draft.returnTz)} onChange={e=>setDraft({...draft,returnTz:e.target.value})} /></label>
         <p>直接修改时区会按新时区解释上面的当地时间。此设置仅用于航班卡，不改动原行程日期。</p>
         {error && <p role="alert" className={s.error}>{error}</p>}
-        <div className={s.actions}><Button variant="outline" disabled={busy} onClick={()=>setEditing(false)}>取消</Button><Button type="submit" disabled={busy}>{busy ? '保存中…' : '保存航班时间'}</Button></div>
+        <div className={s.actions}><Button variant="outline" disabled={busy} onClick={()=>setEditing(false)}>取消</Button><Button type="submit" disabled={busy || readingTicket}>{busy ? '保存中…' : '保存航班时间'}</Button></div>
       </form>
     </Sheet>
   </section>;

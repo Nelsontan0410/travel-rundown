@@ -77,3 +77,10 @@
 }
 
 .information > button { color: var(--color-on-photo); background: var(--color-leather); border-color: var(--color-on-photo); }
+
+.ticketImport { border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: 0 12px; }
+.ticketImport > summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; font-weight: 600; font-size: var(--fs-small); }
+.ticketBody { display: flex; flex-direction: column; gap: 12px; padding-bottom: 12px; min-width: 0; }
+.ticketBody .error { color: var(--color-warning-ink); white-space: pre-line; overflow-wrap: anywhere; }
+.ticketSources { padding-left: 18px; margin: 0; font-size: var(--fs-caption); color: var(--color-text-2); }
+.ticketSources li { margin: 6px 0; overflow-wrap: anywhere; }.ticketSources span { display: block; }
