@@ -1,0 +1,86 @@
+[
+  {
+    "country": "SG",
+    "file": "SG-landmark.png",
+    "title": "File:Marina Bay Sands and illuminated polyhedral building Louis Vuitton over the water at blue hour with pink clouds in Singapore.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Marina_Bay_Sands_and_illuminated_polyhedral_building_Louis_Vuitton_over_the_water_at_blue_hour_with_pink_clouds_in_Singapore.jpg",
+    "author": "Basile Morin",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+    "modifications": "Resized to at most 800 × 650; PNG conversion. CSS crop and fade at display time."
+  },
+  {
+    "country": "MY",
+    "file": "MY-landmark.png",
+    "title": "File:Petronas Panorama II.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Petronas_Panorama_II.jpg",
+    "author": "Someformofhuman",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+    "modifications": "Resized to at most 800 × 650; PNG conversion. CSS crop and fade at display time."
+  },
+  {
+    "country": "KR",
+    "file": "KR-landmark.png",
+    "title": "File:Gyeongbokgung(palace) Geunjeongjeon(hall).jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Gyeongbokgung(palace)_Geunjeongjeon(hall).jpg",
+    "author": "Brady Bellini",
+    "license": "CC0",
+    "license_url": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+    "modifications": "Resized to at most 800 × 650; PNG conversion. CSS crop and fade at display time."
+  },
+  {
+    "country": "TH",
+    "file": "TH-landmark.png",
+    "title": "File:Wat Arun across the river Sep 2023 morning.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Wat_Arun_across_the_river_Sep_2023_morning.jpg",
+    "author": "Paul_012",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+    "modifications": "Resized to at most 800 × 650; PNG conversion. CSS crop and fade at display time."
+  },
+  {
+    "country": "CN",
+    "file": "CN-landmark.png",
+    "title": "File:Great Wall of China July 2006.JPG",
+    "source": "https://commons.wikimedia.org/wiki/File:Great_Wall_of_China_July_2006.JPG",
+    "author": "Velatrix",
+    "license": "CC0",
+    "license_url": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+    "modifications": "Resized to at most 800 × 650; PNG conversion. CSS crop and fade at display time."
+  },
+  {
+    "country": "VN",
+    "file": "VN-landmark.png",
+    "title": "File:Ha Long Bay panorama.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Ha_Long_Bay_panorama.jpg",
+    "author": "FLASHPACKER TRAVELGUIDE",
+    "license": "CC BY-SA 2.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/2.0",
+    "modifications": "Resized to at most 800 × 650; PNG conversion. CSS crop and fade at display time."
+  },
+  {
+    "country": "ID",
+    "file": "ID-landmark.png",
+    "title": "File:Borobudur-Nothwest-view.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Borobudur-Nothwest-view.jpg",
+    "author": "Gunawan Kartapranata",
+    "license": "Public domain",
+    "license_url": "",
+    "modifications": "Resized to at most 800 × 650; PNG conversion. CSS crop and fade at display time."
+  },
+  {
+    "file": "JP-landmark.png",
+    "title": "河口湖からの富士山",
+    "author": "くろふね",
+    "license": "CC BY-SA 4.0",
+    "source": "https://commons.wikimedia.org/wiki/File:%E6%B2%B3%E5%8F%A3%E6%B9%96%E3%81%8B%E3%82%89%E3%81%AE%E5%AF%8C%E5%A3%AB%E5%B1%B1.jpg",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+    "modifications": "Cropped to 1600x1000, resized using Lanczos, JPEG quality 80, metadata removed. No AI generation, retouching, object removal, added text, or color filter. Further resized to 800px and converted to PNG.",
+    "notes": "Mount Fuji reflected in Lake Kawaguchi; photographed 12 January 2014.",
+    "width": 1600,
+    "height": 1000,
+    "bytes": 132537,
+    "country": "JP"
+  }
+]

@@ -30,6 +30,8 @@ export interface Trip {
   theme?: TripTheme;
   /** 修订 2026-10：出发时刻 HH:mm（出发地时区 homeTz），缺省按出发日 00:00 倒数 */
   departTime?: string;
+  /** Landing 航班卡的独立设置；不改变导入行程日期和航班项目。 */
+  flightCountdown?: FlightCountdownSettings;
   sourceMd: string;
   importedAt: string;
   updatedAt: string;
@@ -226,3 +228,13 @@ export const DEFAULT_SETTINGS: Settings = {
 };
 
 export const DEFAULT_TRANSLATE: TripTranslate = { app: 'google-translate', from: 'auto', to: 'zh-CN' };
+
+/** UTC 瞬间与显示时区分开保存，切换国家不会悄悄改动真实起飞瞬间。 */
+export interface FlightCountdownSettings {
+  origin: string;
+  destination: string;
+  departureAt: number;
+  returnAt: number;
+  departureTz: string;
+  returnTz: string;
+}

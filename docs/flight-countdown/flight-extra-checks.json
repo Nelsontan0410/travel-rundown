@@ -1,0 +1,10 @@
+{
+  "checks": [
+    "invalid return blocked",
+    "settings form saves in country timezones on US device",
+    "reload persists",
+    "country change preserves instant",
+    "reduced motion skips transition",
+    "ended at return takeoff"
+  ]
+}
