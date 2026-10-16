@@ -1,9 +1,11 @@
 import { memo, useEffect, useRef, useState } from 'react';
-import { Plane, MapPin, Settings2 } from 'lucide-react';
+import { Plane, MapPin, Settings, Settings2 } from 'lucide-react';
 import { useBlobUrl, type TripData } from '../hooks/data';
 import type { FlightCountdownSettings } from '../domain/types';
 import { asset, countries, countryOf, crossedDeparture, flightPhase, fromLocal, localTime, validFlightSettings, validZone } from '../domain/flightCountdown';
 import { remaining } from '../domain/countdown';
+import { utcOffsetLabel } from '../domain/format';
+import { Logo } from './Icon';
 import { flightBackgroundKey, setFlightBackground, setFlightCountdown } from '../db/repo';
 import { prepareFile, TooLargeError } from '../lib/files';
 import { Sheet } from './Layout';
@@ -17,7 +19,7 @@ const Scenery = memo(function Scenery({ origin, destination, left, right }: { or
   return <div className={s.scenery} aria-hidden="true">{photographs}</div>;
 });
 
-function Clock({ value, demo = false }: { value: FlightCountdownSettings; demo?: boolean }) {
+function Clock({ value, tripTitle, demo = false }: { value: FlightCountdownSettings; tripTitle: string; demo?: boolean }) {
   const [now, setNow] = useState(Date.now);
   const previous = useRef(now);
   const transition = useRef<number>();
@@ -41,13 +43,17 @@ function Clock({ value, demo = false }: { value: FlightCountdownSettings; demo?:
   }, [value.departureAt]);
   const phase = flightPhase(value, now, transition.current);
   const at = phase === 'before' ? value.departureAt : value.returnAt;
-  const tz = phase === 'before' ? value.departureTz : value.returnTz;
   const r = remaining(at, now)!;
-  const title = phase === 'before' ? '距离去程起飞' : phase === 'flying' ? `正在飞往${countryOf(value.destination)!.zh}` : phase === 'vacation' ? '开始玩乐！距离回程起飞' : '旅程已结束';
+  const title = phase === 'before' ? '启程倒计时' : phase === 'flying' ? `正在飞往${countryOf(value.destination)!.zh}` : phase === 'vacation' ? '返程倒计时' : '旅程已结束';
   return <>
     <div className={s.information} data-flight-phase={phase}>
-      <p className={s.heading} aria-live="polite">{demo ? `演示 · ${title}` : title}</p>
-      <p className={s.date}>{phase === 'flying' ? '即将开启你的旅程' : `${localTime(at, tz).replace('T', ' ')} · ${tz}`}</p>
+      <h1 className={s.tripTitle}>{tripTitle}</h1>
+      <h2 className={s.heading} aria-live="polite">{demo ? `演示 · ${title}` : title}</h2>
+      <h3 className={s.date}>
+        <span>去程 <time dateTime={new Date(value.departureAt).toISOString()}>{localTime(value.departureAt, value.departureTz).replace('T', ' ')}</time> <small>{utcOffsetLabel(value.departureTz, new Date(value.departureAt))}</small></span>
+        <span className={s.dateSeparator} aria-hidden="true">—</span>
+        <span>回程 <time dateTime={new Date(value.returnAt).toISOString()}>{localTime(value.returnAt, value.returnTz).replace('T', ' ')}</time> <small>{utcOffsetLabel(value.returnTz, new Date(value.returnAt))}</small></span>
+      </h3>
       {phase !== 'flying' && phase !== 'ended' && <div className={s.numbers} role="timer" aria-label={`${r.days}天 ${r.hours}小时 ${r.minutes}分钟 ${r.seconds}秒`}>
         {[[r.days, '天'], [r.hours, '小时'], [r.minutes, '分钟'], [r.seconds, '秒']].map(([v, unit]) => <div key={unit}><strong>{String(v).padStart(2, '0')}</strong><span>{unit}</span></div>)}
       </div>}
@@ -145,13 +151,13 @@ export default function FlightCountdown({ td, dateRange, offline }: { td: TripDa
     <div className={s.card}>
       <Scenery origin={origin} destination={destination} left={leftPhoto} right={rightPhoto} />
       <button className={s.edit} aria-label="设置航班时间" onClick={openSettings}><Settings2 size={20} /></button>
-      {demo || value ? <Clock key={JSON.stringify(demo ?? value)} value={(demo ?? value)!} demo={!!demo} /> : <div className={s.information}><p className={s.heading}>下一段旅程，从这里开始</p><p className={s.date}>设置去程与回程起飞时间，开启准确倒数</p><Button variant="outline" onClick={openSettings}>设置航班时间</Button></div>}
+      {demo || value ? <Clock key={JSON.stringify(demo ?? value)} value={(demo ?? value)!} tripTitle={td.trip.title} demo={!!demo} /> : <div className={s.information}><h1 className={s.tripTitle}>{td.trip.title}</h1><h2 className={s.heading}>启程倒计时</h2><p className={s.emptyDate}>设置去程与回程起飞时间，开启准确倒数</p><Button variant="outline" onClick={openSettings}>设置航班时间</Button></div>}
       {!demo && !value && <div className={s.route} aria-hidden="true"><span className={s.aircraft}><Plane size={34} /></span></div>}
       {(['origin','destination'] as const).map((side,i) => {
         const code = i ? destination : origin;
         const c = countryOf(code);
         return <button key={side} className={`${s.pin} ${i ? s.destination : s.origin}`} aria-label={i ? '修改目的地国家' : '修改出发国家'} onClick={() => {setDemo(undefined);setError('');setPick(side);}}>
-          <span className={s.pinIcon}><MapPin size={55.2} fill="var(--color-surface)" />{c && <img src={asset(code,'flag')} alt="" />}</span>
+          <span className={s.pinIcon}><MapPin size={55.2} fill="var(--color-leather-dark)" />{c && <img src={asset(code,'flag')} alt="" />}</span>
           <strong>{c?.en ?? (i ? '目的地' : '出发地')}</strong><span>{c?.zh ?? '选择国家'}</span>
         </button>;
       })}
@@ -195,4 +201,12 @@ export default function FlightCountdown({ td, dateRange, offline }: { td: TripDa
       </form>
     </Sheet>
   </section>;
+}
+
+/** Trip controls are relocated into the desktop sidebar; the title lives in the flight card. */
+export function FlightTripHeader({ title, onSettings }: { title: string; onSettings: () => void }) {
+  return <div className={s.tripControls}>
+    <div className={s.tripIdentity}><Logo /><strong>{title}</strong></div>
+    <button type="button" className={s.tripSettings} aria-label="旅程设置" onClick={onSettings}><Settings size={22} /></button>
+  </div>;
 }

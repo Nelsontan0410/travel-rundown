@@ -10,6 +10,7 @@ export type TabKey = 'trips' | 'itinerary' | 'docs';
 
 interface ScreenProps {
   header?: ReactNode;
+  sidebarHeader?: ReactNode;
   tab?: TabKey;
   bottom?: ReactNode; // ActionBar 或底部按钮区
   bottomStyle?: 'action' | 'plain';
@@ -18,13 +19,14 @@ interface ScreenProps {
 }
 
 /** 页面骨架：页头 + 内容 + 可选的底部操作栏 + 同一套响应式导航 */
-export function Screen({ header, tab, bottom, bottomStyle = 'action', full, children }: ScreenProps) {
+export function Screen({ header, sidebarHeader, tab, bottom, bottomStyle = 'action', full, children }: ScreenProps) {
   const pad = tab ? (bottom ? s.withTabBottom : s.withTab) : bottom ? s.withBottom : '';
   return (
     <div className={`${s.screen} ${tab ? s.withSidebar : ''}`}>
       <div className={s.contentColumn}>
       {header}
-      <main className={`${s.main} ${full ? s.full : ''} ${pad}`}>{children}</main>
+      {sidebarHeader && <div className={s.mobileSidebarHeader}>{sidebarHeader}</div>}
+      <main className={`${s.main} ${sidebarHeader ? s.mainWithSidebarHeader : ''} ${full ? s.full : ''} ${pad}`}>{children}</main>
       {bottom && (
         <div
           className={`${s.fixedCol} ${s.shellBottom} ${tab ? s.bottomWithTab : ''} ${bottomStyle === 'action' ? s.actionBar : s.plainBottom}`}
@@ -33,7 +35,7 @@ export function Screen({ header, tab, bottom, bottomStyle = 'action', full, chil
         </div>
       )}
       </div>
-      {tab && <TabBar active={tab} />}
+      {tab && <TabBar active={tab} header={sidebarHeader} />}
     </div>
   );
 }
@@ -114,10 +116,11 @@ const TABS: { key: TabKey; label: string; to: string; icon: 'Home' | 'CalendarDa
   { key: 'docs', label: '资料', to: '/docs', icon: 'FileText' },
 ];
 
-export function TabBar({ active }: { active: TabKey }) {
+export function TabBar({ active, header }: { active: TabKey; header?: ReactNode }) {
   return (
     <nav className={`${s.fixedCol} ${s.tabbar}`} aria-label="主导航">
       <span className={s.navLogo} aria-hidden="true"><Logo /></span>
+      {header && <div className={s.sidebarHeader}>{header}</div>}
       {TABS.map((t) => {
         const on = t.key === active;
         return (

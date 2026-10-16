@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import p from './Page.module.css';
 import { TripThemeScope } from '../components/TripTheme';
-import { Screen, RootHeader, Sheet } from '../components/Layout';
+import { Screen, Sheet } from '../components/Layout';
 import { Field, FormActions, TextInput } from '../components/Form';
 import { Button, EmptyLine, EmptyState } from '../components/Basics';
 import { DayHeading, DayTiles, Timeline, TimelineDivider, TimelineRow } from '../components/Itinerary';
@@ -18,7 +18,7 @@ import { currentItemId, defaultDay, docsForItem, itemIcon, itemSubtitle, ledgerS
 import { openExternal } from '../links/openLink';
 import { setLastTrip } from '../db/repo';
 import PhaseCard from '../components/PhaseCard';
-import FlightCountdown from '../components/FlightCountdown';
+import FlightCountdown, { FlightTripHeader } from '../components/FlightCountdown';
 import { pickToday } from '../domain/today';
 
 /** 01 每日行程（行程 Tab 的首页） */
@@ -86,7 +86,7 @@ export default function ItineraryPage() {
     <TripThemeScope theme={td.trip.theme} />
     <Screen
       tab="itinerary"
-      header={<RootHeader title={trip.title} icon="Settings" iconLabel="旅程设置" onIcon={() => nav(`/trip/${trip.id}/settings`)} />}
+      sidebarHeader={<FlightTripHeader title={trip.title} onSettings={() => nav(`/trip/${trip.id}/settings`)} />}
     >
       <FlightCountdown key={trip.id} td={td} dateRange={fmtDateRange(trip.startDate, trip.endDate)} offline={ready.allGreen} />
       {(() => {
