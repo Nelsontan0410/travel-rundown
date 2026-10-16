@@ -33,7 +33,8 @@
 @keyframes trail { to { transform: scaleX(1); } }
 .edit { position: absolute; z-index: 2; right: 0; top: 0; width: 44px; height: 44px; display: grid; place-items: center; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--color-on-photo); cursor: pointer; }
 .edit:hover, .pin:hover { background: color-mix(in srgb, var(--color-on-photo) 12%, transparent); }
-.edit:focus-visible, .pin:focus-visible, .countryGrid button:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; }
+.edit:focus-visible, .pin:focus-visible { outline: 2px solid var(--color-on-photo); outline-offset: -2px; }
+.countryGrid button:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; }
 .notice { font-size: var(--fs-caption); color: var(--color-text-2); min-height: 0; margin: 4px 0 0; }.notice:empty { display: none; }
 .transitionNote { margin-top: 8px; font-size: var(--fs-small); }
 .form { display: flex; flex-direction: column; gap: 14px; color: var(--color-text); }
