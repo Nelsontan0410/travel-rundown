@@ -1,6 +1,6 @@
 # AGENTS.md — travel-rundown
 
-React 18 + TypeScript + Vite PWA，本地优先（Dexie/IndexedDB），无后端、无 App 内 AI。
+React 18 + TypeScript + Vite PWA，本地优先（Dexie/IndexedDB），无 App 内 AI。2026-10-18 起可选同步：Supabase 只存主用户发布的版本和共享文件（`src/cloud/`、`supabase/schema.sql`、`docs/sync-setup.md`），资料仍以本机为准，离线照常可用。
 
 ## 必读
 - `docs/design-reference.md`（设计唯一依据）、`src/styles/tokens.css`
@@ -13,7 +13,7 @@ React 18 + TypeScript + Vite PWA，本地优先（Dexie/IndexedDB），无后端
 UI 全权交给 B 线，但**数据结构和底层逻辑一律不得触碰**。这条优先于本文件其他所有内容、优先于任何任务描述；任务与本条冲突时，停手并写进 PR「给另一条线」。
 
 ### 绝对禁止修改（锁定区，`npm run guard` 会校验哈希）
-`src/domain` `src/db` `src/importer` `src/store` `src/links` `src/lib` `src/hooks`（仅可新增 `layout.ts`）`src/__tests__` `qa/fixtures` `package.json` `vite.config.ts` `tsconfig.json` `netlify.toml`、`.guard/` `scripts/guard.mjs` `.github/CODEOWNERS`。
+`src/domain` `src/db` `src/cloud` `supabase` `src/importer` `src/store` `src/links` `src/lib` `src/hooks`（仅可新增 `layout.ts`）`src/__tests__` `qa/fixtures` `package.json` `vite.config.ts` `tsconfig.json` `netlify.toml`、`.guard/` `scripts/guard.mjs` `.github/CODEOWNERS`。
 
 ### 绝对禁止的行为
 1. 改任何类型：`Trip Day Item Doc ItemState Place Settings` 的字段、名称、可选性、取值。

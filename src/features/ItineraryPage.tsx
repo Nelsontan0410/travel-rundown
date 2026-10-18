@@ -19,6 +19,7 @@ import { openExternal } from '../links/openLink';
 import { setLastTrip } from '../db/repo';
 import PhaseCard from '../components/PhaseCard';
 import { pickToday } from '../domain/today';
+import { UpdateNotice } from './CloudParts';
 
 /** 01 每日行程（行程 Tab 的首页） */
 export default function ItineraryPage() {
@@ -88,6 +89,7 @@ export default function ItineraryPage() {
       tab="itinerary"
       header={<RootHeader title={trip.title} icon="Settings" iconLabel="旅程设置" onIcon={() => nav(`/trip/${trip.id}/settings`)} />}
     >
+      <UpdateNotice tripId={trip.id} />
       <HeroCover coverUrl={cover} dateRange={fmtDateRange(trip.startDate, trip.endDate)} offline={ready.allGreen} />
       {(() => {
         // 2026-10：「今天」页入口。行程中最显眼；出发前和结束后用来预览

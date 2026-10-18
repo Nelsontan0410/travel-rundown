@@ -30,9 +30,21 @@ export interface Trip {
   theme?: TripTheme;
   /** 修订 2026-10：出发时刻 HH:mm（出发地时区 homeTz），缺省按出发日 00:00 倒数 */
   departTime?: string;
+  /** 2026-10-18：已开启同步时的云端信息（主用户或被邀请的同伴） */
+  cloud?: TripCloud;
   sourceMd: string;
   importedAt: string;
   updatedAt: string;
+}
+
+/** 2026-10-18：同步信息。id 就是云端旅程 id（和本地 Trip.id 相同） */
+export interface TripCloud {
+  role: 'owner' | 'member';
+  /** 本机已发布（主用户）/ 已套用（同伴）的版本号 */
+  version: number;
+  /** 主用户邮箱（同伴这边显示「由谁管理」） */
+  ownerEmail?: string;
+  syncedAt?: string;
 }
 
 export interface Day {
@@ -125,6 +137,8 @@ export interface Doc {
   url?: string;
   /** 2026-10：动态票码在哪个 App 里打开（例如「Klook」「JR East」） */
   app?: string;
+  /** 2026-10-18：同伴这边从主用户版本收到的共享资料（同步时会跟着主用户更新或删除） */
+  fromCloud?: boolean;
   addedAt: string;
   updatedAt: string;
 }
