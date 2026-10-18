@@ -1,11 +1,13 @@
-// 2026-10-18 同步：启动时恢复登录、定期检查新版本和邀请。
+// 2026-10-18 同步：启动时恢复身份、定期检查新版本。
+// 不用邮箱：每台手机第一次用同步时自动建一个身份（Supabase 匿名登录），存在这台手机上。
 // 没用过同步的人不会加载 Supabase，也不会联网。
 import { db } from '../db/schema';
 import { useCloud } from '../store/cloud';
-import { backend, cloudErrorText } from './backend';
-import { checkUpdates, myInvites } from './sync';
+import { backend, cloudErrorText, type CloudSession } from './backend';
+import { checkUpdates } from './sync';
 
 const USED_KEY = 'trip-sync-used';
+const NAME_KEY = 'trip-sync-name';
 
 function markUsed() {
   try {
@@ -15,11 +17,7 @@ function markUsed() {
   }
 }
 
-/** 点邮件里的登录链接回来时，网址后面带着登录信息 */
-const fromLoginLink = () => /access_token=|error_description=/.test(location.hash);
-
 async function everUsed(): Promise<boolean> {
-  if (fromLoginLink()) return true;
   try {
     if (localStorage.getItem(USED_KEY)) return true;
   } catch {
@@ -28,18 +26,34 @@ async function everUsed(): Promise<boolean> {
   return (await db.trips.toArray()).some((t) => !!t.cloud);
 }
 
+/** 自己在同步里显示的名字（存在这台手机上） */
+export function myName(): string {
+  try {
+    return localStorage.getItem(NAME_KEY) ?? '';
+  } catch {
+    return '';
+  }
+}
+export function setMyName(name: string): void {
+  try {
+    localStorage.setItem(NAME_KEY, name.trim());
+  } catch {
+    /* ignore */
+  }
+}
+
 let started = false;
 let timer: ReturnType<typeof setInterval> | undefined;
 
-/** 检查新版本和邀请；离线或出错时安静地记下原因 */
+/** 检查新版本；离线或出错时安静地记下原因 */
 export async function refreshCloud(): Promise<void> {
   const be = await backend();
   const session = await be.getSession();
   useCloud.setState({ session });
-  if (!session) return useCloud.setState({ updates: {}, invites: [] });
+  if (!session) return useCloud.setState({ updates: {} });
   try {
-    const [updates, invites] = await Promise.all([checkUpdates(), myInvites()]);
-    useCloud.setState({ updates, invites, lastError: undefined });
+    const updates = await checkUpdates();
+    useCloud.setState({ updates, lastError: undefined });
   } catch (e) {
     useCloud.setState({ lastError: cloudErrorText(e) });
   }
@@ -73,21 +87,11 @@ export function stopCloudForTests() {
   started = false;
 }
 
-export async function sendLoginCode(email: string): Promise<void> {
+/** 开启同步 / 加入旅程前调用：没有身份就自动建一个 */
+export async function ensureCloudSession(): Promise<CloudSession> {
   const be = await backend();
-  await be.sendCode(email);
-}
-
-export async function verifyLoginCode(email: string, code: string): Promise<void> {
-  const be = await backend();
-  const s = await be.verifyCode(email, code);
+  const s = await be.ensureSession();
   useCloud.setState({ session: s });
   await initCloud(true);
-  await refreshCloud();
-}
-
-export async function signOutCloud(): Promise<void> {
-  const be = await backend();
-  await be.signOut();
-  useCloud.setState({ session: null, updates: {}, invites: [] });
+  return s;
 }

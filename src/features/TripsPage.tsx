@@ -10,7 +10,7 @@ import { fmtDateRange, isIsoDate, nowIn } from '../domain/format';
 import { deleteTrip, setLastTrip } from '../db/repo';
 import { toast } from '../store/ui';
 import { importFile, restoreFromFile } from './importFlow';
-import { InvitesCard } from './CloudParts';
+import { JoinCard } from './CloudParts';
 import type { Trip } from '../domain/types';
 
 /** 排序：没结束的旅程按开始日期升序排前面，已结束的按开始日期降序排后面 */
@@ -56,7 +56,7 @@ export default function TripsPage() {
       </Card>
 
       <div className={p.mt12}>
-        <InvitesCard />
+        <JoinCard />
       </div>
 
       {trips && trips.length > 0 ? (

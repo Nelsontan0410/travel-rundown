@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import p from './Page.module.css';
 import { TripThemeScope } from '../components/TripTheme';
@@ -45,6 +45,13 @@ export default function TripSettingsPage() {
   const [factVal, setFactVal] = useState('');
   const [exportSheet, setExportSheet] = useState(false);
   const pkg = useTripPackageInfo(tripId);
+  const loaded = !!td;
+  // 从「旅程」页的「邀请同伴」进来：滚到同步区块
+  useEffect(() => {
+    if (!loaded || location.hash !== '#sync') return;
+    const t = setTimeout(() => document.getElementById('sync')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 250);
+    return () => clearTimeout(t);
+  }, [loaded]);
 
   if (td === null) return <Navigate to="/trips" replace />;
   if (!td) return <Screen tab="trips" header={<BackHeader title="旅程设置" />}>{null}</Screen>;
@@ -165,7 +172,9 @@ export default function TripSettingsPage() {
         <SettingsRow icon="Image" label="主题" value={THEME_LABEL[seasonOf(trip.theme)]} onClick={() => setThemeSheet(true)} />
       </SettingsGroup>
 
-      <SyncSection trip={trip} />
+      <div id="sync" className={p.anchor}>
+        <SyncSection trip={trip} />
+      </div>
 
       <SettingsGroup title="外部工具" note="导航和翻译将在外部应用或网页中打开。">
         <SettingsRow icon="Navigation" label="导航工具" value={navApps} onClick={() => nav('/import/template')} />

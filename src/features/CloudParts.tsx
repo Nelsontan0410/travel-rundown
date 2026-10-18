@@ -1,4 +1,5 @@
-// 2026-10-18 同步第一步的界面：登录、旅程列表里的邀请、旅程设置里的「同步与同伴」、发布更新、行程页的新版本提醒、改动清单。
+// 2026-10-18 同步的界面：旅程列表里的「和同伴同步」、旅程设置里的「同步与同伴」、发布更新、行程页的新版本提醒、改动清单。
+// 不用邮箱：开启同步的那台手机就是主用户；同伴用主用户分享的邀请码 / 链接加入。
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import p from './Page.module.css';
@@ -9,144 +10,74 @@ import { Field, SwitchRow, TextInput } from '../components/Form';
 import { useCloud } from '../store/cloud';
 import { toast } from '../store/ui';
 import { backend, cloudErrorText, type CloudInvite, type CloudMember } from '../cloud/backend';
-import { refreshCloud, sendLoginCode, signOutCloud, verifyLoginCode } from '../cloud/session';
-import { detachLocal, enableSync, joinTrip, pendingChanges, publishUpdate } from '../cloud/sync';
+import { ensureCloudSession, myName, refreshCloud, setMyName } from '../cloud/session';
+import { detachLocal, enableSync, normalizeCode, pendingChanges, prettyCode, publishUpdate } from '../cloud/sync';
 import type { SnapshotDiff } from '../cloud/snapshot';
 import type { Trip } from '../domain/types';
+import { copyText } from '../lib/files';
+import { useTrips } from '../hooks/data';
 
-export const openLogin = () => useCloud.setState({ loginOpen: true });
+export const inviteLink = (code: string) => `${location.origin}/join/${code}`;
 
-/** 登录：邮箱 → 6 位验证码（邮件模板没改时只有链接，点链接回来也能登录）。全局挂一个 */
-export function LoginSheet() {
-  const open = useCloud((s) => s.loginOpen);
-  const [email, setEmail] = useState('');
+/** 分享邀请：手机上用系统分享（WhatsApp、微信…），不支持就复制 */
+export async function shareInvite(code: string, tripTitle: string, inviter?: string): Promise<void> {
+  const text = `${inviter ? `${inviter} ` : ''}邀请你一起看「${tripTitle}」的行程。打开链接加入：${inviteLink(code)}\n已经装了 App 的话，也可以在「旅程」页输入邀请码：${prettyCode(code)}`;
+  const nav = navigator as Navigator & { share?: (d: { title?: string; text?: string }) => Promise<void> };
+  if (nav.share) {
+    try {
+      await nav.share({ title: tripTitle, text });
+      return;
+    } catch (e) {
+      if ((e as Error)?.name === 'AbortError') return;
+    }
+  }
+  toast((await copyText(text)) ? '已复制邀请，可以贴给同伴' : '复制失败，请手动抄下邀请码');
+}
+
+/** 旅程列表：邀请同伴的入口 + 输入邀请码加入 */
+export function JoinCard() {
+  const nav = useNavigate();
+  const trips = useTrips();
   const [code, setCode] = useState('');
-  const [sent, setSent] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState('');
-  const close = () => useCloud.setState({ loginOpen: false });
-  useEffect(() => {
-    if (open) {
-      setCode('');
-      setSent(false);
-      setErr('');
-    }
-  }, [open]);
-  const send = async () => {
-    if (!/^\S+@\S+\.\S+$/.test(email.trim())) return setErr('请填正确的邮箱');
-    setBusy(true);
-    setErr('');
-    try {
-      await sendLoginCode(email);
-      setSent(true);
-    } catch (e) {
-      setErr(cloudErrorText(e));
-    } finally {
-      setBusy(false);
-    }
+  const go = () => {
+    const c = normalizeCode(code);
+    if (c.length < 6) return toast('请填主用户给你的邀请码');
+    nav(`/join/${c}`);
   };
-  const verify = async () => {
-    if (!/^\d{6}$/.test(code.trim())) return setErr('验证码是 6 位数字');
-    setBusy(true);
-    setErr('');
-    try {
-      await verifyLoginCode(email, code);
-      toast('已登录');
-      close();
-    } catch (e) {
-      setErr(cloudErrorText(e));
-    } finally {
-      setBusy(false);
-    }
-  };
+  const first = trips?.[0];
   return (
-    <Sheet open={open} onClose={close} title="登录同步">
+    <Card className={p.cloudCard}>
+      <p className={p.cloudTitle}>和同伴同步</p>
+      <p className={p.lockNote}>
+        邀请同伴：打开旅程 → 旅程设置 → 同步与同伴 → 开启同步，然后生成邀请分享给同伴。不用注册，也不用邮箱。
+      </p>
+      {first && !first.cloud && (
+        <Button variant="outline" icon="Upload" onClick={() => nav(`/trip/${first.id}/settings#sync`)}>
+          邀请同伴看「{first.title}」
+        </Button>
+      )}
       <form
+        className={p.inviteForm}
         onSubmit={(e) => {
           e.preventDefault();
-          void (sent ? verify() : send());
+          go();
         }}
       >
-        <p className={p.lockNote}>用邮箱登录。主用户发布行程、邀请同伴；被邀请的同伴登录后就能收到更新。行程资料仍然保存在这台手机上，没网也能看。</p>
-        <Field label="邮箱" error={!sent ? err || undefined : undefined}>
-          <TextInput type="email" inputMode="email" autoComplete="email" value={email} disabled={sent} placeholder="you@example.com" onChange={(e) => setEmail(e.target.value)} />
-        </Field>
-        {sent && (
-          <Field label="验证码" hint={`已发到 ${email.trim()}，几分钟内有效。邮件里如果只有链接没有数字，在这台设备上点链接也能登录。没收到可以看看垃圾邮件。`} error={err || undefined}>
-            <TextInput inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code} placeholder="6 位数字" onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} />
-          </Field>
-        )}
-        <div className={p.sheetActions}>
-          <Button block type="submit" disabled={busy}>
-            {sent ? '登录' : '发送验证码'}
-          </Button>
-          {sent && (
-            <Button block type="button" variant="link" chevron={false} onClick={() => setSent(false)}>
-              换一个邮箱 / 重新发送
-            </Button>
-          )}
-        </div>
+        <TextInput value={code} placeholder="收到邀请码？填在这里" autoCapitalize="characters" aria-label="邀请码" onChange={(e) => setCode(e.target.value)} />
+        <Button size="sm" type="submit">
+          加入
+        </Button>
       </form>
-    </Sheet>
+    </Card>
   );
 }
 
-/** 旅程列表：登录入口和收到的邀请 */
-export function InvitesCard() {
-  const nav = useNavigate();
-  const session = useCloud((s) => s.session);
-  const invites = useCloud((s) => s.invites);
-  const [busy, setBusy] = useState<string | null>(null);
-  if (session === undefined) return null;
-  if (!session) {
-    return (
-      <Card className={p.cloudCard}>
-        <p className={p.cloudTitle}>和同伴同步</p>
-        <p className={p.lockNote}>被邀请了？登录后就能看到邀请，加入后会收到主用户发布的行程更新。</p>
-        <Button variant="outline" icon="Globe" onClick={openLogin}>
-          登录同步
-        </Button>
-      </Card>
-    );
-  }
-  const join = async (inv: CloudInvite) => {
-    setBusy(inv.id);
-    try {
-      const id = await joinTrip(inv);
-      await refreshCloud();
-      toast(`已加入「${inv.tripTitle}」`);
-      nav(`/itinerary/${id}`);
-    } catch (e) {
-      toast(cloudErrorText(e));
-    } finally {
-      setBusy(null);
-    }
-  };
+/** 填自己的名字（开启同步 / 加入时用） */
+export function NameField({ value, onChange, label = '你的名字' }: { value: string; onChange: (v: string) => void; label?: string }) {
   return (
-    <Card className={p.cloudCard}>
-      <div className={p.cloudHead}>
-        <p className={p.cloudTitle}>同步</p>
-        <span className={p.cloudWho}>{session.email}</span>
-      </div>
-      {invites.length === 0 ? (
-        <p className={p.lockNote}>没有新的邀请。</p>
-      ) : (
-        invites.map((inv) => (
-          <div key={inv.id} className={p.inviteRow}>
-            <div className={p.inviteText}>
-              <p className={p.inviteTitle}>{inv.tripTitle}</p>
-              <p className={p.lockNote}>{inv.inviterEmail ? `${inv.inviterEmail} 邀请你加入` : '邀请你加入'}</p>
-            </div>
-            <Button size="sm" disabled={busy === inv.id} onClick={() => void join(inv)}>
-              {busy === inv.id ? '加入中…' : '加入'}
-            </Button>
-          </div>
-        ))
-      )}
-      <Button variant="link" chevron={false} onClick={() => void signOutCloud().then(() => toast('已退出登录'))}>
-        退出登录
-      </Button>
-    </Card>
+    <Field label={label} hint="同伴会看到这个名字">
+      <TextInput value={value} maxLength={20} placeholder="例如：小明" aria-label={label} onChange={(e) => onChange(e.target.value)} />
+    </Field>
   );
 }
 
@@ -238,7 +169,9 @@ export function SyncSection({ trip }: { trip: Trip }) {
   const [diff, setDiff] = useState<SnapshotDiff | null>(null);
   const [members, setMembers] = useState<CloudMember[] | null>(null);
   const [invites, setInvites] = useState<CloudInvite[]>([]);
-  const [email, setEmail] = useState('');
+  const [mateName, setMateName] = useState('');
+  const [ownName, setOwnName] = useState(myName());
+  const [startOpen, setStartOpen] = useState(false);
   const [publishOpen, setPublishOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [removing, setRemoving] = useState<CloudMember | null>(null);
@@ -254,7 +187,6 @@ export function SyncSection({ trip }: { trip: Trip }) {
       const [m, inv] = await Promise.all([be.members(trip.id), isOwner ? be.tripInvites(trip.id) : Promise.resolve([])]);
       setMembers(m);
       setInvites(inv.filter((i) => !i.acceptedAt));
-      if (!isOwner && !m.some((x) => x.email === session.email)) setMembers([]);
     } catch (e) {
       useCloud.setState({ lastError: cloudErrorText(e) });
     }
@@ -263,23 +195,16 @@ export function SyncSection({ trip }: { trip: Trip }) {
     void load();
   }, [session?.userId, trip.cloud?.version, trip.updatedAt]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (session === undefined) return null;
-
-  if (!session) {
-    return (
-      <SettingsGroup title="同步与同伴" note="登录后可以开启同步、邀请同伴；被邀请的同伴登录后会收到你发布的更新。">
-        <SettingsRow icon="Globe" label="登录同步" onClick={openLogin} />
-      </SettingsGroup>
-    );
-  }
-
   if (!trip.cloud) {
     const start = async () => {
+      if (!ownName.trim()) return toast('先填你的名字，同伴会看到');
       setBusy(true);
       try {
-        await enableSync(trip.id);
+        setMyName(ownName);
+        await ensureCloudSession();
+        await enableSync(trip.id, ownName);
+        setStartOpen(false);
         toast('已开启同步，现在可以邀请同伴');
-        await load();
       } catch (e) {
         toast(cloudErrorText(e));
       } finally {
@@ -287,25 +212,46 @@ export function SyncSection({ trip }: { trip: Trip }) {
       }
     };
     return (
-      <SettingsGroup title="同步与同伴" note={`已登录 ${session.email}。开启后你是这份旅程的主用户：只有你能修改并发布更新，同伴只能被邀请加入。完成勾选、实际记账、穿搭打包都各自保存，不会同步。`}>
-        <SettingsRow icon="Upload" label={busy ? '开启中…' : '开启同步（成为主用户）'} onClick={busy ? undefined : () => void start()} />
-      </SettingsGroup>
+      <>
+        <SettingsGroup title="同步与同伴" note="开启后这台手机就是这份旅程的主用户：只有你能修改并发布更新，同伴用你分享的邀请加入。不用注册，也不用邮箱。完成勾选、实际记账、穿搭打包都各自保存，不会同步。">
+          <SettingsRow icon="Upload" label="开启同步（成为主用户）" onClick={() => setStartOpen(true)} />
+        </SettingsGroup>
+        <Sheet open={startOpen} onClose={() => setStartOpen(false)} title="开启同步">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              void start();
+            }}
+          >
+            <NameField value={ownName} onChange={setOwnName} />
+            <InfoBanner variant="warning">主用户身份保存在这台手机的 App 里。删除 App 或清除网站资料后，就不能再发布这份旅程的更新。</InfoBanner>
+            <div className={p.sheetActions}>
+              <Button block type="submit" disabled={busy}>
+                {busy ? '开启中…' : '开启并发布第一版'}
+              </Button>
+            </div>
+          </form>
+        </Sheet>
+      </>
     );
   }
 
+  if (session === undefined) return null;
+
   if (isOwner) {
     const invite = async () => {
-      const e = email.trim().toLowerCase();
-      if (!/^\S+@\S+\.\S+$/.test(e)) return toast('请填正确的邮箱');
+      const name = mateName.trim();
+      if (!name) return toast('填同伴的名字，方便你分辨');
       try {
-        await (await backend()).invite(trip.id, e);
-        setEmail('');
-        toast('已邀请，对方用这个邮箱登录就能加入');
+        const code = await (await backend()).createInvite(trip.id, name);
+        setMateName('');
         await load();
+        await shareInvite(code, trip.title, trip.cloud?.ownerName ?? myName());
       } catch (err) {
         toast(cloudErrorText(err));
       }
     };
+    const others = (members ?? []).filter((m) => m.role === 'member');
     return (
       <>
         <SettingsGroup title="同步与同伴" note="你是主用户：只有你能修改行程并发布更新。">
@@ -319,26 +265,28 @@ export function SyncSection({ trip }: { trip: Trip }) {
         </SettingsGroup>
         <div className={p.mt12}>
           <Card className={p.cloudCard}>
-            <p className={p.cloudTitle}>成员</p>
-            {(members ?? []).map((m) => (
+            <p className={p.cloudTitle}>同伴</p>
+            {others.length === 0 && invites.length === 0 && <p className={p.lockNote}>还没有同伴。填同伴的名字，生成邀请后用 WhatsApp / 微信发给他。</p>}
+            {others.map((m) => (
               <div key={m.userId} className={p.inviteRow}>
                 <div className={p.inviteText}>
-                  <p className={p.inviteTitle}>{m.email}</p>
-                  <p className={p.lockNote}>{m.role === 'owner' ? '主用户（你）' : '同伴'}</p>
+                  <p className={p.inviteTitle}>{m.name || '同伴'}</p>
+                  <p className={p.lockNote}>已加入</p>
                 </div>
-                {m.role === 'member' && (
-                  <Button size="sm" variant="outline" onClick={() => setRemoving(m)}>
-                    移除
-                  </Button>
-                )}
+                <Button size="sm" variant="outline" onClick={() => setRemoving(m)}>
+                  移除
+                </Button>
               </div>
             ))}
             {invites.map((i) => (
               <div key={i.id} className={p.inviteRow}>
                 <div className={p.inviteText}>
-                  <p className={p.inviteTitle}>{i.email}</p>
-                  <p className={p.lockNote}>已邀请，还没加入</p>
+                  <p className={p.inviteTitle}>{i.name || '同伴'}</p>
+                  <p className={p.lockNote}>还没加入 · 邀请码 {prettyCode(i.code)}</p>
                 </div>
+                <Button size="sm" variant="outline" onClick={() => void shareInvite(i.code, trip.title, trip.cloud?.ownerName ?? myName())}>
+                  分享
+                </Button>
                 <Button size="sm" variant="outline" onClick={() => void backend().then((b) => b.revokeInvite(i.id)).then(load)}>
                   撤回
                 </Button>
@@ -351,18 +299,19 @@ export function SyncSection({ trip }: { trip: Trip }) {
                 void invite();
               }}
             >
-              <TextInput type="email" inputMode="email" placeholder="同伴的邮箱" value={email} onChange={(e) => setEmail(e.target.value)} aria-label="同伴的邮箱" />
+              <TextInput placeholder="同伴的名字" maxLength={20} value={mateName} onChange={(e) => setMateName(e.target.value)} aria-label="同伴的名字" />
               <Button size="sm" type="submit">
-                邀请
+                生成邀请
               </Button>
             </form>
+            <p className={p.lockNote}>每个邀请只能给一台手机用。同伴换手机的话，移除后再生成一个新的。</p>
           </Card>
         </div>
         <PublishSheet open={publishOpen} onClose={() => setPublishOpen(false)} trip={trip} diff={diff} onDone={() => void load()} />
         <Dialog
           open={!!removing}
           onClose={() => setRemoving(null)}
-          title={`移除 ${removing?.email ?? ''}？`}
+          title={`移除 ${removing?.name || '这位同伴'}？`}
           text="对方之后收不到更新；他手机上已经保存的资料不会被删除。"
           actions={
             <>
@@ -391,14 +340,14 @@ export function SyncSection({ trip }: { trip: Trip }) {
   }
 
   // 同伴
-  const removed = members !== null && !members.some((m) => m.email === session.email);
+  const removed = members !== null && !!session && !members.some((m) => m.userId === session.userId);
   return (
     <>
       <SettingsGroup
         title="同步与同伴"
         note="这份旅程由主用户管理。你在本机的修改只存在这台手机上；完成勾选、实际记账、穿搭打包都是你自己的。"
       >
-        <SettingsRow icon="Home" label="主用户" value={trip.cloud.ownerEmail ?? '—'} arrow={false} />
+        <SettingsRow icon="Home" label="主用户" value={trip.cloud.ownerName ?? trip.cloud.ownerEmail ?? '—'} arrow={false} />
         <SettingsRow icon="CheckCircle2" label="已套用" value={`v${trip.cloud.version}`} arrow={false} />
         {update ? (
           <SettingsRow icon="Download" label={`查看新版本 v${update.version}`} value={update.note} onClick={() => nav(`/trip/${trip.id}/update`)} />
@@ -407,9 +356,9 @@ export function SyncSection({ trip }: { trip: Trip }) {
         )}
         <SettingsRow icon="Trash2" label="退出这份旅程的同步" danger onClick={() => setLeaving(true)} />
       </SettingsGroup>
-      {removed && (
+      {(removed || !session) && (
         <div className={p.mt8}>
-          <InfoBanner variant="warning">你已经不在这份旅程的成员名单里，之后收不到更新。手机上的资料会保留。</InfoBanner>
+          <InfoBanner variant="warning">{session ? '你已经不在这份旅程的成员名单里，之后收不到更新。手机上的资料会保留。' : '这台手机的同步身份不见了（可能清除过网站资料），收不到更新。请主用户重新邀请你。'}</InfoBanner>
         </div>
       )}
       <Dialog

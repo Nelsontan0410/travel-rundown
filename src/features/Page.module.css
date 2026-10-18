@@ -113,6 +113,7 @@
 .editLink { margin-top: var(--space-2); }
 
 /* 2026-10-18 同步 */
+.anchor { scroll-margin-top: calc(var(--space-6) * 2); }
 .cloudCard { padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-2); }
 .cloudHead { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-2); flex-wrap: wrap; }
 .cloudTitle { font-family: var(--font-serif); font-size: var(--fs-card); font-weight: 600; }

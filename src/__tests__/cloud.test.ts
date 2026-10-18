@@ -6,7 +6,7 @@ import { parseMd } from '../importer/parseMd';
 import { db } from '../db/schema';
 import { addDoc, addExpense, addItem, saveImport, setBudget, setItemStatus, updateItem, deleteItem } from '../db/repo';
 import { setBackend } from '../cloud/backend';
-import { applyUpdate, checkUpdates, enableSync, joinTrip, myInvites, pendingChanges, previewUpdate, publishUpdate } from '../cloud/sync';
+import { applyUpdate, checkUpdates, enableSync, joinWithCode, pendingChanges, previewUpdate, publishUpdate } from '../cloud/sync';
 import { mergeSnapshot } from '../cloud/merge';
 import { fakeCloud, type FakeCloud } from './cloudFake';
 
@@ -27,8 +27,9 @@ async function useDevice(name: string) {
 }
 
 let cloud: FakeCloud;
-const OWNER = 'owner@example.com';
-const MATE = 'mate@example.com';
+const OWNER = 'owner-phone';
+const MATE = 'mate-phone';
+let code = '';
 
 beforeEach(async () => {
   devices.clear();
@@ -45,17 +46,15 @@ async function ownerSetup() {
   await setBudget(tripId, 500000);
   const hotel = (await db.items.where('tripId').equals(tripId).toArray()).find((i) => i.type === 'lodging')!;
   await addDoc({ tripId, title: 'hotel.png', kind: 'lodging', blob: new Blob(['QRDATA'], { type: 'image/png' }), itemKeys: [hotel.key], codeKind: 'static' });
-  expect(await enableSync(tripId)).toBe(1);
-  await cloud.invite(tripId, MATE);
+  expect(await enableSync(tripId, '阿权')).toBe(1);
+  code = await cloud.createInvite(tripId, '小明');
   return tripId;
 }
 
 async function mateJoin() {
   await useDevice('mate');
   cloud.as(MATE);
-  const inv = await myInvites();
-  expect(inv).toHaveLength(1);
-  return joinTrip(inv[0]);
+  return joinWithCode(code, '小明');
 }
 
 describe('同步：主用户发布、同伴套用', () => {
@@ -64,7 +63,7 @@ describe('同步：主用户发布、同伴套用', () => {
     const ownerItems = (await db.items.where('tripId').equals(tripId).toArray()).length;
     await mateJoin();
     const t = (await db.trips.get(tripId))!;
-    expect(t.cloud).toMatchObject({ role: 'member', version: 1, ownerEmail: OWNER });
+    expect(t.cloud).toMatchObject({ role: 'member', version: 1, ownerName: '阿权' });
     expect(t.budget).toBe(500000);
     expect(await db.items.where('tripId').equals(tripId).count()).toBe(ownerItems);
     const doc = (await db.docs.toArray())[0];
@@ -74,13 +73,33 @@ describe('同步：主用户发布、同伴套用', () => {
     expect(doc.itemKeys).toEqual([hotel.key]);
   });
 
-  it('不是被邀请的人看不到版本，也不能发布', async () => {
+  it('不是被邀请的人看不到版本，也不能发布；同伴不能邀请', async () => {
     const tripId = await ownerSetup();
-    cloud.as('stranger@example.com');
+    cloud.as('stranger');
+    await cloud.ensureSession();
     expect(await cloud.fetchVersion(tripId)).toBeNull();
     await expect(cloud.publish(tripId, 'x', false, {} as never, 'x')).rejects.toThrow();
+    await mateJoin();
+    await expect(cloud.createInvite(tripId, 'x')).rejects.toThrow();
+  });
+
+  it('一个邀请码只能给一台手机；主用户能看到同伴名字，移除后邀请码作废', async () => {
+    const tripId = await ownerSetup();
+    await mateJoin();
+    cloud.as('other-phone');
+    await cloud.ensureSession();
+    expect(await cloud.peekInvite(code)).toMatchObject({ tripTitle: expect.any(String), inviterName: '阿权', usable: false, mine: false });
+    await expect(cloud.joinWithCode(code, '路人')).rejects.toThrow('用过');
     cloud.as(MATE);
-    await expect(cloud.invite(tripId, 'a@b.c')).rejects.toThrow();
+    expect(await cloud.peekInvite(code.toLowerCase())).toMatchObject({ usable: true, mine: true });
+    cloud.as(OWNER);
+    const ms = await cloud.members(tripId);
+    expect(ms.map((m) => [m.name, m.role])).toEqual([['阿权', 'owner'], ['小明', 'member']]);
+    expect(await cloud.peekInvite(code)).toMatchObject({ usable: false, mine: true });
+    await cloud.removeMember(tripId, ms[1].userId);
+    expect(await cloud.peekInvite(code)).toBeNull();
+    cloud.as(MATE);
+    expect(await cloud.fetchVersion(tripId)).toBeNull();
   });
 
   it('主用户改名、改时间后发布：同伴的勾选和自己的账本跟着走；记账各自一份', async () => {
