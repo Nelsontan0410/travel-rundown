@@ -1,6 +1,15 @@
 import Dexie, { type Table } from 'dexie';
 import type { BlobRecord, Day, Doc, Expense, Garment, Item, ItemState, Outfit, PackCheck, PackItem, Settings, Trip } from '../domain/types';
 import { migrateItemV2 } from '../domain/migrate';
+import type { TripSnapshot } from '../cloud/snapshot';
+
+/** 2026-10-18 同步：本机上次发布（主用户）/ 套用（同伴）的那个版本，用来算「改了什么」和三方合并 */
+export interface CloudBase {
+  tripId: string;
+  version: number;
+  snapshot: TripSnapshot;
+  savedAt: string;
+}
 
 export class RundownDB extends Dexie {
   trips!: Table<Trip, string>;
@@ -15,6 +24,7 @@ export class RundownDB extends Dexie {
   outfits!: Table<Outfit, [string, number]>;
   packItems!: Table<PackItem, string>;
   packChecks!: Table<PackCheck, [string, string]>;
+  cloudBases!: Table<CloudBase, string>;
 
   constructor() {
     super('travel-rundown');
@@ -45,6 +55,8 @@ export class RundownDB extends Dexie {
       packItems: 'id, tripId',
       packChecks: '[tripId+ref], tripId',
     });
+    // v4（2026-10-18）：同步用的基准版本
+    this.version(4).stores({ cloudBases: 'tripId' });
   }
 }
 

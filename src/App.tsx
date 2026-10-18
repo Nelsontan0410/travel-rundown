@@ -16,6 +16,9 @@ import LedgerPage from './features/LedgerPage';
 import OutfitsPage from './features/OutfitsPage';
 import TodayPage from './features/TodayPage';
 import ItemEditPage from './features/ItemEditPage';
+import UpdatePage from './features/UpdatePage';
+import { LoginSheet } from './features/CloudParts';
+import { initCloud } from './cloud/session';
 import StoryPage from './features/StoryPage';
 import CreditsPage from './features/CreditsPage';
 import RestoreConfirm from './components/RestoreConfirm';
@@ -32,6 +35,14 @@ function ThemeBase() {
   return theme ? <AppThemeBase theme={theme} /> : null;
 }
 
+/** 2026-10-18：用过同步的才在启动时恢复登录、检查新版本 */
+function CloudBoot() {
+  useEffect(() => {
+    void initCloud();
+  }, []);
+  return null;
+}
+
 function ScrollTop() {
   const { pathname } = useLocation();
   useEffect(() => window.scrollTo(0, 0), [pathname]);
@@ -43,6 +54,8 @@ export default function App() {
     <>
       <ScrollTop />
       <ThemeBase />
+      <CloudBoot />
+      <LoginSheet />
       <UpdateBanner />
       <RestoreConfirm />
       <Routes>
@@ -53,6 +66,7 @@ export default function App() {
         <Route path="/item/:itemId" element={<ItemPage />} />
         <Route path="/item/:itemId/edit" element={<ItemEditPage />} />
         <Route path="/trip/:tripId/add" element={<ItemEditPage />} />
+        <Route path="/trip/:tripId/update" element={<UpdatePage />} />
         <Route path="/docs" element={<DocsPage />} />
         <Route path="/trip/:tripId/settings" element={<TripSettingsPage />} />
         <Route path="/trip/:tripId/ledger" element={<LedgerPage />} />

@@ -14,6 +14,7 @@ import { NAV_APP_NAME } from '../importer/promptTemplate';
 import { deleteTrip, exportBackup, exportTripPackage, updateTripInfo, setCover, setDepartTime, setParticipants, setTranslateTo, setTripTheme, shiftTripStart } from '../db/repo';
 import { THEME_LABEL } from '../components/TripTheme';
 import { seasonOf, SEASONS } from '../domain/theme';
+import { SyncSection } from './CloudParts';
 import { toast } from '../store/ui';
 import { downloadBlob, pickFile, prepareFile } from '../lib/files';
 import { restoreFromFile } from './importFlow';
@@ -163,6 +164,8 @@ export default function TripSettingsPage() {
       <SettingsGroup title="外观" note="每份旅程各自选择。旅程列表、导入等公共页面跟随你最近打开的那份旅程。">
         <SettingsRow icon="Image" label="主题" value={THEME_LABEL[seasonOf(trip.theme)]} onClick={() => setThemeSheet(true)} />
       </SettingsGroup>
+
+      <SyncSection trip={trip} />
 
       <SettingsGroup title="外部工具" note="导航和翻译将在外部应用或网页中打开。">
         <SettingsRow icon="Navigation" label="导航工具" value={navApps} onClick={() => nav('/import/template')} />

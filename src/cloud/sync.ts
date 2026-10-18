@@ -1,0 +1,300 @@
+// 2026-10-18 同步第一步：主用户开启同步、发布更新；同伴加入、预览、套用。
+// 资料照常存在本机（离线可用）；云端只存主用户发布的版本和共享文件。
+// 完成勾选、实际记账、穿搭打包、主题不上云。
+import { db } from '../db/schema';
+import { uuid } from '../db/uuid';
+import { tripToMd } from '../importer/serialize';
+import { DEFAULT_TRANSLATE, type Doc, type Item, type Trip } from '../domain/types';
+import { isLinkDoc, LINK_MIME } from '../domain/bookings';
+import { backend, type CloudInvite } from './backend';
+import { buildSnapshot, diffSnapshots, type SnapshotDiff, type TripSnapshot } from './snapshot';
+import { localEdits, mergeSnapshot, type Choice, type Conflict } from './merge';
+
+const now = () => new Date().toISOString();
+
+// ———————— 文件指纹 ————————
+
+const hashCache = new Map<string, { size: number; type: string; hash: string }>();
+
+export async function sha256(blob: Blob): Promise<string> {
+  const buf = await blob.arrayBuffer();
+  const d = await crypto.subtle.digest('SHA-256', buf);
+  return [...new Uint8Array(d)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/** 本机这些文件的 sha256（按 blobKey）；没有文件的跳过 */
+async function hashesFor(keys: string[]): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  const recs = keys.length ? await db.blobs.bulkGet(keys) : [];
+  for (const r of recs) {
+    if (!r) continue;
+    const c = hashCache.get(r.key);
+    if (c && c.size === r.blob.size && c.type === r.blob.type) {
+      out.set(r.key, c.hash);
+      continue;
+    }
+    const hash = await sha256(r.blob);
+    hashCache.set(r.key, { size: r.blob.size, type: r.blob.type, hash });
+    out.set(r.key, hash);
+  }
+  return out;
+}
+
+const filePath = (tripId: string, hash: string) => `${tripId}/${hash}`;
+const cloudBlobKey = (hash: string) => `cloud:${hash}`;
+
+// ———————— 本机当前的样子 ————————
+
+async function loadLocal(tripId: string) {
+  const trip = await db.trips.get(tripId);
+  if (!trip) throw new Error('旅程不存在');
+  const [days, items, docs] = await Promise.all([
+    db.days.where('tripId').equals(tripId).toArray(),
+    db.items.where('tripId').equals(tripId).toArray(),
+    db.docs.where('tripId').equals(tripId).toArray(),
+  ]);
+  days.sort((a, b) => a.index - b.index);
+  return { trip, days, items, docs };
+}
+
+/** 主用户：把本机这份旅程组成快照（共享资料 = 主用户自己的全部证明资料） */
+export async function currentSnapshot(tripId: string): Promise<{ snapshot: TripSnapshot; files: Map<string, string> }> {
+  const { trip, days, items, docs } = await loadLocal(tripId);
+  const keys = [...docs.filter((d) => !isLinkDoc(d)).map((d) => d.blobKey), ...(trip.coverBlobKey ? [trip.coverBlobKey] : [])];
+  const files = await hashesFor(keys);
+  const snapshot = buildSnapshot(trip, days, items, docs, (k) => files.get(k));
+  if (trip.coverBlobKey) {
+    const b = await db.blobs.get(trip.coverBlobKey);
+    if (b) snapshot.trip.coverMime = b.blob.type;
+  }
+  return { snapshot, files };
+}
+
+// ———————— 主用户 ————————
+
+export async function enableSync(tripId: string): Promise<number> {
+  const be = await backend();
+  const s = await be.getSession();
+  if (!s) throw new Error('请先登录');
+  const trip = await db.trips.get(tripId);
+  if (!trip) throw new Error('旅程不存在');
+  await be.createTrip(tripId, trip.title);
+  await db.trips.update(tripId, { cloud: { role: 'owner', version: 0, ownerEmail: s.email } });
+  return publishUpdate(tripId, '第一版', false);
+}
+
+/** 还没发布的改动（和上次发布的版本比） */
+export async function pendingChanges(tripId: string): Promise<SnapshotDiff> {
+  const base = await db.cloudBases.get(tripId);
+  const { snapshot } = await currentSnapshot(tripId);
+  return diffSnapshots(base?.snapshot ?? { ...snapshot, days: [], items: [], docs: [] }, snapshot);
+}
+
+export async function publishUpdate(tripId: string, note: string, important: boolean): Promise<number> {
+  const be = await backend();
+  const { snapshot, files } = await currentSnapshot(tripId);
+  const trip = (await db.trips.get(tripId))!;
+  // 先传文件（同样内容只传一次），再发版本，免得同伴拿到版本却下载不到文件
+  for (const [blobKey, hash] of files) {
+    const rec = await db.blobs.get(blobKey);
+    if (rec) await be.upload(filePath(tripId, hash), rec.blob);
+  }
+  const version = await be.publish(tripId, note.trim() || '更新行程', important, snapshot, trip.title);
+  await db.transaction('rw', db.trips, db.cloudBases, async () => {
+    await db.cloudBases.put({ tripId, version, snapshot, savedAt: now() });
+    const t = await db.trips.get(tripId);
+    await db.trips.update(tripId, { cloud: { ...(t?.cloud ?? { role: 'owner' }), role: 'owner', version, syncedAt: now() } });
+  });
+  return version;
+}
+
+// ———————— 同伴 ————————
+
+export interface UpdatePreview {
+  version: number;
+  note?: string;
+  important: boolean;
+  createdAt: string;
+  snapshot: TripSnapshot;
+  /** 这个版本相对上次套用的版本改了什么 */
+  diff: SnapshotDiff;
+  conflicts: Conflict[];
+  /** 自己在本机改过、这次会保留的项数 */
+  keptMine: number;
+  /** 本机有、还没提交的修改数 */
+  localEdits: number;
+}
+
+export async function previewUpdate(tripId: string, version?: number): Promise<UpdatePreview | null> {
+  const be = await backend();
+  const v = await be.fetchVersion(tripId, version);
+  if (!v) return null;
+  const base = await db.cloudBases.get(tripId);
+  const local = await db.trips.get(tripId) ? await loadLocal(tripId) : { days: [], items: [] };
+  const merged = mergeSnapshot(base?.snapshot, local, v.snapshot);
+  return {
+    version: v.version,
+    note: v.note,
+    important: v.important,
+    createdAt: v.createdAt,
+    snapshot: v.snapshot,
+    diff: diffSnapshots(base?.snapshot, v.snapshot),
+    conflicts: merged.conflicts,
+    keptMine: merged.keptMine.length,
+    localEdits: localEdits(base?.snapshot, local).length,
+  };
+}
+
+/** 套用一个版本：三方合并后写进本机；勾选、证明、账本按 key 迁移；共享文件下载到本机 */
+export async function applyUpdate(
+  tripId: string,
+  v: { version: number; snapshot: TripSnapshot },
+  choices: Record<string, Choice> = {},
+  meta: { ownerEmail?: string } = {},
+): Promise<void> {
+  const be = await backend();
+  const inc = v.snapshot;
+  // 1. 先把缺的共享文件下载好（下载失败就整个不套用，保持原样）
+  const hashes = [...new Set([...inc.docs.map((d) => d.fileHash), inc.trip.coverHash].filter((h): h is string => !!h))];
+  const have = new Set((await db.blobs.where('key').anyOf(hashes.map(cloudBlobKey)).primaryKeys()) as string[]);
+  const fetched: { key: string; blob: Blob }[] = [];
+  for (const h of hashes) {
+    if (have.has(cloudBlobKey(h))) continue;
+    const blob = await be.download(filePath(tripId, h));
+    const mime = inc.docs.find((d) => d.fileHash === h)?.mime ?? (h === inc.trip.coverHash ? inc.trip.coverMime : undefined);
+    fetched.push({ key: cloudBlobKey(h), blob: mime && !blob.type ? new Blob([blob], { type: mime }) : blob });
+  }
+
+  await db.transaction('rw', [db.trips, db.days, db.items, db.docs, db.blobs, db.itemStates, db.expenses, db.cloudBases], async () => {
+    const ts = now();
+    const existing = await db.trips.get(tripId);
+    const base = await db.cloudBases.get(tripId);
+    const local = existing
+      ? {
+          days: await db.days.where('tripId').equals(tripId).toArray(),
+          items: await db.items.where('tripId').equals(tripId).toArray(),
+        }
+      : { days: [], items: [] };
+    const m = mergeSnapshot(base?.snapshot, local, inc, choices);
+
+    // 旅程资料：一律跟主用户（含预算）；主题、出发时刻提醒等个人设置保留
+    const t = inc.trip;
+    const trip: Trip = {
+      ...(existing ?? { id: tripId, translate: t.translate ?? DEFAULT_TRANSLATE, importedAt: ts, sourceMd: '' }),
+      id: tripId,
+      title: t.title,
+      startDate: t.startDate,
+      endDate: t.endDate,
+      homeTz: t.homeTz,
+      destination: t.destination,
+      budget: t.budget,
+      participants: t.participants,
+      departTime: t.departTime,
+      translate: t.translate ?? existing?.translate ?? DEFAULT_TRANSLATE,
+      coverBlobKey: t.coverHash ? cloudBlobKey(t.coverHash) : existing?.coverBlobKey?.startsWith('cloud:') ? undefined : existing?.coverBlobKey,
+      cloud: { role: 'member', version: v.version, ownerEmail: meta.ownerEmail ?? existing?.cloud?.ownerEmail, syncedAt: ts },
+      updatedAt: ts,
+    } as Trip;
+    if (!trip.coverBlobKey) delete trip.coverBlobKey;
+
+    for (const f of fetched) await db.blobs.put(f);
+
+    // 每天、每一项整份换成合并结果
+    await db.days.bulkDelete(local.days.map((d) => d.id));
+    await db.items.bulkDelete(local.items.map((i) => i.id));
+    await db.days.bulkPut(m.days.map((d) => ({ ...d, tripId })));
+
+    // 共享资料：主用户的 key → 合并后的 key（按 id 对应）
+    const finalKeyById = new Map(m.items.map((i) => [i.id, i.key]));
+    const incKeyMap = new Map<string, string>();
+    for (const it of inc.items) {
+      const k = finalKeyById.get(it.id);
+      if (k) incKeyMap.set(it.key, k);
+    }
+    const remapLocal = (k: string) => m.keyMap[k] ?? k;
+    const alive = new Set(m.items.map((i) => i.key));
+
+    // 完成勾选跟着 key 走
+    const states = await db.itemStates.where('tripId').equals(tripId).toArray();
+    const moved = states.filter((s) => m.keyMap[s.itemKey]);
+    await db.itemStates.bulkDelete(moved.map((s) => [tripId, s.itemKey] as [string, string]));
+    await db.itemStates.bulkPut(moved.map((s) => ({ ...s, itemKey: m.keyMap[s.itemKey], updatedAt: ts })));
+    for (const e of await db.expenses.where('tripId').equals(tripId).toArray()) {
+      if (e.itemKey && m.keyMap[e.itemKey]) await db.expenses.update(e.id, { itemKey: m.keyMap[e.itemKey], updatedAt: ts });
+    }
+
+    // 证明资料：自己的保留并迁移 key；主用户的按版本增删改
+    const localDocs = await db.docs.where('tripId').equals(tripId).toArray();
+    for (const d of localDocs) {
+      if (d.fromCloud) continue;
+      const keys = d.itemKeys.map(remapLocal).filter((k) => alive.has(k));
+      if (keys.join('|') !== d.itemKeys.join('|')) await db.docs.update(d.id, { itemKeys: keys, updatedAt: ts });
+    }
+    const incIds = new Set(inc.docs.map((d) => d.id));
+    for (const d of localDocs) if (d.fromCloud && !incIds.has(d.id)) await db.docs.delete(d.id);
+    const docs: Doc[] = inc.docs.map(({ fileHash, ...d }) => ({
+      ...d,
+      tripId,
+      blobKey: fileHash ? cloudBlobKey(fileHash) : `link:${d.id}`,
+      mime: fileHash ? d.mime : d.url ? LINK_MIME : d.mime,
+      itemKeys: d.itemKeys.map((k) => incKeyMap.get(k)).filter((k): k is string => !!k),
+      fromCloud: true,
+    }));
+    await db.docs.bulkPut(docs);
+
+    // 原文写回（含自己保留的修改），每项的原文行号跟着更新
+    const { md, src } = tripToMd(trip, m.days, m.items);
+    trip.sourceMd = md;
+    await db.items.bulkPut(m.items.map((it: Item) => ({ ...it, tripId, src: src.get(it.id) ?? it.src })));
+    await db.trips.put(trip);
+    await db.cloudBases.put({ tripId, version: v.version, snapshot: inc, savedAt: ts });
+  });
+}
+
+export async function myInvites(): Promise<CloudInvite[]> {
+  const be = await backend();
+  if (!(await be.getSession())) return [];
+  return be.myInvites();
+}
+
+/** 接受邀请：加入后下载最新版本建成本机旅程 */
+export async function joinTrip(inv: CloudInvite): Promise<string> {
+  const be = await backend();
+  const tripId = await be.acceptInvite(inv.id);
+  const v = await be.fetchVersion(tripId);
+  if (!v) throw new Error('主用户还没有发布任何版本');
+  await applyUpdate(tripId, v, {}, { ownerEmail: inv.inviterEmail });
+  return tripId;
+}
+
+/** 同伴：哪些旅程有新版本 */
+export async function checkUpdates(): Promise<Record<string, { version: number; note?: string; important: boolean }>> {
+  const be = await backend();
+  if (!(await be.getSession())) return {};
+  const trips = (await db.trips.toArray()).filter((t) => t.cloud?.role === 'member');
+  if (!trips.length) return {};
+  const info = await be.latest(trips.map((t) => t.id));
+  const out: Record<string, { version: number; note?: string; important: boolean }> = {};
+  for (const i of info) {
+    const t = trips.find((x) => x.id === i.id);
+    if (t && i.version > (t.cloud?.version ?? 0)) out[i.id] = { version: i.version, note: i.note, important: i.important };
+  }
+  return out;
+}
+
+/** 同伴退出 / 被移除后：本机这份旅程变回普通旅程（资料保留） */
+export async function detachLocal(tripId: string): Promise<void> {
+  await db.transaction('rw', db.trips, db.cloudBases, db.docs, async () => {
+    const t = await db.trips.get(tripId);
+    if (!t) return;
+    const { cloud: _c, ...rest } = t;
+    void _c;
+    await db.trips.put({ ...rest, updatedAt: now() });
+    await db.cloudBases.delete(tripId);
+    for (const d of await db.docs.where('tripId').equals(tripId).toArray()) {
+      if (d.fromCloud) await db.docs.update(d.id, { fromCloud: undefined });
+    }
+  });
+}
+
+export const newTripId = () => uuid();

@@ -1,5 +1,5 @@
 import { zipSync, unzipSync, strToU8, strFromU8 } from 'fflate';
-import { db } from './schema';
+import { db, type CloudBase } from './schema';
 import { uuid } from './uuid';
 import type { TripTheme } from '../domain/types';
 import type { ParseResult } from '../importer/parseMd';
@@ -75,25 +75,42 @@ export async function saveImport(
       participants: result.trip.participants ?? existing?.participants,
       theme: existing?.theme,
       departTime: existing?.departTime,
+      ...(existing?.cloud ? { cloud: existing.cloud } : {}),
       sourceMd,
       importedAt: ts,
       updatedAt: ts,
     };
 
+    // 2026-10-18：重新导入时，同一项（key 相同或确认改名）沿用原来的 id、同一天沿用原来的 day id，
+    // 这样同步时能认出「是同一项改了」而不是「删了一项又加了一项」
+    const oldIdByKey = new Map<string, string>();
+    const oldDayIdByIndex = new Map<number, string>();
     if (existing) {
-      const oldDays = await db.days.where('tripId').equals(tripId).primaryKeys();
-      await db.days.bulkDelete(oldDays);
-      const oldItems = await db.items.where('tripId').equals(tripId).primaryKeys();
-      await db.items.bulkDelete(oldItems);
+      const oldDays = await db.days.where('tripId').equals(tripId).toArray();
+      for (const d of oldDays) oldDayIdByIndex.set(d.index, d.id);
+      await db.days.bulkDelete(oldDays.map((d) => d.id));
+      const oldItems = await db.items.where('tripId').equals(tripId).toArray();
+      for (const it of oldItems) oldIdByKey.set(it.key, it.id);
+      await db.items.bulkDelete(oldItems.map((i) => i.id));
     }
+    const renamedFrom = new Map(Object.entries(renames).map(([o, n]) => [n, o]));
+    const usedIds = new Set<string>();
+    const idFor = (key: string) => {
+      const old = oldIdByKey.get(key) ?? oldIdByKey.get(renamedFrom.get(key) ?? '');
+      if (old && !usedIds.has(old)) {
+        usedIds.add(old);
+        return old;
+      }
+      return uuid();
+    };
 
     const days: Day[] = [];
     const items: Item[] = [];
     for (const d of result.days) {
-      const dayId = uuid();
+      const dayId = oldDayIdByIndex.get(d.index) ?? uuid();
       days.push({ id: dayId, tripId, index: d.index, date: d.date, tz: d.tz, city: d.city, title: d.title, note: d.note });
       for (const it of d.items) {
-        items.push({ ...it, id: uuid(), tripId, dayId });
+        items.push({ ...it, id: idFor(it.key), tripId, dayId });
       }
     }
     await db.trips.put(trip);
@@ -397,8 +414,9 @@ export async function setTripTheme(tripId: string, theme: TripTheme): Promise<vo
 }
 
 export async function deleteTrip(tripId: string): Promise<void> {
-  await db.transaction('rw', [db.trips, db.days, db.items, db.docs, db.blobs, db.itemStates, db.settings, db.expenses, db.outfits, db.packItems, db.packChecks], async () => {
+  await db.transaction('rw', [db.trips, db.days, db.items, db.docs, db.blobs, db.itemStates, db.settings, db.expenses, db.outfits, db.packItems, db.packChecks, db.cloudBases], async () => {
     const trip = await db.trips.get(tripId);
+    await db.cloudBases.delete(tripId);
     await db.expenses.where('tripId').equals(tripId).delete();
     // 穿搭、打包清单跟着旅程删；衣橱是所有旅程共用的，保留
     await db.outfits.where('tripId').equals(tripId).delete();
@@ -442,6 +460,8 @@ interface BackupJson {
   outfits?: Outfit[];
   packItems?: PackItem[];
   packChecks?: PackCheck[];
+  /** 2026-10-18 v4：同步基准版本 */
+  cloudBases?: CloudBase[];
   trips: Trip[];
   days: Day[];
   items: Item[];
@@ -483,8 +503,9 @@ export async function exportBackup(): Promise<Blob> {
     db.packItems.toArray(),
     db.packChecks.toArray(),
   ]);
+  const cloudBases = await db.cloudBases.toArray();
   return zipBackup(
-    { scope: 'all', attachments: true, trips, days, items, docs, itemStates, settings, expenses, garments, outfits, packItems, packChecks },
+    { scope: 'all', attachments: true, trips, days, items, docs, itemStates, settings, expenses, garments, outfits, packItems, packChecks, cloudBases },
     blobs,
   );
 }
@@ -556,6 +577,7 @@ export async function exportTripPackage(tripId: string, opts: { attachments: boo
       outfits,
       packItems,
       packChecks,
+      cloudBases: (await db.cloudBases.where('tripId').equals(tripId).toArray()),
     },
     blobs,
   );
@@ -575,8 +597,9 @@ export async function restoreBackupDetailed(file: Blob): Promise<RestoreResult> 
   if (!raw) throw new Error('不是有效的备份文件');
   const json = JSON.parse(strFromU8(raw)) as BackupJson;
   if (json.app !== 'travel-rundown') throw new Error('不是有效的备份文件');
-  await db.transaction('rw', [db.trips, db.days, db.items, db.docs, db.blobs, db.itemStates, db.settings, db.expenses, db.garments, db.outfits, db.packItems, db.packChecks], async () => {
+  await db.transaction('rw', [db.trips, db.days, db.items, db.docs, db.blobs, db.itemStates, db.settings, db.expenses, db.garments, db.outfits, db.packItems, db.packChecks, db.cloudBases], async () => {
     await db.trips.bulkPut(json.trips);
+    if (json.cloudBases?.length) await db.cloudBases.bulkPut(json.cloudBases);
     if (json.expenses?.length) await db.expenses.bulkPut(json.expenses);
     if (json.garments?.length) await db.garments.bulkPut(json.garments);
     if (json.outfits?.length) await db.outfits.bulkPut(json.outfits);

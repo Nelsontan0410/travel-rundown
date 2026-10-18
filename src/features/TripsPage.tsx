@@ -10,6 +10,7 @@ import { fmtDateRange, isIsoDate, nowIn } from '../domain/format';
 import { deleteTrip, setLastTrip } from '../db/repo';
 import { toast } from '../store/ui';
 import { importFile, restoreFromFile } from './importFlow';
+import { InvitesCard } from './CloudParts';
 import type { Trip } from '../domain/types';
 
 /** 排序：没结束的旅程按开始日期升序排前面，已结束的按开始日期降序排后面 */
@@ -53,6 +54,10 @@ export default function TripsPage() {
           获取导入模板
         </Button>
       </Card>
+
+      <div className={p.mt12}>
+        <InvitesCard />
+      </div>
 
       {trips && trips.length > 0 ? (
         <>
@@ -120,7 +125,7 @@ export default function TripsPage() {
         open={about}
         onClose={() => setAbout(false)}
         title="旅程 Rundown"
-        text="V1 · 所有行程和证明只保存在这台设备上。"
+        text="行程和证明保存在这台设备上，没网也能用。开启同步后，主用户发布的版本和共享文件会存到云端，供被邀请的同伴下载。"
         actions={
           <Button variant="outline" onClick={() => setAbout(false)}>
             知道了
