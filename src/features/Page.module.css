@@ -111,3 +111,19 @@
 .editRow > * { min-width: 0; }
 .dayTools { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-2); }
 .editLink { margin-top: var(--space-2); }
+
+/* 2026-10-18 同步 */
+.cloudCard { padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-2); }
+.cloudHead { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-2); flex-wrap: wrap; }
+.cloudTitle { font-family: var(--font-serif); font-size: var(--fs-card); font-weight: 600; }
+.cloudWho { font-size: var(--fs-small); color: var(--color-text-2); overflow-wrap: anywhere; }
+.inviteRow { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) 0; border-top: var(--border-w) solid var(--color-hairline); }
+.inviteText { flex: 1; min-width: 0; }
+.inviteTitle { font-size: var(--fs-body); color: var(--color-text); overflow-wrap: anywhere; }
+.inviteForm { display: flex; gap: var(--space-2); align-items: center; margin-top: var(--space-2); }
+.inviteForm > :first-child { flex: 1; min-width: 0; }
+.diffList { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.diffList li { display: flex; align-items: flex-start; gap: var(--space-2); }
+.diffText { font-size: var(--fs-body); color: var(--color-text); overflow-wrap: anywhere; min-width: 0; }
+.diffFields { color: var(--color-text-2); font-size: var(--fs-small); }
+.conflictCols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-3); padding: var(--space-2) 0; }
