@@ -194,6 +194,17 @@ export function SyncSection({ trip }: { trip: Trip }) {
   useEffect(() => {
     void load();
   }, [session?.userId, trip.cloud?.version, trip.updatedAt]); // eslint-disable-line react-hooks/exhaustive-deps
+  // 主用户开着这一页时：回到前台或每 20 秒刷新一次同伴名单（同伴刚加入就能看到）
+  useEffect(() => {
+    if (!isOwner || !session) return;
+    const tick = () => document.visibilityState === 'visible' && void load();
+    document.addEventListener('visibilitychange', tick);
+    const t = setInterval(tick, 20_000);
+    return () => {
+      document.removeEventListener('visibilitychange', tick);
+      clearInterval(t);
+    };
+  }, [isOwner, session?.userId, trip.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!trip.cloud) {
     const start = async () => {
