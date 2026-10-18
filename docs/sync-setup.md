@@ -5,8 +5,10 @@
 ## 一次性设置（约 5 分钟）
 
 1. **建表和权限**：Supabase 后台 → SQL Editor → New query → 把 `supabase/schema.sql` 整段贴上 → Run。可以重复运行。
-2. **登录方式改成 6 位验证码**（PWA 装到主屏幕后，点邮件里的链接会跳去浏览器，所以用验证码）：
-   Authentication → Emails（Email Templates）→ 分别打开 **Magic Link** 和 **Confirm signup** 两个模板，把内容换成（或加上）：
+2. **（可选）登录方式改成 6 位验证码**（PWA 装到主屏幕后，点邮件里的链接会跳去浏览器，所以验证码更顺）。
+   Supabase 免费版用自带发信时**不能改模板**，要先在 Authentication → Emails → SMTP Settings 接自己的发信服务（例如 Gmail 应用专用密码、Brevo、Resend）。
+   不改也能用：默认邮件是登录链接，在要登录的那台设备、那个浏览器里点链接即可。
+   接好 SMTP 后：Authentication → Emails → 分别打开 **Magic Link** 和 **Confirm signup** 两个模板，把内容换成（或加上）：
    ```html
    <h2>旅程同步登录</h2>
    <p>你的验证码：<strong>{{ .Token }}</strong></p>

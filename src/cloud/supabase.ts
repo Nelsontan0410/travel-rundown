@@ -28,7 +28,7 @@ const toInvite = (r: InviteRow): CloudInvite => ({
 
 export function createSupabaseBackend(): CloudBackend {
   const sb: SupabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY, {
-    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, storageKey: 'trip-sync-auth' },
+    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: 'implicit', storageKey: 'trip-sync-auth' },
   });
 
   return {
@@ -41,7 +41,7 @@ export function createSupabaseBackend(): CloudBackend {
       return () => data.subscription.unsubscribe();
     },
     async sendCode(email) {
-      const { error } = await sb.auth.signInWithOtp({ email: email.trim().toLowerCase(), options: { shouldCreateUser: true } });
+      const { error } = await sb.auth.signInWithOtp({ email: email.trim().toLowerCase(), options: { shouldCreateUser: true, emailRedirectTo: `${location.origin}/` } });
       if (error) throw new Error(error.message);
     },
     async verifyCode(email, code) {

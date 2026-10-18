@@ -16,7 +16,7 @@ import type { Trip } from '../domain/types';
 
 export const openLogin = () => useCloud.setState({ loginOpen: true });
 
-/** 登录：邮箱 → 6 位验证码。全局挂一个 */
+/** 登录：邮箱 → 6 位验证码（邮件模板没改时只有链接，点链接回来也能登录）。全局挂一个 */
 export function LoginSheet() {
   const open = useCloud((s) => s.loginOpen);
   const [email, setEmail] = useState('');
@@ -72,7 +72,7 @@ export function LoginSheet() {
           <TextInput type="email" inputMode="email" autoComplete="email" value={email} disabled={sent} placeholder="you@example.com" onChange={(e) => setEmail(e.target.value)} />
         </Field>
         {sent && (
-          <Field label="验证码" hint={`已发到 ${email.trim()}，几分钟内有效。没收到可以看看垃圾邮件。`} error={err || undefined}>
+          <Field label="验证码" hint={`已发到 ${email.trim()}，几分钟内有效。邮件里如果只有链接没有数字，在这台设备上点链接也能登录。没收到可以看看垃圾邮件。`} error={err || undefined}>
             <TextInput inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code} placeholder="6 位数字" onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} />
           </Field>
         )}

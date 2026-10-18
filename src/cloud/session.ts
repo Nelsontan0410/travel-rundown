@@ -15,7 +15,11 @@ function markUsed() {
   }
 }
 
+/** 点邮件里的登录链接回来时，网址后面带着登录信息 */
+const fromLoginLink = () => /access_token=|error_description=/.test(location.hash);
+
 async function everUsed(): Promise<boolean> {
+  if (fromLoginLink()) return true;
   try {
     if (localStorage.getItem(USED_KEY)) return true;
   } catch {
