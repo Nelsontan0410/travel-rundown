@@ -17,7 +17,7 @@ import OutfitsPage from './features/OutfitsPage';
 import TodayPage from './features/TodayPage';
 import ItemEditPage from './features/ItemEditPage';
 import UpdatePage from './features/UpdatePage';
-import { LoginSheet } from './features/CloudParts';
+import JoinPage from './features/JoinPage';
 import { initCloud } from './cloud/session';
 import StoryPage from './features/StoryPage';
 import CreditsPage from './features/CreditsPage';
@@ -35,7 +35,7 @@ function ThemeBase() {
   return theme ? <AppThemeBase theme={theme} /> : null;
 }
 
-/** 2026-10-18：用过同步的才在启动时恢复登录、检查新版本 */
+/** 2026-10-18：用过同步的才在启动时恢复同步身份、检查新版本 */
 function CloudBoot() {
   useEffect(() => {
     void initCloud();
@@ -55,7 +55,6 @@ export default function App() {
       <ScrollTop />
       <ThemeBase />
       <CloudBoot />
-      <LoginSheet />
       <UpdateBanner />
       <RestoreConfirm />
       <Routes>
@@ -67,6 +66,7 @@ export default function App() {
         <Route path="/item/:itemId/edit" element={<ItemEditPage />} />
         <Route path="/trip/:tripId/add" element={<ItemEditPage />} />
         <Route path="/trip/:tripId/update" element={<UpdatePage />} />
+        <Route path="/join/:code" element={<JoinPage />} />
         <Route path="/docs" element={<DocsPage />} />
         <Route path="/trip/:tripId/settings" element={<TripSettingsPage />} />
         <Route path="/trip/:tripId/ledger" element={<LedgerPage />} />

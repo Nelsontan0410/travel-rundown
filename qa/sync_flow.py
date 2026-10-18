@@ -7,7 +7,6 @@ HERE = os.path.dirname(os.path.abspath(__file__)); ROOT = os.path.dirname(HERE)
 PORT = 4197; BASE = f'http://localhost:{PORT}'
 OUT = sys.argv[1] if len(sys.argv) > 1 else os.path.join(tempfile.gettempdir(), 'syncshots'); os.makedirs(OUT, exist_ok=True)
 md = open(os.path.join(HERE, 'sample-v2.md'), encoding='utf-8').read()
-OWNER, MATE = 'owner@example.com', 'mate@example.com'
 
 # ———— 模拟后端 ————
 S = {'trips': {}, 'members': [], 'invites': [], 'versions': [], 'files': {}}
@@ -16,14 +15,13 @@ def ts(): return f'2026-10-18T00:00:{next(seq):02d}.000Z'
 def is_member(me, t): return any(m['tripId'] == t and m['userId'] == me for m in S['members'])
 def is_owner(me, t): return t in S['trips'] and S['trips'][t]['owner'] == me
 
-def handle(me, email, name, a):
-    if name in ('sendCode',): return None
+def handle(me, name, a):
     if not me: raise Exception('请先登录')
     if name == 'createTrip':
-        tid, title = a
+        tid, title, nm = a
         if tid not in S['trips']:
             S['trips'][tid] = {'owner': me, 'title': title, 'version': 0, 'note': None, 'important': False, 'updatedAt': ts()}
-            S['members'].append({'tripId': tid, 'userId': me, 'email': email, 'role': 'owner'})
+            S['members'].append({'tripId': tid, 'userId': me, 'name': nm, 'role': 'owner'})
         return None
     if name == 'publish':
         tid, note, important, snap, title = a
@@ -40,31 +38,39 @@ def handle(me, email, name, a):
         r = next((x for x in vs if x['version'] == v), None) if v else (vs[-1] if vs else None)
         return r and {k: r[k] for k in ('version', 'note', 'important', 'snapshot', 'createdAt')}
     if name == 'members':
-        return [{'userId': m['userId'], 'email': m['email'], 'role': m['role']} for m in S['members'] if m['tripId'] == a[0]] if is_member(me, a[0]) else []
+        return [{'userId': m['userId'], 'name': m['name'], 'role': m['role']} for m in S['members'] if m['tripId'] == a[0]] if is_member(me, a[0]) else []
     if name == 'tripInvites':
-        return [i for i in S['invites'] if i['tripId'] == a[0]] if is_owner(me, a[0]) else []
-    if name == 'invite':
-        tid, e = a
+        return [{k: i[k] for k in ('id', 'tripId', 'code', 'name', 'acceptedAt', 'createdAt')} for i in S['invites'] if i['tripId'] == a[0]] if is_owner(me, a[0]) else []
+    if name == 'createInvite':
+        tid, nm = a
         if not is_owner(me, tid): raise Exception('只有主用户可以邀请')
-        S['invites'] = [i for i in S['invites'] if not (i['tripId'] == tid and i['email'] == e)]
-        S['invites'].append({'id': f'inv{next(seq)}', 'tripId': tid, 'tripTitle': S['trips'][tid]['title'], 'email': e, 'inviterEmail': email, 'createdAt': ts()})
-        return None
+        code = f'QACODE{next(seq):04d}'
+        inviter = next((m['name'] for m in S['members'] if m['tripId'] == tid and m['userId'] == me), None)
+        S['invites'].append({'id': f'inv{next(seq)}', 'tripId': tid, 'code': code, 'name': nm, 'inviterName': inviter, 'acceptedAt': None, 'acceptedBy': None, 'createdAt': ts()})
+        return code
     if name == 'revokeInvite':
         S['invites'] = [i for i in S['invites'] if not (i['id'] == a[0] and is_owner(me, i['tripId']))]; return None
     if name == 'removeMember':
         tid, uid = a
         if not is_owner(me, tid): raise Exception('只有主用户可以移除成员')
-        gone = [m for m in S['members'] if m['tripId'] == tid and m['userId'] == uid and m['role'] == 'member']
-        S['members'] = [m for m in S['members'] if m not in gone]
-        S['invites'] = [i for i in S['invites'] if not (i['tripId'] == tid and any(g['email'] == i['email'] for g in gone))]
+        S['members'] = [m for m in S['members'] if not (m['tripId'] == tid and m['userId'] == uid and m['role'] == 'member')]
+        S['invites'] = [i for i in S['invites'] if not (i['tripId'] == tid and i['acceptedBy'] == uid)]
         return None
-    if name == 'myInvites':
-        return [i for i in S['invites'] if i['email'] == email and not i.get('acceptedAt')]
-    if name == 'acceptInvite':
-        inv = next((i for i in S['invites'] if i['id'] == a[0] and i['email'] == email), None)
-        if not inv: raise Exception('邀请不存在或不是发给你的')
-        if not is_member(me, inv['tripId']): S['members'].append({'tripId': inv['tripId'], 'userId': me, 'email': email, 'role': 'member'})
-        inv['acceptedAt'] = ts(); return inv['tripId']
+    if name == 'peekInvite':
+        c = a[0].upper().replace('-', '').replace(' ', '')
+        inv = next((i for i in S['invites'] if i['code'] == c), None)
+        if not inv: return None
+        t = S['trips'][inv['tripId']]
+        return {'tripId': inv['tripId'], 'tripTitle': t['title'], 'inviterName': inv['inviterName'], 'name': inv['name'],
+                'usable': (inv['acceptedBy'] in (None, me)) and t['owner'] != me, 'mine': t['owner'] == me or inv['acceptedBy'] == me}
+    if name == 'joinWithCode':
+        c, nm = a
+        c = c.upper().replace('-', '').replace(' ', '')
+        inv = next((i for i in S['invites'] if i['code'] == c), None)
+        if not inv: raise Exception('邀请码不对，或者已被主用户撤回')
+        if inv['acceptedBy'] not in (None, me): raise Exception('这个邀请码已经在别的手机上用过了，请主用户重新生成')
+        if not is_member(me, inv['tripId']): S['members'].append({'tripId': inv['tripId'], 'userId': me, 'name': nm, 'role': 'member'})
+        inv['acceptedAt'] = inv['acceptedAt'] or ts(); inv['acceptedBy'] = me; return inv['tripId']
     if name == 'leaveTrip':
         S['members'] = [m for m in S['members'] if not (m['tripId'] == a[0] and m['userId'] == me and m['role'] == 'member')]; return None
     if name == 'upload':
@@ -81,7 +87,7 @@ def handle(me, email, name, a):
 def binding(source, payload):
     req = json.loads(payload)
     try:
-        return json.dumps({'ok': handle(req['me'], req['email'], req['name'], req['args'])})
+        return json.dumps({'ok': handle(req['me'], req['name'], req['args'])})
     except Exception as e:
         return json.dumps({'err': str(e)})
 
@@ -92,32 +98,30 @@ FAKE_JS = r'''
   const listeners = new Set();
   const call = async (name, args) => {
     const s = get();
-    const r = JSON.parse(await window.__cloudCall(JSON.stringify({ me: s && s.userId, email: s && s.email, name, args })));
+    const r = JSON.parse(await window.__cloudCall(JSON.stringify({ me: s && s.userId, name, args })));
     if (r.err) throw new Error(r.err);
     return r.ok;
   };
   const b64 = (blob) => new Promise((res) => { const fr = new FileReader(); fr.onload = () => res(String(fr.result).split(',')[1] || ''); fr.readAsDataURL(blob); });
   window.__CLOUD_FAKE__ = {
     async getSession() { return get(); },
-    onSessionChange(cb) { listeners.add(cb); return () => listeners.delete(cb); },
-    async sendCode(email) { await call('sendCode', [email]); },
-    async verifyCode(email, code) {
-      if (code !== '123456') throw new Error('Token has expired or is invalid');
-      const s = { userId: 'u:' + email.toLowerCase(), email: email.toLowerCase() };
-      localStorage.setItem(K, JSON.stringify(s)); listeners.forEach((l) => l(s)); return s;
+    async ensureSession() {
+      let s = get();
+      if (!s) { s = { userId: 'u:' + Math.random().toString(36).slice(2) }; localStorage.setItem(K, JSON.stringify(s)); listeners.forEach((l) => l(s)); }
+      return s;
     },
-    async signOut() { localStorage.removeItem(K); listeners.forEach((l) => l(null)); },
-    createTrip: (id, title) => call('createTrip', [id, title]),
+    onSessionChange(cb) { listeners.add(cb); return () => listeners.delete(cb); },
+    createTrip: (id, title, name) => call('createTrip', [id, title, name]),
     publish: (t, n, i, snap, title) => call('publish', [t, n, i, snap, title]),
     latest: (ids) => call('latest', [ids]),
     fetchVersion: (t, v) => call('fetchVersion', [t, v ?? null]),
     members: (t) => call('members', [t]),
     tripInvites: (t) => call('tripInvites', [t]),
-    invite: (t, e) => call('invite', [t, e]),
+    createInvite: (t, n) => call('createInvite', [t, n]),
     revokeInvite: (i) => call('revokeInvite', [i]),
     removeMember: (t, u) => call('removeMember', [t, u]),
-    myInvites: () => call('myInvites', []),
-    acceptInvite: (i) => call('acceptInvite', [i]),
+    peekInvite: (c) => call('peekInvite', [c]),
+    joinWithCode: (c, n) => call('joinWithCode', [c, n]),
     leaveTrip: (t) => call('leaveTrip', [t]),
     async upload(path, blob) { await call('upload', [path, await b64(blob), blob.type]); },
     async download(path) {
@@ -130,17 +134,6 @@ FAKE_JS = r'''
 '''
 
 srv = subprocess.Popen(['npx', 'vite', 'preview', '--port', str(PORT), '--strictPort'], cwd=ROOT, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-
-def login(page, email):
-    dlg = page.get_by_role('dialog', name='登录同步')
-    dlg.get_by_placeholder('you@example.com').fill(email)
-    dlg.get_by_role('button', name='发送验证码').click()
-    dlg.get_by_placeholder('6 位数字').fill('000000')
-    dlg.get_by_role('button', name='登录').click()
-    expect(dlg).to_contain_text('验证码不对或已过期')
-    dlg.get_by_placeholder('6 位数字').fill('123456')
-    dlg.get_by_role('button', name='登录').click()
-    expect(page.get_by_role('dialog', name='登录同步')).to_have_count(0)
 
 try:
     for _ in range(60):
@@ -162,23 +155,38 @@ try:
         op.goto(BASE + '/import/paste'); op.locator('textarea').fill(md); op.get_by_text('解析并预览').click()
         op.get_by_role('button', name='确认导入').click(); op.wait_for_url('**/itinerary/**')
         trip = op.url.rsplit('/', 1)[1]
-        op.goto(f'{BASE}/trip/{trip}/settings'); op.wait_for_timeout(400)
-        op.get_by_text('登录同步').click(); login(op, OWNER)
+        # 从旅程页的「邀请同伴」入口进到设置的同步区块
+        op.goto(BASE + '/trips'); op.wait_for_timeout(400)
+        op.get_by_role('button', name=re.compile('邀请同伴看')).click(); op.wait_for_url('**/settings#sync')
+        op.wait_for_timeout(600)
         op.get_by_text('开启同步（成为主用户）').click()
+        dlg = op.get_by_role('dialog', name='开启同步')
+        dlg.get_by_role('button', name='开启并发布第一版').click()
+        expect(op.get_by_text('先填你的名字，同伴会看到')).to_be_visible()
+        dlg.get_by_label('你的名字').fill('阿权'); dlg.get_by_role('button', name='开启并发布第一版').click()
         expect(op.get_by_text('已开启同步，现在可以邀请同伴')).to_be_visible()
         expect(op.get_by_text('v1')).to_be_visible()
-        op.get_by_label('同伴的邮箱').fill(MATE); op.get_by_role('button', name='邀请', exact=True).click()
-        expect(op.get_by_text('已邀请，还没加入')).to_be_visible()
+        op.evaluate('navigator.share = undefined')
+        op.context.grant_permissions(['clipboard-read', 'clipboard-write'])
+        op.get_by_label('同伴的名字').fill('小明'); op.get_by_role('button', name='生成邀请', exact=True).click()
+        expect(op.get_by_text('已复制邀请，可以贴给同伴')).to_be_visible()
+        expect(op.get_by_text(re.compile('还没加入 · 邀请码'))).to_be_visible()
+        shared = op.evaluate('navigator.clipboard.readText()')
+        link = re.search(r'https?://\S+/join/(\w+)', shared); assert link, shared
+        code = link.group(1)
+        assert '阿权 邀请你一起看' in shared, shared
         op.screenshot(path=os.path.join(OUT, '1280-01-owner-settings.png'), full_page=True)
         assert S['trips'][trip]['version'] == 1 and len(S['versions']) == 1
         print('ok owner enable + invite')
 
-        # 同伴：登录、看到邀请、加入
+        # 同伴：在「旅程」页输入邀请码 → 看到旅程 → 填名字加入
         mp.goto(BASE + '/trips'); mp.wait_for_timeout(400)
-        mp.get_by_role('button', name='登录同步').click(); login(mp, MATE)
-        expect(mp.get_by_text(f'{OWNER} 邀请你加入')).to_be_visible()
+        mp.get_by_label('邀请码').fill(code[:5].lower() + '-' + code[5:]); mp.get_by_role('button', name='加入', exact=True).click()
+        mp.wait_for_url('**/join/**')
+        expect(mp.get_by_text('阿权 邀请你一起看这份行程')).to_be_visible()
+        expect(mp.get_by_label('你的名字')).to_have_value('小明')
         mp.screenshot(path=os.path.join(OUT, '390-01-invite.png'), full_page=True)
-        mp.get_by_role('button', name='加入', exact=True).click(); mp.wait_for_url('**/itinerary/**')
+        mp.get_by_role('button', name='加入并下载行程').click(); mp.wait_for_url('**/itinerary/**')
         assert mp.url.endswith(trip)
         mp.get_by_role('tab').nth(1).click(); mp.wait_for_timeout(300)
         mp.get_by_role('checkbox', name='标记完成：小樽运河').click(); mp.wait_for_timeout(300)
@@ -214,7 +222,7 @@ try:
         expect(mp.get_by_role('checkbox', name='取消完成：小樽运河散步')).to_be_visible()
         # 同伴设置：主用户、已套用 v2、没有发布按钮
         mp.goto(f'{BASE}/trip/{trip}/settings'); mp.wait_for_timeout(500)
-        expect(mp.get_by_text(OWNER)).to_be_visible()
+        expect(mp.get_by_text('阿权')).to_be_visible()
         expect(mp.get_by_text('v2')).to_be_visible()
         expect(mp.get_by_text('发布更新')).to_have_count(0)
         mp.screenshot(path=os.path.join(OUT, '390-04-mate-settings.png'), full_page=True)
@@ -222,12 +230,26 @@ try:
 
         # 主用户：成员名单里有同伴；移除后同伴看到提示
         op.goto(f'{BASE}/trip/{trip}/settings'); op.wait_for_timeout(600)
-        expect(op.get_by_text('同伴', exact=True)).to_be_visible()
+        expect(op.get_by_text('小明')).to_be_visible(); expect(op.get_by_text('已加入')).to_be_visible()
+        op.screenshot(path=os.path.join(OUT, '1280-03-members.png'), full_page=True)
         op.get_by_role('button', name='移除').click(); op.get_by_role('button', name='移除', exact=True).last.click()
         expect(op.get_by_text('已移除')).to_be_visible()
         mp.reload(); mp.wait_for_timeout(800)
         expect(mp.get_by_text('你已经不在这份旅程的成员名单里')).to_be_visible()
         print('ok remove member')
+
+        # 第三台手机：用过的邀请码不能再用
+        tc, tp, terr = ctx_for(390, 844)
+        tp.goto(f'{BASE}/join/{code}'); tp.wait_for_timeout(800)
+        expect(tp.get_by_text('这个邀请用不了')).to_be_visible()
+        # 主用户再生成一个，第三台手机能用；同一个在第四台手机上就显示用过了
+        op.get_by_label('同伴的名字').fill('小红'); op.get_by_role('button', name='生成邀请', exact=True).click(); op.wait_for_timeout(500)
+        code2 = re.search(r'/join/(\w+)', op.evaluate('navigator.clipboard.readText()')).group(1)
+        tp.goto(f'{BASE}/join/{code2}'); tp.get_by_role('button', name='加入并下载行程').click(); tp.wait_for_url('**/itinerary/**')
+        fc, fp, ferr = ctx_for(390, 844)
+        fp.goto(f'{BASE}/join/{code2}'); expect(fp.get_by_text('这个邀请已经被用过了')).to_be_visible()
+        assert not terr and not ferr, (terr, ferr)
+        print('ok one code one phone')
 
         for pg in (op, mp):
             assert pg.evaluate('document.documentElement.scrollWidth > innerWidth') is False

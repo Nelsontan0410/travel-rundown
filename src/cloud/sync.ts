@@ -6,7 +6,7 @@ import { uuid } from '../db/uuid';
 import { tripToMd } from '../importer/serialize';
 import { DEFAULT_TRANSLATE, type Doc, type Item, type Trip } from '../domain/types';
 import { isLinkDoc, LINK_MIME } from '../domain/bookings';
-import { backend, type CloudInvite } from './backend';
+import { backend } from './backend';
 import { buildSnapshot, diffSnapshots, type SnapshotDiff, type TripSnapshot } from './snapshot';
 import { localEdits, mergeSnapshot, type Choice, type Conflict } from './merge';
 
@@ -72,14 +72,14 @@ export async function currentSnapshot(tripId: string): Promise<{ snapshot: TripS
 
 // ———————— 主用户 ————————
 
-export async function enableSync(tripId: string): Promise<number> {
+/** 开启同步：这台手机成为主用户。name：自己在同伴那边显示的名字 */
+export async function enableSync(tripId: string, name: string): Promise<number> {
   const be = await backend();
-  const s = await be.getSession();
-  if (!s) throw new Error('请先登录');
+  await be.ensureSession();
   const trip = await db.trips.get(tripId);
   if (!trip) throw new Error('旅程不存在');
-  await be.createTrip(tripId, trip.title);
-  await db.trips.update(tripId, { cloud: { role: 'owner', version: 0, ownerEmail: s.email } });
+  await be.createTrip(tripId, trip.title, name.trim());
+  await db.trips.update(tripId, { cloud: { role: 'owner', version: 0, ownerName: name.trim() || undefined } });
   return publishUpdate(tripId, '第一版', false);
 }
 
@@ -150,7 +150,7 @@ export async function applyUpdate(
   tripId: string,
   v: { version: number; snapshot: TripSnapshot },
   choices: Record<string, Choice> = {},
-  meta: { ownerEmail?: string } = {},
+  meta: { ownerName?: string } = {},
 ): Promise<void> {
   const be = await backend();
   const inc = v.snapshot;
@@ -192,7 +192,7 @@ export async function applyUpdate(
       departTime: t.departTime,
       translate: t.translate ?? existing?.translate ?? DEFAULT_TRANSLATE,
       coverBlobKey: t.coverHash ? cloudBlobKey(t.coverHash) : existing?.coverBlobKey?.startsWith('cloud:') ? undefined : existing?.coverBlobKey,
-      cloud: { role: 'member', version: v.version, ownerEmail: meta.ownerEmail ?? existing?.cloud?.ownerEmail, syncedAt: ts },
+      cloud: { role: 'member', version: v.version, ownerName: meta.ownerName ?? existing?.cloud?.ownerName, syncedAt: ts },
       updatedAt: ts,
     } as Trip;
     if (!trip.coverBlobKey) delete trip.coverBlobKey;
@@ -251,21 +251,22 @@ export async function applyUpdate(
   });
 }
 
-export async function myInvites(): Promise<CloudInvite[]> {
+/** 用邀请码加入：加入后下载最新版本建成本机旅程。返回旅程 id */
+export async function joinWithCode(code: string, name: string): Promise<string> {
   const be = await backend();
-  if (!(await be.getSession())) return [];
-  return be.myInvites();
-}
-
-/** 接受邀请：加入后下载最新版本建成本机旅程 */
-export async function joinTrip(inv: CloudInvite): Promise<string> {
-  const be = await backend();
-  const tripId = await be.acceptInvite(inv.id);
+  await be.ensureSession();
+  const peek = await be.peekInvite(code);
+  const tripId = await be.joinWithCode(code, name.trim());
   const v = await be.fetchVersion(tripId);
   if (!v) throw new Error('主用户还没有发布任何版本');
-  await applyUpdate(tripId, v, {}, { ownerEmail: inv.inviterEmail });
+  await applyUpdate(tripId, v, {}, { ownerName: peek?.inviterName });
   return tripId;
 }
+
+/** 邀请码统一成大写、去掉空格和横线 */
+export const normalizeCode = (c: string) => c.toUpperCase().replace(/[\s-]/g, '');
+/** 显示用：ABCDE-FGHJK */
+export const prettyCode = (c: string) => (c.length === 10 ? `${c.slice(0, 5)}-${c.slice(5)}` : c);
 
 /** 同伴：哪些旅程有新版本 */
 export async function checkUpdates(): Promise<Record<string, { version: number; note?: string; important: boolean }>> {

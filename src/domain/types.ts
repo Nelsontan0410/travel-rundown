@@ -44,8 +44,10 @@ export interface TripCloud {
   role: 'owner' | 'member';
   /** 本机已发布（主用户）/ 已套用（同伴）的版本号 */
   version: number;
-  /** 主用户邮箱（同伴这边显示「由谁管理」） */
+  /** 旧版（邮箱登录）留下的，不再写入 */
   ownerEmail?: string;
+  /** 主用户的名字（同伴这边显示「由谁管理」） */
+  ownerName?: string;
   syncedAt?: string;
 }
 

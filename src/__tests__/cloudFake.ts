@@ -1,59 +1,63 @@
-// 测试用：内存里的模拟同步后端（规则和 supabase/schema.sql 一致：只有主用户能发布 / 邀请，成员才能读）
+// 测试用：内存里的模拟同步后端（规则和 supabase/schema.sql 一致：只有主用户能发布 / 邀请，成员才能读，一个邀请码只给一台手机）
 import type { CloudBackend, CloudInvite, CloudMember, CloudSession, CloudVersion } from '../cloud/backend';
 import type { TripSnapshot } from '../cloud/snapshot';
 
 export interface FakeCloud extends CloudBackend {
-  as(email: string | null): void;
+  /** 换成某台手机（null = 这台手机还没有同步身份） */
+  as(device: string | null): void;
   state: {
     trips: Map<string, { id: string; owner: string; title: string; version: number; note?: string; important: boolean; updatedAt: string }>;
-    members: { tripId: string; userId: string; email: string; role: 'owner' | 'member' }[];
-    invites: CloudInvite[];
+    members: { tripId: string; userId: string; name?: string; role: 'owner' | 'member' }[];
+    invites: (CloudInvite & { acceptedBy?: string; inviterName?: string })[];
     versions: { tripId: string; v: CloudVersion }[];
     files: Map<string, Blob>;
   };
 }
 
 export function fakeCloud(): FakeCloud {
-  let me: CloudSession | null = null;
+  let device: string | null = null;
+  const sessions = new Map<string, CloudSession>();
   const state: FakeCloud['state'] = { trips: new Map(), members: [], invites: [], versions: [], files: new Map() };
   const listeners = new Set<(s: CloudSession | null) => void>();
+  const cur = () => (device ? sessions.get(device) ?? null : null);
   const need = () => {
-    if (!me) throw new Error('请先登录');
-    return me;
+    const s = cur();
+    if (!s) throw new Error('请先登录');
+    return s;
   };
-  const isMember = (t: string) => !!me && state.members.some((m) => m.tripId === t && m.userId === me!.userId);
-  const isOwner = (t: string) => !!me && state.trips.get(t)?.owner === me.userId;
+  const isMember = (t: string) => !!cur() && state.members.some((m) => m.tripId === t && m.userId === cur()!.userId);
+  const isOwner = (t: string) => !!cur() && state.trips.get(t)?.owner === cur()!.userId;
   let n = 0;
   const id = () => `id-${++n}`;
   const ts = () => new Date(Date.UTC(2026, 9, 18, 0, 0, n++)).toISOString();
+  const norm = (c: string) => c.toUpperCase().replace(/[\s-]/g, '');
 
   return {
     state,
-    as(email) {
-      me = email ? { userId: `u:${email}`, email } : null;
-      for (const l of listeners) l(me);
+    as(d) {
+      device = d;
+      for (const l of listeners) l(cur());
     },
     async getSession() {
-      return me;
+      return cur();
+    },
+    async ensureSession() {
+      if (!device) throw new Error('没有手机');
+      if (!sessions.has(device)) sessions.set(device, { userId: `u:${device}` });
+      return sessions.get(device)!;
     },
     onSessionChange(cb) {
       listeners.add(cb);
       return () => listeners.delete(cb);
     },
-    async sendCode() {},
-    async verifyCode(email, code) {
-      if (code !== '123456') throw new Error('Token has expired or is invalid');
-      this.as(email);
-      return me!;
-    },
-    async signOut() {
-      this.as(null);
-    },
-    async createTrip(tid, title) {
+    async createTrip(tid, title, name) {
       const s = need();
-      if (state.trips.has(tid)) return;
+      if (state.trips.has(tid)) {
+        if (state.trips.get(tid)!.owner !== s.userId) throw new Error('这份旅程已经属于别人');
+        return;
+      }
       state.trips.set(tid, { id: tid, owner: s.userId, title, version: 0, important: false, updatedAt: ts() });
-      state.members.push({ tripId: tid, userId: s.userId, email: s.email, role: 'owner' });
+      state.members.push({ tripId: tid, userId: s.userId, name: name || undefined, role: 'owner' });
     },
     async publish(tid, note, important, snapshot: TripSnapshot, title) {
       if (!isOwner(tid)) throw new Error('只有主用户可以发布更新');
@@ -77,39 +81,52 @@ export function fakeCloud(): FakeCloud {
     },
     async members(tid): Promise<CloudMember[]> {
       if (!isMember(tid)) return [];
-      return state.members.filter((m) => m.tripId === tid).map(({ userId, email, role }) => ({ userId, email, role }));
+      return state.members.filter((m) => m.tripId === tid).map(({ userId, name, role }) => ({ userId, name, role }));
     },
     async tripInvites(tid) {
-      return isOwner(tid) ? state.invites.filter((i) => i.tripId === tid) : [];
+      return isOwner(tid) ? state.invites.filter((i) => i.tripId === tid).map(({ acceptedBy: _a, inviterName: _i, ...i }) => i) : [];
     },
-    async invite(tid, email) {
+    async createInvite(tid, name) {
       const s = need();
       if (!isOwner(tid)) throw new Error('只有主用户可以邀请');
-      if (email === s.email) throw new Error('不能邀请自己');
-      state.invites = state.invites.filter((i) => !(i.tripId === tid && i.email === email));
-      state.invites.push({ id: id(), tripId: tid, tripTitle: state.trips.get(tid)!.title, email, inviterEmail: s.email, createdAt: ts() });
+      const code = `CODE${String(++n).padStart(6, '0')}`;
+      const inviterName = state.members.find((m) => m.tripId === tid && m.userId === s.userId)?.name;
+      state.invites.push({ id: id(), tripId: tid, code, name: name || undefined, inviterName, createdAt: ts() });
+      return code;
     },
     async revokeInvite(iid) {
       state.invites = state.invites.filter((i) => !(i.id === iid && isOwner(i.tripId)));
     },
     async removeMember(tid, uid) {
       if (!isOwner(tid)) throw new Error('只有主用户可以移除成员');
-      const m = state.members.find((x) => x.tripId === tid && x.userId === uid && x.role === 'member');
-      state.members = state.members.filter((x) => x !== m);
-      if (m) state.invites = state.invites.filter((i) => !(i.tripId === tid && i.email === m.email));
+      state.members = state.members.filter((x) => !(x.tripId === tid && x.userId === uid && x.role === 'member'));
+      state.invites = state.invites.filter((i) => !(i.tripId === tid && i.acceptedBy === uid));
     },
-    async myInvites() {
+    async peekInvite(code) {
       const s = need();
-      return state.invites.filter((i) => i.email === s.email && !i.acceptedAt);
+      const inv = state.invites.find((i) => i.code === norm(code));
+      if (!inv) return null;
+      const t = state.trips.get(inv.tripId)!;
+      return {
+        tripId: inv.tripId,
+        tripTitle: t.title,
+        inviterName: inv.inviterName,
+        name: inv.name,
+        usable: (!inv.acceptedBy || inv.acceptedBy === s.userId) && t.owner !== s.userId,
+        mine: t.owner === s.userId || inv.acceptedBy === s.userId,
+      };
     },
-    async acceptInvite(iid) {
+    async joinWithCode(code, name) {
       const s = need();
-      const inv = state.invites.find((i) => i.id === iid && i.email === s.email);
-      if (!inv) throw new Error('邀请不存在或不是发给你的');
-      if (!state.members.some((m) => m.tripId === inv.tripId && m.userId === s.userId)) {
-        state.members.push({ tripId: inv.tripId, userId: s.userId, email: s.email, role: 'member' });
-      }
-      inv.acceptedAt = ts();
+      const inv = state.invites.find((i) => i.code === norm(code));
+      if (!inv) throw new Error('邀请码不对，或者已被主用户撤回');
+      if (isOwner(inv.tripId)) throw new Error('这是你自己的旅程');
+      if (inv.acceptedBy && inv.acceptedBy !== s.userId) throw new Error('这个邀请码已经在别的手机上用过了，请主用户重新生成');
+      const m = state.members.find((x) => x.tripId === inv.tripId && x.userId === s.userId);
+      if (m) m.name = name || inv.name;
+      else state.members.push({ tripId: inv.tripId, userId: s.userId, name: name || inv.name, role: 'member' });
+      inv.acceptedAt ??= ts();
+      inv.acceptedBy = s.userId;
       return inv.tripId;
     },
     async leaveTrip(tid) {

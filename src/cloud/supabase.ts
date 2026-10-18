@@ -12,51 +12,42 @@ function must<T>(r: { data: T; error: { message: string } | null }): T {
   return r.data;
 }
 
-const toSession = (u: { id: string; email?: string } | null | undefined): CloudSession | null =>
-  u ? { userId: u.id, email: (u.email ?? '').toLowerCase() } : null;
+const toSession = (u: { id: string } | null | undefined): CloudSession | null => (u ? { userId: u.id } : null);
 
-type InviteRow = { id: string; trip_id: string; trip_title: string; email: string; inviter_email: string | null; accepted_at: string | null; created_at: string };
+type InviteRow = { id: string; trip_id: string; code: string | null; name: string | null; accepted_at: string | null; created_at: string };
 const toInvite = (r: InviteRow): CloudInvite => ({
   id: r.id,
   tripId: r.trip_id,
-  tripTitle: r.trip_title,
-  email: r.email,
-  inviterEmail: r.inviter_email ?? undefined,
+  code: r.code ?? '',
+  name: r.name ?? undefined,
   acceptedAt: r.accepted_at ?? undefined,
   createdAt: r.created_at,
 });
 
 export function createSupabaseBackend(): CloudBackend {
   const sb: SupabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY, {
-    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: 'implicit', storageKey: 'trip-sync-auth' },
+    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, storageKey: 'trip-sync-auth' },
   });
+  const me = async () => toSession((await sb.auth.getSession()).data.session?.user);
 
   return {
-    async getSession() {
-      const { data } = await sb.auth.getSession();
-      return toSession(data.session?.user);
+    getSession: me,
+    async ensureSession() {
+      const s = await me();
+      if (s) return s;
+      const { data, error } = await sb.auth.signInAnonymously();
+      if (error) throw new Error(error.message);
+      const n = toSession(data.user);
+      if (!n) throw new Error('同步身份建立失败');
+      return n;
     },
     onSessionChange(cb) {
       const { data } = sb.auth.onAuthStateChange((_e, s) => cb(toSession(s?.user)));
       return () => data.subscription.unsubscribe();
     },
-    async sendCode(email) {
-      const { error } = await sb.auth.signInWithOtp({ email: email.trim().toLowerCase(), options: { shouldCreateUser: true, emailRedirectTo: `${location.origin}/` } });
-      if (error) throw new Error(error.message);
-    },
-    async verifyCode(email, code) {
-      const { data, error } = await sb.auth.verifyOtp({ email: email.trim().toLowerCase(), token: code.trim(), type: 'email' });
-      if (error) throw new Error(error.message);
-      const s = toSession(data.user);
-      if (!s) throw new Error('登录失败');
-      return s;
-    },
-    async signOut() {
-      await sb.auth.signOut();
-    },
 
-    async createTrip(id, title) {
-      must(await sb.rpc('create_cloud_trip', { p_id: id, p_title: title }));
+    async createTrip(id, title, name) {
+      must(await sb.rpc('create_cloud_trip', { p_id: id, p_title: title, p_name: name }));
     },
     async publish(tripId, note, important, snapshot: TripSnapshot, title) {
       return must(await sb.rpc('publish_version', { p_trip: tripId, p_note: note, p_important: important, p_snapshot: snapshot, p_title: title })) as number;
@@ -77,15 +68,15 @@ export function createSupabaseBackend(): CloudBackend {
     },
 
     async members(tripId) {
-      const rows = must(await sb.from('trip_members').select('user_id,email,role').eq('trip_id', tripId)) as { user_id: string; email: string; role: 'owner' | 'member' }[];
-      return rows.map((r) => ({ userId: r.user_id, email: r.email, role: r.role }));
+      const rows = must(await sb.from('trip_members').select('user_id,name,role').eq('trip_id', tripId).order('joined_at')) as { user_id: string; name: string | null; role: 'owner' | 'member' }[];
+      return rows.map((r) => ({ userId: r.user_id, name: r.name ?? undefined, role: r.role }));
     },
     async tripInvites(tripId) {
-      const rows = must(await sb.from('trip_invites').select('*').eq('trip_id', tripId).order('created_at')) as InviteRow[];
+      const rows = must(await sb.from('trip_invites').select('id,trip_id,code,name,accepted_at,created_at').eq('trip_id', tripId).not('code', 'is', null).order('created_at')) as InviteRow[];
       return rows.map(toInvite);
     },
-    async invite(tripId, email) {
-      must(await sb.rpc('invite_member', { p_trip: tripId, p_email: email.trim().toLowerCase() }));
+    async createInvite(tripId, name) {
+      return must(await sb.rpc('create_invite', { p_trip: tripId, p_name: name })) as string;
     },
     async revokeInvite(inviteId) {
       must(await sb.from('trip_invites').delete().eq('id', inviteId));
@@ -93,17 +84,16 @@ export function createSupabaseBackend(): CloudBackend {
     async removeMember(tripId, userId) {
       must(await sb.rpc('remove_member', { p_trip: tripId, p_user: userId }));
     },
-    async myInvites() {
-      const s = toSession((await sb.auth.getUser()).data.user);
-      if (!s) return [];
-      const rows = must(await sb.from('trip_invites').select('*').eq('email', s.email).is('accepted_at', null).order('created_at')) as InviteRow[];
-      return rows.map(toInvite);
+    async peekInvite(code) {
+      const rows = must(await sb.rpc('peek_invite', { p_code: code })) as { trip_id: string; trip_title: string; inviter_name: string | null; name: string | null; usable: boolean; mine: boolean }[];
+      const r = rows?.[0];
+      return r ? { tripId: r.trip_id, tripTitle: r.trip_title, inviterName: r.inviter_name ?? undefined, name: r.name ?? undefined, usable: !!r.usable, mine: !!r.mine } : null;
     },
-    async acceptInvite(inviteId) {
-      return must(await sb.rpc('accept_invite', { p_invite: inviteId })) as string;
+    async joinWithCode(code, name) {
+      return must(await sb.rpc('join_with_code', { p_code: code, p_name: name })) as string;
     },
     async leaveTrip(tripId) {
-      const s = toSession((await sb.auth.getUser()).data.user);
+      const s = await me();
       if (!s) return;
       must(await sb.from('trip_members').delete().eq('trip_id', tripId).eq('user_id', s.userId));
     },
