@@ -13,8 +13,8 @@
    <p>几分钟内有效。不是你本人操作可以忽略这封邮件。</p>
    ```
 3. **网址**：Authentication → URL Configuration
-   - Site URL：`https://travelrundown.netlify.app`
-   - Redirect URLs：`https://travelrundown.netlify.app/**`、`https://*--travelrundown.netlify.app/**`
+   - Site URL：`https://tongxing8.netlify.app`
+   - Redirect URLs：`https://tongxing8.netlify.app/**`、`https://*--tongxing8.netlify.app/**`
 4. **Email 登录已开启**：Authentication → Sign In / Providers → Email 打开（默认就是开的）。
 
 ## 注意
