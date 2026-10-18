@@ -23,6 +23,7 @@ import StoryPage from './features/StoryPage';
 import CreditsPage from './features/CreditsPage';
 import RestoreConfirm from './components/RestoreConfirm';
 import UpdateBanner from './components/UpdateBanner';
+import PageBoundary from './components/PageBoundary';
 
 function Home() {
   const trips = useTrips();
@@ -57,6 +58,7 @@ export default function App() {
       <CloudBoot />
       <UpdateBanner />
       <RestoreConfirm />
+      <PageBoundary>
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/trips" element={<TripsPage />} />
@@ -81,6 +83,7 @@ export default function App() {
         <Route path="/import/preview" element={<PreviewPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      </PageBoundary>
       <Toast />
     </>
   );

@@ -11,6 +11,11 @@ import { joinWithCode, normalizeCode, prettyCode } from '../cloud/sync';
 import { db } from '../db/schema';
 import { NameField } from './CloudParts';
 
+/** 是否在主屏幕 App 里（不是浏览器） */
+const standalone =
+  typeof window !== 'undefined' &&
+  (window.matchMedia?.('(display-mode: standalone)').matches || (navigator as Navigator & { standalone?: boolean }).standalone === true);
+
 export default function JoinPage() {
   const nav = useNavigate();
   const code = normalizeCode(useParams().code ?? '');
@@ -18,6 +23,7 @@ export default function JoinPage() {
   const [err, setErr] = useState('');
   const [name, setName] = useState(myName());
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState('');
 
   useEffect(() => {
     let alive = true;
@@ -44,7 +50,8 @@ export default function JoinPage() {
     setBusy(true);
     try {
       setMyName(name);
-      const id = await joinWithCode(code, name);
+      setProgress('正在加入…');
+      const id = await joinWithCode(code, name, (d, t) => setProgress(t ? `正在下载资料 ${d} / ${t}…` : '正在保存行程…'));
       await refreshCloud();
       toast(`已加入「${peek?.tripTitle ?? '旅程'}」`);
       nav(`/itinerary/${id}`, { replace: true });
@@ -52,6 +59,7 @@ export default function JoinPage() {
       toast(cloudErrorText(e));
     } finally {
       setBusy(false);
+      setProgress('');
     }
   };
 
@@ -67,7 +75,7 @@ export default function JoinPage() {
       bottom={
         peek && peek.usable && !peek.mine ? (
           <Button icon="Download" disabled={busy} onClick={() => void join()}>
-            {busy ? '加入中…' : '加入并下载行程'}
+            {busy ? progress || '加入中…' : '加入并下载行程'}
           </Button>
         ) : undefined
       }
@@ -95,7 +103,7 @@ export default function JoinPage() {
           <InfoBanner variant="info">
             加入后行程会存进这台手机，没网也能看。主用户发布更新时你会收到提醒，自己决定要不要套用。完成勾选、记账、穿搭打包都只是你自己的。
           </InfoBanner>
-          <p className={p.lockNote}>{`想用主屏幕上的 App 看？不要在这里加入，改在 App 的「旅程」页输入邀请码 ${prettyCode(code)}（一个邀请码只能在一个地方用）。`}</p>
+          {!standalone && <p className={p.lockNote}>{`想用主屏幕上的 App 看？不要在这里加入，改在 App 的「旅程」页输入邀请码 ${prettyCode(code)}（一个邀请码只能在一个地方用）。`}</p>}
         </div>
       )}
     </Screen>
