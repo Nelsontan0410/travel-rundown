@@ -1,0 +1,22 @@
+{
+  "webkit": {
+    "title_hierarchy": true,
+    "both_flight_timezones": true,
+    "sidebar_trip_settings": true,
+    "reduced_height": true,
+    "other_page_header_preserved": true,
+    "offline_reload_and_upload": true,
+    "defaults": "flags",
+    "uploads": "two sides survive reload",
+    "style": "fixed grayscale overlay",
+    "reset": "one side only",
+    "invalid_photo": "rejected",
+    "country_change": "custom photo retained",
+    "widths": [
+      1280,
+      768,
+      390,
+      320
+    ]
+  }
+}

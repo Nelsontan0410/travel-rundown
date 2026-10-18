@@ -1,0 +1,20 @@
+{
+  "webkit": {
+    "literal_pdf": true,
+    "two_columns": true,
+    "arrival_boarding_excluded": true,
+    "no_write_before_save": true,
+    "same_segment_blocked": true,
+    "imported_wall_time_preserved_when_changing_country": true,
+    "utc_saved_on_us_device": true,
+    "saved_ticket_readonly": true,
+    "scan_password_feedback": true,
+    "ambiguous_date_review": true,
+    "offline_pdf": true,
+    "widths": [
+      1280,
+      768,
+      390
+    ]
+  }
+}

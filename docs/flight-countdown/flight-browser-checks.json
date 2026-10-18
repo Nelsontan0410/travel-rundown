@@ -1,0 +1,18 @@
+{
+  "widths": [
+    320,
+    390,
+    768,
+    1280
+  ],
+  "timezone": "America/Los_Angeles",
+  "errors": [],
+  "checks": [
+    "no horizontal overflow",
+    "country picker",
+    "settings sheet and Escape",
+    "live 4.6s flight",
+    "vacation after reload",
+    "four themes"
+  ]
+}

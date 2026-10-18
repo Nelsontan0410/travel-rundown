@@ -2,14 +2,14 @@ import { useEffect, useMemo, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import p from './Page.module.css';
 import { TripThemeScope } from '../components/TripTheme';
-import { Screen, RootHeader, Sheet } from '../components/Layout';
+import { Screen, Sheet } from '../components/Layout';
 import { Field, FormActions, TextInput } from '../components/Form';
 import { Button, EmptyLine, EmptyState } from '../components/Basics';
-import { DayHeading, DayTiles, HeroCover, Timeline, TimelineDivider, TimelineRow } from '../components/Itinerary';
+import { DayHeading, DayTiles, Timeline, TimelineDivider, TimelineRow } from '../components/Itinerary';
 import { checklistOrder } from '../domain/checklist';
 import { setItemStatus, updateDay } from '../db/repo';
 import { toast } from '../store/ui';
-import { readiness, statusOf, useAppShellReady, useBlobUrl, useCurrentTripId, useSettings, useTripData } from '../hooks/data';
+import { readiness, statusOf, useAppShellReady, useCurrentTripId, useSettings, useTripData } from '../hooks/data';
 import { navLink } from '../links/maps';
 import { LedgerSummaryCard } from '../components/Ledger';
 import { useUI } from '../store/ui';
@@ -18,6 +18,7 @@ import { currentItemId, defaultDay, docsForItem, itemIcon, itemSubtitle, ledgerS
 import { openExternal } from '../links/openLink';
 import { setLastTrip } from '../db/repo';
 import PhaseCard from '../components/PhaseCard';
+import FlightCountdown, { FlightTripHeader } from '../components/FlightCountdown';
 import { pickToday } from '../domain/today';
 import { UpdateNotice } from './CloudParts';
 
@@ -29,7 +30,6 @@ export default function ItineraryPage() {
   const tripId = paramId ?? currentId;
   const td = useTripData(tripId);
   const app = useAppShellReady();
-  const cover = useBlobUrl(td?.trip.coverBlobKey);
   const settings = useSettings();
   const selected = useUI((s) => (tripId ? s.selectedDay[tripId] : undefined));
   const selectDay = useUI((s) => s.selectDay);
@@ -87,10 +87,10 @@ export default function ItineraryPage() {
     <TripThemeScope theme={td.trip.theme} />
     <Screen
       tab="itinerary"
-      header={<RootHeader title={trip.title} icon="Settings" iconLabel="旅程设置" onIcon={() => nav(`/trip/${trip.id}/settings`)} />}
+      sidebarHeader={<FlightTripHeader title={trip.title} onSettings={() => nav(`/trip/${trip.id}/settings`)} />}
     >
       <UpdateNotice tripId={trip.id} />
-      <HeroCover coverUrl={cover} dateRange={fmtDateRange(trip.startDate, trip.endDate)} offline={ready.allGreen} />
+      <FlightCountdown key={trip.id} td={td} dateRange={fmtDateRange(trip.startDate, trip.endDate)} offline={ready.allGreen} />
       {(() => {
         // 2026-10：「今天」页入口。行程中最显眼；出发前和结束后用来预览
         const t = pickToday(td.days, now);
@@ -111,7 +111,7 @@ export default function ItineraryPage() {
           穿搭与打包
         </Button>
       </div>
-      <PhaseCard td={td} now={now} />
+      <PhaseCard td={td} now={now} hideDepartureCountdown />
       <DayTiles days={td.days} selectedId={day?.id} onSelect={(id) => selectDay(trip.id, id)} />
       {day && <DayHeading title={dayTitle} sub={daySub} />}
       {day && (
