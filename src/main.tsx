@@ -9,6 +9,7 @@ import App from './App';
 import { useUI } from './store/ui';
 import { db } from './db/schema';
 import DbErrorPage from './features/DbErrorPage';
+import { installDbRecovery } from './db/recover';
 
 const updateSW = registerSW({
   immediate: true,
@@ -16,6 +17,8 @@ const updateSW = registerSW({
     useUI.setState({ updateSW: () => void updateSW(true) });
   },
 });
+
+installDbRecovery();
 
 const root = createRoot(document.getElementById('root')!);
 db.open()

@@ -150,7 +150,7 @@ export async function applyUpdate(
   tripId: string,
   v: { version: number; snapshot: TripSnapshot },
   choices: Record<string, Choice> = {},
-  meta: { ownerName?: string } = {},
+  meta: { ownerName?: string; onProgress?: (done: number, total: number) => void } = {},
 ): Promise<void> {
   const be = await backend();
   const inc = v.snapshot;
@@ -158,11 +158,13 @@ export async function applyUpdate(
   const hashes = [...new Set([...inc.docs.map((d) => d.fileHash), inc.trip.coverHash].filter((h): h is string => !!h))];
   const have = new Set((await db.blobs.where('key').anyOf(hashes.map(cloudBlobKey)).primaryKeys()) as string[]);
   const fetched: { key: string; blob: Blob }[] = [];
-  for (const h of hashes) {
-    if (have.has(cloudBlobKey(h))) continue;
+  const need = hashes.filter((h) => !have.has(cloudBlobKey(h)));
+  meta.onProgress?.(0, need.length);
+  for (const h of need) {
     const blob = await be.download(filePath(tripId, h));
     const mime = inc.docs.find((d) => d.fileHash === h)?.mime ?? (h === inc.trip.coverHash ? inc.trip.coverMime : undefined);
     fetched.push({ key: cloudBlobKey(h), blob: mime && !blob.type ? new Blob([blob], { type: mime }) : blob });
+    meta.onProgress?.(fetched.length, need.length);
   }
 
   await db.transaction('rw', [db.trips, db.days, db.items, db.docs, db.blobs, db.itemStates, db.expenses, db.cloudBases], async () => {
@@ -252,14 +254,14 @@ export async function applyUpdate(
 }
 
 /** 用邀请码加入：加入后下载最新版本建成本机旅程。返回旅程 id */
-export async function joinWithCode(code: string, name: string): Promise<string> {
+export async function joinWithCode(code: string, name: string, onProgress?: (done: number, total: number) => void): Promise<string> {
   const be = await backend();
   await be.ensureSession();
   const peek = await be.peekInvite(code);
   const tripId = await be.joinWithCode(code, name.trim());
   const v = await be.fetchVersion(tripId);
   if (!v) throw new Error('主用户还没有发布任何版本');
-  await applyUpdate(tripId, v, {}, { ownerName: peek?.inviterName });
+  await applyUpdate(tripId, v, {}, { ownerName: peek?.inviterName, onProgress });
   return tripId;
 }
 
