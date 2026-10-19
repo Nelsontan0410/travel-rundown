@@ -10,11 +10,21 @@ import { useUI } from './store/ui';
 import { db } from './db/schema';
 import DbErrorPage from './features/DbErrorPage';
 import { installDbRecovery } from './db/recover';
+import { installDiag } from './lib/diag';
+
+installDiag();
 
 const updateSW = registerSW({
   immediate: true,
   onNeedRefresh() {
     useUI.setState({ updateSW: () => void updateSW(true) });
+  },
+  // 回到前台时顺便检查有没有新版本（有就自动换上）
+  onRegisteredSW(_url, reg) {
+    if (!reg) return;
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') void reg.update().catch(() => undefined);
+    });
   },
 });
 

@@ -63,6 +63,7 @@
   "src/importer/structured.ts": "d373980284b071d48489c7036c86d589902e531ecc2313d6bf9ca175a1ac0906",
   "src/importer/templates.ts": "f7400d2cd14c2988c57374ff9bb498911144a24eeaea0d3d1232b598fb851e34",
   "src/lib/crypto.ts": "7b34dad0ca1eb29c1d400109918a0179c9feab57f0905720c7a7df3340c9c161",
+  "src/lib/diag.ts": "8beb07cdeb1d8e73f00976462a03bba3619d2e9c7f8c265b9fe52cc413277108",
   "src/lib/files.ts": "ecf335e62bce253e9599ab43558a235b2157a453f6b83a7cc776b989fafab995",
   "src/lib/flightTicketPdf.ts": "abcf8a9a4afd53b34ed10ebc8548cd1507a7b5dd9452bd9cebd444d88606c96f",
   "src/lib/pdf.ts": "3d3e7c1ec96bf5683fa6c976bf91e94c2aeb0bf31f9f75aa48004c121dac7b15",
@@ -72,5 +73,5 @@
   "src/store/cloud.ts": "970576af5139ff9e8abaf22659755b9ba34e603f4f03e23990094324f2a24761",
   "src/store/ui.ts": "e937bb4f82e8d5df295b4244f5668fec0da8241659c65c23dd228a7d925751a5",
   "tsconfig.json": "7fbfd482c28f17738c8403c66b189076b5243cc6e7ff60c2898ef82f0fd8c8dd",
-  "vite.config.ts": "85f35b1538fa8bdd37708856428afe53fde315e4797ee9961d16eac5c35ce154"
+  "vite.config.ts": "735fefcc628ca8af78da2bb431b5a4136d050e2ea490c10c3f5c9ff45613c1a4"
 }
