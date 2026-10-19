@@ -26,7 +26,7 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,mjs,css,html,svg,png,ico,woff2}'],
+        globPatterns: ['**/*.{js,mjs,css,html,svg,png,ico,woff2}', 'tex/*.webp'],
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
         navigateFallback: '/index.html',
         // 旅程介绍页的照片（换成 jpg 后不进预缓存，看过一次就离线可用）
