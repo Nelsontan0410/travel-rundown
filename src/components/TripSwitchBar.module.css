@@ -1,0 +1,6 @@
+.bar { display: flex; align-items: center; gap: var(--space-2); min-height: var(--size-hit); margin: var(--space-2) 0; padding: 0 var(--space-1) 0 var(--space-3); border: var(--border-w) solid var(--color-hairline); border-radius: var(--radius-sm); background: color-mix(in srgb, var(--color-surface) 70%, transparent); }
+.label { flex-shrink: 0; font-size: var(--fs-caption); color: var(--color-text-2); }
+.title { flex: 1; min-width: 0; font-size: var(--fs-small); font-weight: 600; color: var(--color-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.btn { flex-shrink: 0; display: inline-flex; align-items: center; gap: 2px; min-height: var(--size-hit); padding: 0 var(--space-2); font-size: var(--fs-small); color: var(--color-primary); border-radius: var(--radius-sm); }
+.btn:hover { background: color-mix(in srgb, var(--color-accent) 12%, transparent); }
+@media (max-width: 380px) { .label { display: none; } }

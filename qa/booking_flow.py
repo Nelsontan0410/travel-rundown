@@ -46,7 +46,7 @@ try:
 
             # 酒店：加一张二维码截图并标成票码
             page.goto(BASE + '/docs'); page.wait_for_timeout(300)
-            page.get_by_text('添加', exact=True).click()
+            page.get_by_text('添加资料', exact=True).first.click()
             with page.expect_file_chooser() as fc:
                 page.get_by_text('从相册选择').click()
             fc.value.set_files(qr_path)
@@ -57,7 +57,7 @@ try:
             page.get_by_text('保存', exact=True).click(); page.wait_for_timeout(400)
 
             # 小樽运河：加一个动态票码链接
-            page.get_by_text('添加', exact=True).click()
+            page.get_by_text('添加资料', exact=True).first.click()
             page.get_by_text('添加链接或动态票码').click()
             page.get_by_placeholder('https://').fill('klook')
             page.get_by_text('保存', exact=True).click()

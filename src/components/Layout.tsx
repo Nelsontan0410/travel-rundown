@@ -112,9 +112,10 @@ export function BigHeader({ title, sub, action }: { title: string; sub?: string;
 }
 
 const TABS: { key: TabKey; label: string; to: string; icon: 'Home' | 'CalendarDays' | 'FileText' | 'Bell' }[] = [
-  { key: 'trips', label: '旅程', to: '/trips', icon: 'Home' },
-  { key: 'itinerary', label: '行程', to: '/itinerary', icon: 'CalendarDays' },
-  { key: 'docs', label: '资料', to: '/docs', icon: 'FileText' },
+  // 2026-10-19：标签写全，避免「旅程 / 行程 / 资料」分不清
+  { key: 'trips', label: '我的旅程', to: '/trips', icon: 'Home' },
+  { key: 'itinerary', label: '每日行程', to: '/itinerary', icon: 'CalendarDays' },
+  { key: 'docs', label: '预订资料', to: '/docs', icon: 'FileText' },
   { key: 'notify', label: '通知', to: '/notifications', icon: 'Bell' },
 ];
 

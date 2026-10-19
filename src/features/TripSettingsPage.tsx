@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Navigate, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import p from './Page.module.css';
+import TripUnavailable from './TripUnavailable';
 import { TripThemeScope } from '../components/TripTheme';
 import { Screen, BackHeader, Dialog, Sheet } from '../components/Layout';
 import { Field, FormActions, TextInput } from '../components/Form';
@@ -55,7 +56,7 @@ export default function TripSettingsPage() {
     return () => clearTimeout(t);
   }, [loaded]);
 
-  if (td === null) return <Navigate to="/trips" replace />;
+  if (td === null) return <TripUnavailable tripId={tripId ?? ''} title="旅程设置" />;
   if (!td) return <Screen tab="trips" header={<BackHeader title="旅程设置" />}>{null}</Screen>;
 
   const { trip } = td;

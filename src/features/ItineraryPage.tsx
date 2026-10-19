@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Navigate, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import p from './Page.module.css';
+import TripUnavailable from './TripUnavailable';
+import { NoTripState } from './FirstRun';
+import TripSwitchBar from '../components/TripSwitchBar';
 import { TripThemeScope } from '../components/TripTheme';
-import { Screen, Sheet } from '../components/Layout';
+import { Screen, Sheet, BigHeader } from '../components/Layout';
 import { Field, FormActions, TextInput } from '../components/Form';
-import { Button, EmptyLine, EmptyState } from '../components/Basics';
+import { Button, EmptyLine } from '../components/Basics';
 import { DayHeading, DayTiles, Timeline, TimelineDivider, TimelineRow } from '../components/Itinerary';
 import { checklistOrder } from '../domain/checklist';
 import { setItemStatus, updateDay } from '../db/repo';
@@ -55,21 +58,14 @@ export default function ItineraryPage() {
     document.querySelector(`[data-day="${day.id}"]`)?.scrollIntoView({ block: 'nearest', inline: 'center' });
   }, [day?.id]);
 
-  if (paramId && td === null) return <Navigate to="/itinerary" replace />;
+  // 2026-10-19：这台设备上没有这份旅程时说明原因、给加入入口（以前会跳到「还没有旅程」）
+  if (paramId && td === null) return <TripUnavailable tripId={paramId} tab="itinerary" />;
   if (currentId === undefined || td === undefined) return <Screen tab="itinerary">{null}</Screen>;
 
   if (!td) {
     return (
-      <Screen tab="itinerary">
-        <EmptyState
-          title="还没有旅程"
-          text="先到「旅程」页导入一份行程"
-          action={
-            <Button variant="link" onClick={() => nav('/trips')}>
-              去导入
-            </Button>
-          }
-        />
+      <Screen tab="itinerary" header={<BigHeader title="每日行程" />}>
+        <NoTripState text="创建或加入一份旅程后，每天的安排、导航和完成勾选会显示在这里。" />
       </Screen>
     );
   }
@@ -121,6 +117,7 @@ export default function ItineraryPage() {
         </div>
       </>}
     >
+      <TripSwitchBar tripId={trip.id} title={trip.title} />
       <UpdateNotice tripId={trip.id} role={trip.cloud?.role} />
       <FlightCountdown key={trip.id} td={td} dateRange={fmtDateRange(trip.startDate, trip.endDate)} offline={ready.allGreen} />
       <DayTiles days={td.days} selectedId={day?.id} onSelect={(id) => selectDay(trip.id, id)} />

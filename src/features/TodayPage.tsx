@@ -1,8 +1,9 @@
 // 2026-10 第一批 ⑤：「今天」页 —— 出门后主要看这一页：下一项、今晚住哪里、今天穿什么、今天的交通与订单、今天的完整安排。
 // 下一项由用户点「完成」或「跳过」推进，不按时间自动判定；可以手动切换日期提前查看。
 import { useEffect, useState } from 'react';
-import { Navigate, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import p from './Page.module.css';
+import TripUnavailable from './TripUnavailable';
 import { TripThemeScope } from '../components/TripTheme';
 import { Screen, BackHeader } from '../components/Layout';
 import { Button, EmptyState, InfoBanner } from '../components/Basics';
@@ -47,7 +48,7 @@ export default function TodayPage() {
     return () => clearInterval(t);
   }, []);
 
-  if (paramId && td === null) return <Navigate to="/today" replace />;
+  if (paramId && td === null) return <TripUnavailable tripId={paramId} title="今天" />;
   if (currentId === undefined || td === undefined || !pk || !wardrobe) return <Screen tab="itinerary" header={<BackHeader title="今天" />}>{null}</Screen>;
   if (!td) {
     return (

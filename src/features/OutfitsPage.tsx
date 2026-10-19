@@ -1,7 +1,8 @@
 // 2026-10 第一批 ④：穿搭与打包。三个分页：每日穿搭（Day 1–N）、衣橱（所有旅程共用）、打包清单（衣物自动汇总 + 其他物品）。
 import { useEffect, useMemo, useState } from 'react';
-import { Navigate, useParams, useSearchParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import p from './Page.module.css';
+import TripUnavailable from './TripUnavailable';
 import { TripThemeScope } from '../components/TripTheme';
 import { Screen, BackHeader, Dialog, Sheet } from '../components/Layout';
 import { Button, EmptyState, FilterChips, InfoBanner, SectionTitle } from '../components/Basics';
@@ -265,7 +266,7 @@ export default function OutfitsPage() {
   const [editG, setEditG] = useState<Garment | 'new' | null>(null);
   const [addPack, setAddPack] = useState(false);
 
-  if (td === null) return <Navigate to="/trips" replace />;
+  if (td === null) return <TripUnavailable tripId={tripId ?? ''} title="穿搭与打包" />;
   if (!td || !pk || !wardrobe) return <Screen tab="itinerary" header={<BackHeader title="穿搭与打包" />}>{null}</Screen>;
 
   const byId = new Map(wardrobe.map((g) => [g.id, g]));

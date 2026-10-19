@@ -7,7 +7,7 @@ export function Field({ label, hint, error, children }: { label: string; hint?: 
     <label className={s.field}>
       <span className={s.label}>{label}</span>
       {children}
-      {error ? <span className={s.error}>{error}</span> : hint ? <span className={s.hint}>{hint}</span> : null}
+      {error ? <span className={s.error} role="alert">{error}</span> : hint ? <span className={s.hint}>{hint}</span> : null}
     </label>
   );
 }

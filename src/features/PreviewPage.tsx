@@ -42,7 +42,7 @@ export default function PreviewPage() {
   const draft = useUI((s) => s.draft);
   const setDraft = useUI((s) => s.setDraft);
   const setPaste = useUI((s) => s.setPasteText);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true); // 2026-10-19：提示默认展开，不要让用户以为都识别成功了
   const [srcLine, setSrcLine] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [diff, setDiff] = useState<ImportDiff | null>(null);
@@ -290,7 +290,7 @@ export default function PreviewPage() {
           {result.warnings.length > 0 && (
             <div className={p.mt12}>
               <InfoBanner variant="warning" onClick={() => setOpen((o) => !o)}>
-                {result.warnings.length} 条提示
+                有 {result.warnings.length} 处没完全识别（下面列出；可以导入，也可以返回修改）{open ? '' : ' · 点开查看'}
               </InfoBanner>
               {open && (
                 <ul className={p.warnList}>

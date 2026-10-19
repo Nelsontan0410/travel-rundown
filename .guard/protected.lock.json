@@ -58,6 +58,7 @@
   "src/importer/mapping.ts": "d678260fc3bf0a24659054f1595bc3caceba458d87f3de38648a79e25be386a2",
   "src/importer/parseMd.ts": "efc33f25bb7734a7869cf0ae84f72f743d6ede68fdd7018442b61c695dda1d79",
   "src/importer/promptTemplate.ts": "044882526ac0c89c64aae23d21197a3200828922a0568d545783b79b86bb9d5c",
+  "src/importer/sample.ts": "ffb8d6f09519eda0dd35e074f5a0ebce8898d8b09d37da942b997d36a7e06132",
   "src/importer/serialize.ts": "c0e30e4c6d43f8f44ca0465b8683a2fd81da682440e3227986b27e944fc7d865",
   "src/importer/shift.ts": "5aa92d27dba3d0b6587fbc696e2898d1e40a22abc344de55899d020c8d4f5400",
   "src/importer/structured.ts": "d373980284b071d48489c7036c86d589902e531ecc2313d6bf9ca175a1ac0906",

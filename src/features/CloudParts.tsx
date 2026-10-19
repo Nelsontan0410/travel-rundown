@@ -11,12 +11,11 @@ import { useCloud } from '../store/cloud';
 import { toast } from '../store/ui';
 import { backend, cloudErrorText, type CloudInvite, type CloudMember } from '../cloud/backend';
 import { ensureCloudSession, myName, refreshCloud, setMyName } from '../cloud/session';
-import { detachLocal, enableSync, normalizeCode, pendingChanges, prettyCode, publishUpdate } from '../cloud/sync';
+import { detachLocal, enableSync, pendingChanges, prettyCode, publishUpdate } from '../cloud/sync';
 import type { SnapshotDiff } from '../cloud/snapshot';
 import type { Trip } from '../domain/types';
 import { copyText } from '../lib/files';
 import { useLocalChangeCount } from './SuggestPages';
-import { useTrips } from '../hooks/data';
 
 export const inviteLink = (code: string) => `${location.origin}/join/${code}`;
 
@@ -33,44 +32,6 @@ export async function shareInvite(code: string, tripTitle: string, inviter?: str
     }
   }
   toast((await copyText(text)) ? '已复制邀请，可以贴给同伴' : '复制失败，请手动抄下邀请码');
-}
-
-/** 旅程列表：邀请同伴的入口 + 输入邀请码加入 */
-export function JoinCard() {
-  const nav = useNavigate();
-  const trips = useTrips();
-  const [code, setCode] = useState('');
-  const go = () => {
-    const c = normalizeCode(code);
-    if (c.length < 6) return toast('请填主用户给你的邀请码');
-    nav(`/join/${c}`);
-  };
-  const first = trips?.[0];
-  return (
-    <Card className={p.cloudCard}>
-      <p className={p.cloudTitle}>和同伴同步</p>
-      <p className={p.lockNote}>
-        邀请同伴：打开旅程 → 旅程设置 → 同步与同伴 → 开启同步，然后生成邀请分享给同伴。不用注册，也不用邮箱。
-      </p>
-      {first && !first.cloud && (
-        <Button variant="outline" icon="Upload" onClick={() => nav(`/trip/${first.id}/settings#sync`)}>
-          邀请同伴看「{first.title}」
-        </Button>
-      )}
-      <form
-        className={p.inviteForm}
-        onSubmit={(e) => {
-          e.preventDefault();
-          go();
-        }}
-      >
-        <TextInput value={code} placeholder="收到邀请码？填在这里" autoCapitalize="characters" aria-label="邀请码" onChange={(e) => setCode(e.target.value)} />
-        <Button size="sm" type="submit">
-          加入
-        </Button>
-      </form>
-    </Card>
-  );
 }
 
 /** 填自己的名字（开启同步 / 加入时用） */

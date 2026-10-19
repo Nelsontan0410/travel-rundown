@@ -26,14 +26,14 @@ export default function TemplatePage() {
   return (
     <Screen
       tab="trips"
-      header={<BackHeader title="导入模板" />}
+      header={<BackHeader title="用 AI 整理行程（可选）" />}
       bottom={
         <Button block icon="Copy" onClick={() => void copyWithToast(prompt)}>
           复制提示词
         </Button>
       }
     >
-      <p className={p.lead}>把下面的提示词连同你的行程发给任意 AI，再把它回复的 Markdown 粘贴回来</p>
+      <p className={p.lead}>如果你的行程还是一段普通文字、表格或网页，可以把下面的提示词连同行程发给任意 AI（ChatGPT、Claude 等，用你自己的账号），让它整理成 App 能识别的格式，再回到「粘贴行程」贴进来。已经整理好的行程不需要这一步。</p>
       <SettingsGroup title="导航偏好">
         <SettingsRow label="中国大陆" value={NAV_APP_NAME[settings.navInChina]} onClick={() => setSheet('china')} />
         <SettingsRow label="其他地区" value={NAV_APP_NAME[settings.navElsewhere]} onClick={() => setSheet('elsewhere')} />

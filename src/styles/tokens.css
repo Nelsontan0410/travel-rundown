@@ -19,8 +19,8 @@
   --color-warning-ink: #9A3B2A;    /* 暗红：警告、超支、错误 */
   --color-pdf: #9A3B2A;
   --color-text: #30251D;
-  --color-text-2: #6E5D4D;
-  --color-text-3: #8F7D69;
+  --color-text-2: #6C5C4C;
+  --color-text-3: #6B5D4E;
   --color-icon: #7A6450;
   --color-border: #C8B89C;
   --color-hairline: #DCCDB2;       /* 卡片内分隔线，比边框更轻 */
@@ -234,7 +234,7 @@
   --color-success-ink: #2F6457;
   --color-text: #293B4D;
   --color-text-2: #546A80;
-  --color-text-3: #7D90A3;
+  --color-text-3: #606E7D;
   --color-icon: #546A80;
   --color-border: #C9D9E6;
   --color-hairline: #DCE7F0;
@@ -279,7 +279,7 @@
   --color-success-ink: #3A6539;
   --color-text: #26352B;
   --color-text-2: #55675A;
-  --color-text-3: #7E8F82;
+  --color-text-3: #637066;
   --color-icon: #55675A;
   --color-border: #CFDCCD;
   --color-hairline: #E1E9DE;
@@ -325,7 +325,7 @@
   --color-success-ink: #47622F;
   --color-text: #3A2A26;
   --color-text-2: #6B5752;
-  --color-text-3: #927C76;
+  --color-text-3: #796661;
   --color-icon: #6B5752;
   --color-border: #E0D2CB;
   --color-hairline: #EDE3DD;
