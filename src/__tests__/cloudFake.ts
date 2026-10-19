@@ -1,5 +1,5 @@
 // 测试用：内存里的模拟同步后端（规则和 supabase/schema.sql 一致：只有主用户能发布 / 邀请，成员才能读，一个邀请码只给一台手机）
-import type { CloudBackend, CloudEvent, CloudInvite, CloudMember, CloudSession, CloudVersion } from '../cloud/backend';
+import type { CloudBackend, CloudEvent, CloudInvite, CloudMember, CloudSession, CloudSuggestion, CloudVersion } from '../cloud/backend';
 import type { TripSnapshot } from '../cloud/snapshot';
 
 export interface FakeCloud extends CloudBackend {
@@ -12,13 +12,14 @@ export interface FakeCloud extends CloudBackend {
     versions: { tripId: string; v: CloudVersion }[];
     files: Map<string, Blob>;
     events: CloudEvent[];
+    suggestions: CloudSuggestion[];
   };
 }
 
 export function fakeCloud(): FakeCloud {
   let device: string | null = null;
   const sessions = new Map<string, CloudSession>();
-  const state: FakeCloud['state'] = { trips: new Map(), members: [], invites: [], versions: [], files: new Map(), events: [] };
+  const state: FakeCloud['state'] = { trips: new Map(), members: [], invites: [], versions: [], files: new Map(), events: [], suggestions: [] };
   const watchers = new Set<(e: CloudEvent) => void>();
   let eid = 0;
   const nameOf = (t: string, u: string) => state.members.find((m) => m.tripId === t && m.userId === u)?.name;
@@ -152,6 +153,35 @@ export function fakeCloud(): FakeCloud {
       const e: CloudEvent = { id: ++eid, tripId: tid, actorId: s.userId, actorName: me.name, kind: 'leave', title: `${me.name || '一位同伴'} 退出了旅程`, detail: {}, createdAt: ts() };
       state.events.push(e);
       for (const w of watchers) w(e);
+    },
+    async submitSuggestion(tid, baseVersion, note, changes, summary) {
+      const s = need();
+      if (!isMember(tid) || isOwner(tid)) throw new Error('只有同伴可以提交建议');
+      if (!changes.length) throw new Error('没有要提交的修改');
+      const sg: CloudSuggestion = { id: id(), tripId: tid, authorId: s.userId, authorName: nameOf(tid, s.userId), baseVersion, note: note || undefined, changes: JSON.parse(JSON.stringify(changes)), status: 'pending', createdAt: ts() };
+      state.suggestions.push(sg);
+      log(tid, 'suggest', `${sg.authorName || '有人'} 提交了 ${changes.length} 处修改建议`, { suggestionId: sg.id, note: sg.note, count: changes.length, summary: summary ?? {} });
+      return sg.id;
+    },
+    async suggestions(tid) {
+      const s = need();
+      return state.suggestions.filter((x) => x.tripId === tid && (isOwner(tid) || x.authorId === s.userId)).map((x) => JSON.parse(JSON.stringify(x))).reverse();
+    },
+    async decideSuggestion(sid, decisions, accepted, rejected) {
+      const sg = state.suggestions.find((x) => x.id === sid);
+      if (!sg) throw new Error('建议不存在或已撤回');
+      if (!isOwner(sg.tripId)) throw new Error('只有主用户可以处理建议');
+      if (sg.status !== 'pending') throw new Error('这条建议已经处理过了');
+      sg.status = rejected === 0 ? 'accepted' : accepted === 0 ? 'rejected' : 'partial';
+      sg.decisions = decisions;
+      sg.decidedAt = ts();
+      const who = nameOf(sg.tripId, cur()!.userId) || '有人';
+      const t = sg.status === 'rejected' ? `${who} 没有采纳 ${sg.authorName || '同伴'} 的建议` : `${who} 采纳了 ${sg.authorName || '同伴'} 的 ${accepted} 处建议${sg.status === 'partial' ? `（${rejected} 处未采纳）` : ''}`;
+      log(sg.tripId, 'decide', t, { suggestionId: sid, authorId: sg.authorId, accepted, rejected });
+    },
+    async withdrawSuggestion(sid) {
+      const s = need();
+      state.suggestions = state.suggestions.filter((x) => !(x.id === sid && x.authorId === s.userId && x.status === 'pending'));
     },
     async events(ids, afterId) {
       return state.events.filter((e) => ids.includes(e.tripId) && isMember(e.tripId) && (!afterId || e.id > afterId)).slice(-100);

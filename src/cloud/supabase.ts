@@ -2,7 +2,7 @@
 // 权限全部在数据库的行级权限和函数里检查（supabase/schema.sql），这里用的是可公开的 publishable key。
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { SUPABASE_KEY, SUPABASE_URL } from './config';
-import type { CloudBackend, CloudEvent, CloudInvite, CloudSession } from './backend';
+import type { CloudBackend, CloudEvent, CloudInvite, CloudSession, CloudSuggestion } from './backend';
 import type { TripSnapshot } from './snapshot';
 
 const BUCKET = 'trip-files';
@@ -24,6 +24,21 @@ const toEvent = (r: EventRow): CloudEvent => ({
   title: r.title,
   detail: r.detail ?? {},
   createdAt: r.created_at,
+});
+
+type SuggestionRow = { id: string; trip_id: string; author_id: string; author_name: string | null; base_version: number; note: string | null; changes: CloudSuggestion['changes']; status: CloudSuggestion['status']; decisions: CloudSuggestion['decisions'] | null; created_at: string; decided_at: string | null };
+const toSuggestion = (r: SuggestionRow): CloudSuggestion => ({
+  id: r.id,
+  tripId: r.trip_id,
+  authorId: r.author_id,
+  authorName: r.author_name ?? undefined,
+  baseVersion: r.base_version,
+  note: r.note ?? undefined,
+  changes: r.changes ?? [],
+  status: r.status,
+  decisions: r.decisions ?? undefined,
+  createdAt: r.created_at,
+  decidedAt: r.decided_at ?? undefined,
 });
 
 type InviteRow = { id: string; trip_id: string; code: string | null; name: string | null; accepted_at: string | null; created_at: string };
@@ -108,6 +123,20 @@ export function createSupabaseBackend(): CloudBackend {
       const s = await me();
       if (!s) return;
       must(await sb.from('trip_members').delete().eq('trip_id', tripId).eq('user_id', s.userId));
+    },
+
+    async submitSuggestion(tripId, baseVersion, note, changes, summary) {
+      return must(await sb.rpc('submit_suggestion', { p_trip: tripId, p_base: baseVersion, p_note: note, p_changes: changes, p_summary: summary ?? null })) as string;
+    },
+    async suggestions(tripId) {
+      const rows = must(await sb.from('trip_suggestions').select('*').eq('trip_id', tripId).order('created_at', { ascending: false }).limit(50)) as SuggestionRow[];
+      return rows.map(toSuggestion);
+    },
+    async decideSuggestion(id, decisions, accepted, rejected) {
+      must(await sb.rpc('decide_suggestion', { p_id: id, p_decisions: decisions, p_accepted: accepted, p_rejected: rejected }));
+    },
+    async withdrawSuggestion(id) {
+      must(await sb.from('trip_suggestions').delete().eq('id', id).eq('status', 'pending'));
     },
 
     async events(tripIds, afterId) {

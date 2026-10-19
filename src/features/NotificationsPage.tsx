@@ -16,6 +16,8 @@ const KIND: Record<string, { label: string; variant: 'info' | 'success' | 'neutr
   join: { label: '加入', variant: 'success' },
   leave: { label: '退出', variant: 'neutral' },
   remove: { label: '移除', variant: 'neutral' },
+  suggest: { label: '建议', variant: 'info' },
+  decide: { label: '处理', variant: 'success' },
 };
 
 function ago(iso: string): string {

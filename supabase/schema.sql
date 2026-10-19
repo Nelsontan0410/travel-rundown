@@ -77,6 +77,9 @@ alter table public.trip_invites add column if not exists name text;
 alter table public.trip_invites add column if not exists inviter_name text;
 alter table public.trip_invites add column if not exists accepted_by uuid references auth.users (id) on delete set null;
 alter table public.trip_suggestions alter column author_email drop not null;
+-- 2026-10-19 建议：作者名字、主用户逐项的决定
+alter table public.trip_suggestions add column if not exists author_name text;
+alter table public.trip_suggestions add column if not exists decisions jsonb;
 create unique index if not exists trip_invites_code on public.trip_invites (code);
 
 create index if not exists trip_members_user on public.trip_members (user_id);
@@ -145,11 +148,13 @@ create policy "成员可读版本" on public.trip_versions for select using (pub
 drop policy if exists "作者和主用户可读建议" on public.trip_suggestions;
 create policy "作者和主用户可读建议" on public.trip_suggestions for select
   using (author_id = auth.uid() or public.is_trip_owner(trip_id));
+-- 提交改成走 submit_suggestion 函数（顺便记通知）；作者可以撤回还没处理的
 drop policy if exists "成员可提交建议" on public.trip_suggestions;
-create policy "成员可提交建议" on public.trip_suggestions for insert
-  with check (author_id = auth.uid() and public.is_trip_member(trip_id) and status = 'pending');
+drop policy if exists "作者撤回未处理的建议" on public.trip_suggestions;
+create policy "作者撤回未处理的建议" on public.trip_suggestions for delete
+  using (author_id = auth.uid() and status = 'pending');
+-- 处理建议走 decide_suggestion 函数
 drop policy if exists "主用户处理建议" on public.trip_suggestions;
-create policy "主用户处理建议" on public.trip_suggestions for update using (public.is_trip_owner(trip_id));
 
 drop policy if exists "成员可读通知" on public.trip_events;
 create policy "成员可读通知" on public.trip_events for select using (public.is_trip_member(trip_id));
@@ -283,6 +288,43 @@ begin
   delete from trip_invites where trip_id = p_trip and accepted_by = p_user;
 end $$;
 
+-- 2026-10-19 同伴提交修改建议（只有同伴能提交；主用户自己直接改）；返回建议 id
+create or replace function public.submit_suggestion(p_trip uuid, p_base integer, p_note text, p_changes jsonb, p_summary jsonb default null)
+returns uuid language plpgsql security definer set search_path = public as $$
+declare sid uuid; n integer; who text;
+begin
+  if not public.is_trip_member(p_trip) or public.is_trip_owner(p_trip) then raise exception '只有同伴可以提交建议'; end if;
+  n := coalesce(jsonb_array_length(p_changes), 0);
+  if n = 0 then raise exception '没有要提交的修改'; end if;
+  if n > 200 then raise exception '一次最多提交 200 处修改'; end if;
+  who := public.member_name(p_trip);
+  insert into trip_suggestions (trip_id, author_id, author_name, base_version, note, changes)
+    values (p_trip, auth.uid(), who, coalesce(p_base, 0), nullif(trim(p_note), ''), p_changes)
+    returning id into sid;
+  perform public.log_trip_event(p_trip, 'suggest', who || ' 提交了 ' || n || ' 处修改建议',
+    jsonb_build_object('suggestionId', sid, 'note', nullif(trim(p_note), ''), 'count', n, 'summary', coalesce(p_summary, '{}'::jsonb)));
+  return sid;
+end $$;
+
+-- 主用户处理建议：p_decisions = {项目 id: "accept" | "reject"}
+create or replace function public.decide_suggestion(p_id uuid, p_decisions jsonb, p_accepted integer, p_rejected integer)
+returns void language plpgsql security definer set search_path = public as $$
+declare sg trip_suggestions; st text; t text;
+begin
+  select * into sg from trip_suggestions where id = p_id for update;
+  if sg.id is null then raise exception '建议不存在或已撤回'; end if;
+  if not public.is_trip_owner(sg.trip_id) then raise exception '只有主用户可以处理建议'; end if;
+  if sg.status <> 'pending' then raise exception '这条建议已经处理过了'; end if;
+  st := case when coalesce(p_rejected, 0) = 0 then 'accepted' when coalesce(p_accepted, 0) = 0 then 'rejected' else 'partial' end;
+  update trip_suggestions set status = st, decisions = p_decisions, decided_at = now() where id = p_id;
+  t := public.member_name(sg.trip_id) || case
+    when st = 'rejected' then ' 没有采纳 ' || coalesce(sg.author_name, '同伴') || ' 的建议'
+    else ' 采纳了 ' || coalesce(sg.author_name, '同伴') || ' 的 ' || p_accepted || ' 处建议' || case when st = 'partial' then '（' || p_rejected || ' 处未采纳）' else '' end
+  end;
+  perform public.log_trip_event(sg.trip_id, 'decide', t,
+    jsonb_build_object('suggestionId', p_id, 'authorId', sg.author_id, 'accepted', coalesce(p_accepted, 0), 'rejected', coalesce(p_rejected, 0)));
+end $$;
+
 -- 同伴自己退出（直接删自己那一行）→ 记一条通知
 create or replace function public.on_member_leave() returns trigger
 language plpgsql security definer set search_path = public as $$
@@ -342,3 +384,5 @@ grant execute on function public.create_invite(uuid, text) to authenticated;
 grant execute on function public.peek_invite(text) to authenticated;
 grant execute on function public.join_with_code(text, text) to authenticated;
 grant execute on function public.remove_member(uuid, uuid) to authenticated;
+grant execute on function public.submit_suggestion(uuid, integer, text, jsonb, jsonb) to authenticated;
+grant execute on function public.decide_suggestion(uuid, jsonb, integer, integer) to authenticated;

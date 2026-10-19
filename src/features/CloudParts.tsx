@@ -15,6 +15,7 @@ import { detachLocal, enableSync, normalizeCode, pendingChanges, prettyCode, pub
 import type { SnapshotDiff } from '../cloud/snapshot';
 import type { Trip } from '../domain/types';
 import { copyText } from '../lib/files';
+import { useLocalChangeCount } from './SuggestPages';
 import { useTrips } from '../hooks/data';
 
 export const inviteLink = (code: string) => `${location.origin}/join/${code}`;
@@ -176,17 +177,24 @@ export function SyncSection({ trip }: { trip: Trip }) {
   const [busy, setBusy] = useState(false);
   const [removing, setRemoving] = useState<CloudMember | null>(null);
   const [leaving, setLeaving] = useState(false);
+  const [pendingSg, setPendingSg] = useState(0);
   const role = trip.cloud?.role;
   const isOwner = role === 'owner';
+  const localCount = useLocalChangeCount(trip.id, role === 'member');
 
   const load = async () => {
     if (!session || !trip.cloud) return;
     try {
       const be = await backend();
       if (isOwner) setDiff(await pendingChanges(trip.id));
-      const [m, inv] = await Promise.all([be.members(trip.id), isOwner ? be.tripInvites(trip.id) : Promise.resolve([])]);
+      const [m, inv, sgs] = await Promise.all([
+        be.members(trip.id),
+        isOwner ? be.tripInvites(trip.id) : Promise.resolve([]),
+        isOwner ? be.suggestions(trip.id) : Promise.resolve([]),
+      ]);
       setMembers(m);
       setInvites(inv.filter((i) => !i.acceptedAt));
+      setPendingSg(sgs.filter((x) => x.status === 'pending').length);
     } catch (e) {
       useCloud.setState({ lastError: cloudErrorText(e) });
     }
@@ -273,6 +281,12 @@ export function SyncSection({ trip }: { trip: Trip }) {
             value={diff && !diff.count ? '没有新改动' : undefined}
             onClick={() => setPublishOpen(true)}
           />
+          <SettingsRow
+            icon="StickyNote"
+            label={pendingSg ? `同伴建议（${pendingSg} 条待处理）` : '同伴建议'}
+            value={pendingSg ? undefined : '没有待处理'}
+            onClick={() => nav(`/trip/${trip.id}/suggestions`)}
+          />
         </SettingsGroup>
         <div className={p.mt12}>
           <Card className={p.cloudCard}>
@@ -356,10 +370,11 @@ export function SyncSection({ trip }: { trip: Trip }) {
     <>
       <SettingsGroup
         title="同步与同伴"
-        note="这份旅程由主用户管理。你在本机的修改只存在这台手机上；完成勾选、实际记账、穿搭打包都是你自己的。"
+        note="这份旅程由主用户管理。你在本机的修改只存在这台手机上，想让大家也看到就在「我的修改」里提交给主用户；完成勾选、实际记账、穿搭打包都是你自己的。"
       >
         <SettingsRow icon="Home" label="主用户" value={trip.cloud.ownerName ?? trip.cloud.ownerEmail ?? '—'} arrow={false} />
         <SettingsRow icon="CheckCircle2" label="已套用" value={`v${trip.cloud.version}`} arrow={false} />
+        <SettingsRow icon="Pencil" label={localCount ? `我的修改（${localCount} 处，只在本机）` : '我的修改'} value={localCount ? '提交给主用户' : '没有'} onClick={() => nav(`/trip/${trip.id}/suggest`)} />
         {update ? (
           <SettingsRow icon="Download" label={`查看新版本 v${update.version}`} value={update.note} onClick={() => nav(`/trip/${trip.id}/update`)} />
         ) : (
@@ -404,9 +419,25 @@ export function SyncSection({ trip }: { trip: Trip }) {
 }
 
 /** 行程页顶部：同伴有新版本时提醒（重要更新用醒目样式） */
-export function UpdateNotice({ tripId }: { tripId: string }) {
+export function UpdateNotice({ tripId, role }: { tripId: string; role?: 'owner' | 'member' }) {
   const nav = useNavigate();
   const u = useCloud((s) => s.updates[tripId]);
+  const local = useLocalChangeCount(tripId, role === 'member');
+  if (!u && local > 0)
+    return (
+      <div className={p.mt8}>
+        <InfoBanner
+          variant="info"
+          action={
+            <Button size="sm" variant="outline" onClick={() => nav(`/trip/${tripId}/suggest`)}>
+              查看
+            </Button>
+          }
+        >
+          你在本机改了 {local} 处，只有你看得到。可以提交给主用户。
+        </InfoBanner>
+      </div>
+    );
   if (!u) return null;
   return (
     <div className={p.mt8}>
