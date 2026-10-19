@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import p from './Page.module.css';
+import TripUnavailable from './TripUnavailable';
 import { TripThemeScope } from '../components/TripTheme';
 import { Screen, BackHeader, Sheet } from '../components/Layout';
 import { Button, Card, EmptyState, FilterChips, SectionTitle } from '../components/Basics';
@@ -216,7 +217,7 @@ export default function LedgerPage() {
     return out;
   }, [td]);
 
-  if (td === null) return <Navigate to="/itinerary" replace />;
+  if (td === null) return <TripUnavailable tripId={tripId ?? ''} title="旅行账本" />;
   if (!td) return <Screen tab="itinerary" header={<BackHeader title="旅行账本" />}>{null}</Screen>;
 
   const sum = ledgerSummary(td.trip.budget, td.expenses);

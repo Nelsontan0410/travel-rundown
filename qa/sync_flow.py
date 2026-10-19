@@ -196,8 +196,8 @@ try:
         op.get_by_role('button', name='确认导入').click(); op.wait_for_url('**/itinerary/**')
         trip = op.url.rsplit('/', 1)[1]
         # 从旅程页的「邀请同伴」入口进到设置的同步区块
-        op.goto(BASE + '/trips'); op.wait_for_timeout(400)
-        op.get_by_role('button', name=re.compile('邀请同伴看')).click(); op.wait_for_url('**/settings#sync')
+        op.goto(f'{BASE}/itinerary/{trip}'); op.wait_for_timeout(400)
+        op.get_by_role('navigation', name='当前旅程').get_by_role('button', name='分享 / 邀请').click(); op.wait_for_url('**/settings#sync')
         op.wait_for_timeout(600)
         op.get_by_text('开启同步（成为主用户）').click()
         dlg = op.get_by_role('dialog', name='开启同步')

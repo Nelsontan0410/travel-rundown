@@ -1,16 +1,16 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useNavigate } from 'react-router-dom';
 import p from './Page.module.css';
 import { Screen, RootHeader, Menu, Dialog } from '../components/Layout';
-import { Button, Card, EmptyState, SectionTitle } from '../components/Basics';
-import { Icon } from '../components/Icon';
+import { Button, SectionTitle } from '../components/Basics';
 import { TripDeck, type DeckTrip } from '../components/TripDeck';
 import { useTripCovers, useTrips } from '../hooks/data';
 import { fmtDateRange, isIsoDate, nowIn } from '../domain/format';
 import { deleteTrip, setLastTrip } from '../db/repo';
 import { toast } from '../store/ui';
-import { importFile, restoreFromFile } from './importFlow';
-import { JoinCard } from './CloudParts';
+import { restoreFromFile } from './importFlow';
+import { CreateTripCard, JoinTripCard } from './FirstRun';
 import type { Trip } from '../domain/types';
 
 /** 排序：没结束的旅程按开始日期升序排前面，已结束的按开始日期降序排后面 */
@@ -34,34 +34,20 @@ export default function TripsPage() {
     await setLastTrip(id);
     nav('/itinerary');
   };
-  const onImportFile = async () => {
-    if (await importFile()) nav('/import/preview');
-  };
+  const { hash } = useLocation();
+  // 从其他页的「用邀请码加入」进来：滚到加入区块
+  useEffect(() => {
+    if (hash !== '#join' || !trips) return;
+    const t = setTimeout(() => document.getElementById('join')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 200);
+    return () => clearTimeout(t);
+  }, [hash, trips]);
 
+  // 2026-10-19 首页：有旅程的人先看到自己的旅程；没有旅程时只给两条路「创建」「加入」。恢复备份放进右上角菜单。
   return (
     <Screen tab="trips" header={<RootHeader title="我的旅程" icon="MoreHorizontal" iconLabel="更多" onIcon={() => setMenu(true)} />}>
-      <Card className={p.importCard}>
-        <Icon name="FileUp" size="xl" color="var(--color-primary)" />
-        <h2 className={p.importTitle}>把行程带进来</h2>
-        <p className={p.importSub}>支持 Markdown、JSON、CSV 文件，或直接粘贴文字</p>
-        <Button block onClick={onImportFile}>
-          导入文件
-        </Button>
-        <Button block variant="outline" onClick={() => nav('/import/paste')}>
-          粘贴行程文字
-        </Button>
-        <Button variant="link" onClick={() => nav('/import/template')}>
-          获取导入模板
-        </Button>
-      </Card>
-
-      <div className={p.mt12}>
-        <JoinCard />
-      </div>
-
-      {trips && trips.length > 0 ? (
+      {trips === undefined ? null : trips.length > 0 ? (
         <>
-          <SectionTitle>已导入旅程</SectionTitle>
+          <SectionTitle first>我的旅程（{trips.length}）</SectionTitle>
           <div className={p.stack}>
             <TripDeck
               trips={sortTrips(trips).map((t) => ({
@@ -74,27 +60,27 @@ export default function TripsPage() {
               onOpen={(id) => void openTrip(id)}
               onDelete={(t) => setToDelete(t)}
             />
-            <Button block variant="outline" icon="RotateCcw" onClick={() => void restoreFromFile()}>
-              恢复备份
-            </Button>
+          </div>
+          <SectionTitle>新建或加入</SectionTitle>
+          <div className={p.stack}>
+            <CreateTripCard compact />
+            <JoinTripCard compact />
           </div>
         </>
       ) : (
-        trips && (
-          <>
-            <EmptyState compact title="还没有旅程" />
-            <Button block variant="outline" icon="RotateCcw" onClick={() => void restoreFromFile()}>
-              恢复备份
-            </Button>
-          </>
-        )
+        <div className={`${p.stack} ${p.mt8}`}>
+          <p className={p.lockNote}>行程和证明保存在这台设备上，没网也能看。先选一条路开始：</p>
+          <CreateTripCard />
+          <JoinTripCard />
+        </div>
       )}
 
       <Menu
         open={menu}
         onClose={() => setMenu(false)}
         items={[
-          { label: '获取导入模板', onClick: () => nav('/import/template') },
+          { label: '恢复备份', onClick: () => restoreFromFile() },
+          { label: '用 AI 整理行程（模板）', onClick: () => nav('/import/template') },
           { label: '关于', onClick: () => setAbout(true) },
         ]}
       />

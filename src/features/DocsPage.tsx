@@ -14,6 +14,8 @@ import { PassViewer, type PassDoc } from '../components/PassViewer';
 import { copyWithToast, openExternal } from '../links/openLink';
 import { setDocItemKeys } from '../db/repo';
 import { AddDocSheet, ItemPickerSheet } from './AddDoc';
+import { NoTripState } from './FirstRun';
+import TripSwitchBar from '../components/TripSwitchBar';
 import type { Doc, DocKind, Item, ItemType } from '../domain/types';
 
 // 2026-10：按「酒店 / 交通 / 门票」集中（交通 = 机票 + 交通）
@@ -40,7 +42,7 @@ export default function DocsPage() {
   if (!td) {
     return (
       <Screen tab="docs" header={<BigHeader title="预订资料" />}>
-        <EmptyState title="还没有预订资料" text="点右上角「添加」，或在行程详情里上传" />
+        <NoTripState text="先创建或加入旅程，再添加机票、酒店、门票等预订资料。" />
       </Screen>
     );
   }
@@ -73,11 +75,21 @@ export default function DocsPage() {
     <TripThemeScope theme={td.trip.theme} />
     <Screen
       tab="docs"
-      header={<BigHeader title="预订资料" sub={td.trip.title} action={{ label: '添加', onClick: () => setAdd({ keys: [] }) }} />}
+      header={<BigHeader title="预订资料" action={{ label: '添加资料', onClick: () => setAdd({ keys: [] }) }} />}
     >
+      <TripSwitchBar tripId={td.trip.id} title={td.trip.title} />
       <FilterChips options={FILTERS} value={filter} onChange={setFilter} />
       {nothing ? (
-        <EmptyState title="还没有预订资料" text="点右上角「添加」，或在行程详情里上传" compact />
+        <EmptyState
+          title="还没有预订资料"
+          text="把机票、酒店确认单、门票的截图或 PDF 加进来，出行时离线也能出示。也可以在每日行程里点开某一项再上传。"
+          action={
+            <Button icon="Plus" onClick={() => setAdd({ keys: [] })}>
+              添加资料
+            </Button>
+          }
+          compact
+        />
       ) : (
         <div className={`${p.stack} ${p.mt12}`}>
           {allSaved && report.todo === 0 && <InfoBanner variant="success">已保存附件可离线查看</InfoBanner>}

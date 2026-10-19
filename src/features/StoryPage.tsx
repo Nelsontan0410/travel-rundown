@@ -1,6 +1,7 @@
+import TripUnavailable from './TripUnavailable';
 // 旅程介绍页（Landing）：把已导入的行程整理成一份旅行杂志式的介绍，入口在行程页封面下方。
 import { useMemo } from 'react';
-import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import p from './Story.module.css';
 import { Icon } from '../components/Icon';
 import { TripThemeScope } from '../components/TripTheme';
@@ -40,7 +41,7 @@ export default function StoryPage() {
   // 首屏背景：只有对得上地点和季节的旅程才有，中央淡成纸面
   const backdrop = useMemo(() => (L && td ? landingBackdrop(L, td.trip.startDate) : undefined), [L, td]);
 
-  if (td === null) return <Navigate to="/itinerary" replace />;
+  if (td === null) return <TripUnavailable tripId={tripId ?? ''} title="旅程介绍" />;
   if (!td || !L || !plan) return <div className={p.page} />;
 
   const trip = td.trip;
