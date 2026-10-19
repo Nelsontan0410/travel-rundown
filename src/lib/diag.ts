@@ -3,7 +3,13 @@
 // 用原生 DOM 写，不靠 React —— 就算 React 那边整页空白，这块也看得到。点「复制」贴给开发者。
 declare const __BUILD__: string;
 
-const KEY = 'trip-debug';
+// 2026-10-19：换了键名 → 之前在手机上打开过的诊断面板自动关掉（需要时再用 ?debug=1 打开）
+const KEY = 'trip-debug-v2';
+try {
+  localStorage.removeItem('trip-debug');
+} catch {
+  /* ignore */
+}
 const lines: string[] = [];
 let box: HTMLDivElement | null = null;
 let list: HTMLPreElement | null = null;
