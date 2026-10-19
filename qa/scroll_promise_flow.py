@@ -29,7 +29,7 @@ try:
         pg.goto(BASE + '/import/paste'); pg.locator('textarea').fill(md); pg.get_by_text('解析并预览').click()
         pg.get_by_role('button', name='确认导入').click(); pg.wait_for_url('**/itinerary/**')
         expect(pg.get_by_text('Day 1').first).to_be_visible()
-        for link, text in (('旅程', '我的旅程（'), ('行程', 'Day 1'), ('资料', '预订资料'), ('行程', 'Day 1')):
+        for link, text in (('旅程', '我的旅程（'), ('日程', 'Day 1'), ('资料', '预订资料'), ('日程', 'Day 1')):
             pg.get_by_role('link', name=link).first.click()
             expect(pg.get_by_text(text).first).to_be_visible(timeout=4000)
         pg.get_by_role('button', name='旅程设置').click(); expect(pg.get_by_text('同步与同伴')).to_be_visible()

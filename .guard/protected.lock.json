@@ -72,7 +72,7 @@
   "src/links/maps.ts": "5f50fbcb226d2d0064583c32e8a8df533cfae8b4203e0f99949ce4517ce294a8",
   "src/links/openLink.ts": "295de11abc50802d993d3d8d7185fe101a7f6bad7c76ed8e02ba1755502c14d5",
   "src/store/cloud.ts": "524a78afe4bf09c35a6fe40cbec0e51b12469502bae32aa13527f1adb846fac6",
-  "src/store/ui.ts": "e937bb4f82e8d5df295b4244f5668fec0da8241659c65c23dd228a7d925751a5",
+  "src/store/ui.ts": "23784fd53514afa651ecefda91a450c1ba81435f3264d40f76b89039abcf734d",
   "tsconfig.json": "7fbfd482c28f17738c8403c66b189076b5243cc6e7ff60c2898ef82f0fd8c8dd",
   "vite.config.ts": "102b48c60032901d296e3a59430a26a6b0b4feb68aa43bc3f0095777378e45e9"
 }

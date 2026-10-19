@@ -12,6 +12,8 @@ export type TabKey = 'trips' | 'itinerary' | 'docs' | 'notify';
 interface ScreenProps {
   header?: ReactNode;
   sidebarHeader?: ReactNode;
+  /** 2026-10-19：false = 侧栏内容只在电脑上显示（手机上页面自己另外安排） */
+  sidebarMobile?: boolean;
   tab?: TabKey;
   bottom?: ReactNode; // ActionBar 或底部按钮区
   bottomStyle?: 'action' | 'plain';
@@ -20,13 +22,13 @@ interface ScreenProps {
 }
 
 /** 页面骨架：页头 + 内容 + 可选的底部操作栏 + 同一套响应式导航 */
-export function Screen({ header, sidebarHeader, tab, bottom, bottomStyle = 'action', full, children }: ScreenProps) {
+export function Screen({ header, sidebarHeader, sidebarMobile = true, tab, bottom, bottomStyle = 'action', full, children }: ScreenProps) {
   const pad = tab ? (bottom ? s.withTabBottom : s.withTab) : bottom ? s.withBottom : '';
   return (
     <div className={`${s.screen} ${tab ? s.withSidebar : ''}`}>
       <div className={s.contentColumn}>
       {header}
-      {sidebarHeader && <div className={s.mobileSidebarHeader}>{sidebarHeader}</div>}
+      {sidebarHeader && sidebarMobile && <div className={s.mobileSidebarHeader}>{sidebarHeader}</div>}
       <main className={`${s.main} ${sidebarHeader ? s.mainWithSidebarHeader : ''} ${full ? s.full : ''} ${pad}`}>{children}</main>
       {bottom && (
         <div
@@ -112,10 +114,10 @@ export function BigHeader({ title, sub, action }: { title: string; sub?: string;
 }
 
 const TABS: { key: TabKey; label: string; to: string; icon: 'Home' | 'CalendarDays' | 'FileText' | 'Bell' }[] = [
-  // 2026-10-19：标签写全，避免「旅程 / 行程 / 资料」分不清
-  { key: 'trips', label: '我的旅程', to: '/trips', icon: 'Home' },
-  { key: 'itinerary', label: '每日行程', to: '/itinerary', icon: 'CalendarDays' },
-  { key: 'docs', label: '预订资料', to: '/docs', icon: 'FileText' },
+  // 2026-10-19：底部用短标签「旅程 / 日程 / 资料」，页面标题用完整名称（我的旅程 / 每日行程 / 预订资料）
+  { key: 'trips', label: '旅程', to: '/trips', icon: 'Home' },
+  { key: 'itinerary', label: '日程', to: '/itinerary', icon: 'CalendarDays' },
+  { key: 'docs', label: '资料', to: '/docs', icon: 'FileText' },
   { key: 'notify', label: '通知', to: '/notifications', icon: 'Bell' },
 ];
 

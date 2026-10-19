@@ -28,6 +28,23 @@ interface UIState {
 
 let timer: ReturnType<typeof setTimeout> | undefined;
 
+const DRAFT_KEY = 'trip-paste-draft';
+function readDraft(): string {
+  try {
+    return localStorage.getItem(DRAFT_KEY) ?? '';
+  } catch {
+    return '';
+  }
+}
+function writeDraft(t: string) {
+  try {
+    if (t) localStorage.setItem(DRAFT_KEY, t);
+    else localStorage.removeItem(DRAFT_KEY);
+  } catch {
+    /* 存不了就只留在内存里 */
+  }
+}
+
 export const useUI = create<UIState>((set) => ({
   toast: null,
   showToast: (text) => {
@@ -37,8 +54,12 @@ export const useUI = create<UIState>((set) => ({
   },
   draft: null,
   setDraft: (draft) => set({ draft }),
-  pasteText: '',
-  setPasteText: (pasteText) => set({ pasteText }),
+  // 2026-10-19：粘贴的草稿存在这台设备上，返回、切换步骤、刷新都不会丢；导入成功后清掉
+  pasteText: readDraft(),
+  setPasteText: (pasteText) => {
+    writeDraft(pasteText);
+    set({ pasteText });
+  },
   restoreAsk: false,
   updateSW: null,
   selectedDay: {},

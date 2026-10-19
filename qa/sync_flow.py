@@ -197,7 +197,7 @@ try:
         trip = op.url.rsplit('/', 1)[1]
         # 从旅程页的「邀请同伴」入口进到设置的同步区块
         op.goto(f'{BASE}/itinerary/{trip}'); op.wait_for_timeout(400)
-        op.get_by_role('navigation', name='当前旅程').get_by_role('button', name='分享 / 邀请').click(); op.wait_for_url('**/settings#sync')
+        op.get_by_role('button', name='邀请同伴').click(); op.wait_for_url('**/settings#sync')
         op.wait_for_timeout(600)
         op.get_by_text('开启同步（成为主用户）').click()
         dlg = op.get_by_role('dialog', name='开启同步')
@@ -221,7 +221,7 @@ try:
 
         # 同伴：在「旅程」页输入邀请码 → 看到旅程 → 填名字加入
         mp.goto(BASE + '/trips'); mp.wait_for_timeout(400)
-        mp.get_by_label('邀请码').fill(code[:5].lower() + '-' + code[5:]); mp.get_by_role('button', name='加入', exact=True).click()
+        mp.get_by_label('收到同伴的邀请？').fill(code[:5].lower() + '-' + code[5:]); mp.get_by_role('button', name='加入', exact=True).click()
         mp.wait_for_url('**/join/**')
         expect(mp.get_by_text('阿权 邀请你一起看这份行程')).to_be_visible()
         expect(mp.get_by_label('你的名字')).to_have_value('小明')
@@ -272,7 +272,7 @@ try:
         mp.goto(f'{BASE}/itinerary/{trip}'); mp.wait_for_timeout(800)
         expect(mp.get_by_text('重要更新 v2：Day 2 运河晚一点去')).to_be_visible()
         mp.screenshot(path=os.path.join(OUT, '390-02-notice.png'))
-        mp.get_by_role('button', name='查看').click(); mp.wait_for_url('**/update')
+        mp.get_by_role('button', name='查看', exact=True).click(); mp.wait_for_url('**/update')
         expect(mp.get_by_text('小樽运河散步')).to_be_visible()
         mp.screenshot(path=os.path.join(OUT, '390-03-preview.png'), full_page=True)
         mp.get_by_role('button', name='套用这个版本').click(); mp.wait_for_url(f'**/itinerary/{trip}')
