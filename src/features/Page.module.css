@@ -113,6 +113,13 @@
 .editLink { margin-top: var(--space-2); }
 
 /* 2026-10-18 同步 */
+.notifyList { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.notifyItem { width: 100%; text-align: left; display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); background-color: var(--color-surface); background-image: var(--tex-paper), var(--grad-paper); border: var(--border-w) solid var(--color-border); box-shadow: var(--shadow-raised); }
+.notifyFresh { border-color: var(--color-accent); box-shadow: var(--shadow-raised), 0 0 0 2px var(--focus-glow); }
+.notifyHead { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+.notifyTrip { flex: 1; min-width: 0; font-size: var(--fs-small); color: var(--color-text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.notifyTime { font-size: var(--fs-caption); color: var(--color-text-3); flex-shrink: 0; }
+.notifyBody { font-size: var(--fs-small); color: var(--color-text); white-space: pre-line; overflow-wrap: anywhere; }
 .anchor { scroll-margin-top: calc(var(--space-6) * 2); }
 .cloudCard { padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-2); }
 .cloudHead { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-2); flex-wrap: wrap; }

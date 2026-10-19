@@ -2,7 +2,7 @@
 // 权限全部在数据库的行级权限和函数里检查（supabase/schema.sql），这里用的是可公开的 publishable key。
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { SUPABASE_KEY, SUPABASE_URL } from './config';
-import type { CloudBackend, CloudInvite, CloudSession } from './backend';
+import type { CloudBackend, CloudEvent, CloudInvite, CloudSession } from './backend';
 import type { TripSnapshot } from './snapshot';
 
 const BUCKET = 'trip-files';
@@ -13,6 +13,18 @@ function must<T>(r: { data: T; error: { message: string } | null }): T {
 }
 
 const toSession = (u: { id: string } | null | undefined): CloudSession | null => (u ? { userId: u.id } : null);
+
+type EventRow = { id: number; trip_id: string; actor_id: string | null; actor_name: string | null; kind: string; title: string; detail: CloudEvent['detail'] | null; created_at: string };
+const toEvent = (r: EventRow): CloudEvent => ({
+  id: Number(r.id),
+  tripId: r.trip_id,
+  actorId: r.actor_id ?? undefined,
+  actorName: r.actor_name ?? undefined,
+  kind: r.kind,
+  title: r.title,
+  detail: r.detail ?? {},
+  createdAt: r.created_at,
+});
 
 type InviteRow = { id: string; trip_id: string; code: string | null; name: string | null; accepted_at: string | null; created_at: string };
 const toInvite = (r: InviteRow): CloudInvite => ({
@@ -49,8 +61,8 @@ export function createSupabaseBackend(): CloudBackend {
     async createTrip(id, title, name) {
       must(await sb.rpc('create_cloud_trip', { p_id: id, p_title: title, p_name: name }));
     },
-    async publish(tripId, note, important, snapshot: TripSnapshot, title) {
-      return must(await sb.rpc('publish_version', { p_trip: tripId, p_note: note, p_important: important, p_snapshot: snapshot, p_title: title })) as number;
+    async publish(tripId, note, important, snapshot: TripSnapshot, title, summary) {
+      return must(await sb.rpc('publish_version', { p_trip: tripId, p_note: note, p_important: important, p_snapshot: snapshot, p_title: title, p_summary: summary ?? null })) as number;
     },
     async latest(tripIds) {
       if (!tripIds.length) return [];
@@ -96,6 +108,23 @@ export function createSupabaseBackend(): CloudBackend {
       const s = await me();
       if (!s) return;
       must(await sb.from('trip_members').delete().eq('trip_id', tripId).eq('user_id', s.userId));
+    },
+
+    async events(tripIds, afterId) {
+      if (!tripIds.length) return [];
+      let q = sb.from('trip_events').select('*').in('trip_id', tripIds).order('id', { ascending: false }).limit(100);
+      if (afterId) q = q.gt('id', afterId);
+      const rows = must(await q) as EventRow[];
+      return rows.map(toEvent).reverse();
+    },
+    watchEvents(cb) {
+      const ch = sb
+        .channel('trip-events')
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'trip_events' }, (p) => cb(toEvent(p.new as EventRow)))
+        .subscribe();
+      return () => {
+        void sb.removeChannel(ch);
+      };
     },
 
     async upload(path, blob) {

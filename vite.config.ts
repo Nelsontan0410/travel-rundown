@@ -45,6 +45,8 @@ export default defineConfig({
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
         navigateFallback: '/index.html',
         clientsClaim: true,
+        // 2026-10-19：点手机通知时打开对应页面
+        importScripts: ['notify-sw.js'],
         skipWaiting: true,
         // 旅程介绍页的照片（换成 jpg 后不进预缓存，看过一次就离线可用）
         runtimeCaching: [

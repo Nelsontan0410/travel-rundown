@@ -53,6 +53,34 @@ export interface InvitePeek {
   mine: boolean;
 }
 
+/** 2026-10-19 通知：旅程里发生的事 */
+export interface CloudEvent {
+  id: number;
+  tripId: string;
+  actorId?: string;
+  actorName?: string;
+  kind: 'publish' | 'join' | 'leave' | 'remove' | string;
+  title: string;
+  detail: {
+    version?: number;
+    note?: string;
+    important?: boolean;
+    summary?: PublishSummary;
+  };
+  createdAt: string;
+}
+
+/** 发布时附带的改动摘要 */
+export interface PublishSummary {
+  added?: number;
+  changed?: number;
+  removed?: number;
+  docs?: number;
+  trip?: string[];
+  /** 前几项改动的标题，例如「新增 · 小樽运河」 */
+  lines?: string[];
+}
+
 export interface CloudBackend {
   getSession(): Promise<CloudSession | null>;
   /** 没有身份就自动建一个（匿名） */
@@ -60,7 +88,7 @@ export interface CloudBackend {
   onSessionChange(cb: (s: CloudSession | null) => void): () => void;
 
   createTrip(id: string, title: string, name: string): Promise<void>;
-  publish(tripId: string, note: string, important: boolean, snapshot: TripSnapshot, title: string): Promise<number>;
+  publish(tripId: string, note: string, important: boolean, snapshot: TripSnapshot, title: string, summary?: PublishSummary): Promise<number>;
   /** 这些旅程在云端的最新版本（只返回自己是成员的） */
   latest(tripIds: string[]): Promise<CloudTripInfo[]>;
   /** 不传 version 取最新版 */
@@ -76,6 +104,11 @@ export interface CloudBackend {
   /** 用邀请码加入，返回旅程 id */
   joinWithCode(code: string, name: string): Promise<string>;
   leaveTrip(tripId: string): Promise<void>;
+
+  /** 这些旅程的通知（新的在后，最多 100 条）；afterId 之后的 */
+  events(tripIds: string[], afterId?: number): Promise<CloudEvent[]>;
+  /** 有新通知时马上告诉我（Supabase Realtime）；不支持就返回空函数 */
+  watchEvents(cb: (e: CloudEvent) => void): () => void;
 
   /** 共享文件：已存在就跳过 */
   upload(path: string, blob: Blob): Promise<void>;

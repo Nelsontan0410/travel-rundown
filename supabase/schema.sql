@@ -83,6 +83,19 @@ create index if not exists trip_members_user on public.trip_members (user_id);
 create index if not exists trip_invites_email on public.trip_invites (lower(email));
 create index if not exists trip_suggestions_trip on public.trip_suggestions (trip_id, status);
 
+-- 2026-10-19 通知：旅程里发生的事（谁发布了什么、谁加入 / 退出）。只能由下面的函数写入，成员都能读。
+create table if not exists public.trip_events (
+  id bigint generated always as identity primary key,
+  trip_id uuid not null references public.cloud_trips (id) on delete cascade,
+  actor_id uuid references auth.users (id) on delete set null,
+  actor_name text,
+  kind text not null,
+  title text not null,
+  detail jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+create index if not exists trip_events_trip on public.trip_events (trip_id, id);
+
 -- ———————— 权限判断（security definer：在策略里用，避免策略互相递归） ————————
 
 create or replace function public.is_trip_member(t uuid) returns boolean
@@ -107,6 +120,7 @@ alter table public.trip_members enable row level security;
 alter table public.trip_invites enable row level security;
 alter table public.trip_versions enable row level security;
 alter table public.trip_suggestions enable row level security;
+alter table public.trip_events enable row level security;
 
 drop policy if exists "成员可读旅程" on public.cloud_trips;
 create policy "成员可读旅程" on public.cloud_trips for select using (public.is_trip_member(id));
@@ -137,6 +151,9 @@ create policy "成员可提交建议" on public.trip_suggestions for insert
 drop policy if exists "主用户处理建议" on public.trip_suggestions;
 create policy "主用户处理建议" on public.trip_suggestions for update using (public.is_trip_owner(trip_id));
 
+drop policy if exists "成员可读通知" on public.trip_events;
+create policy "成员可读通知" on public.trip_events for select using (public.is_trip_member(trip_id));
+
 -- 写入一律走下面的函数（建旅程、发布版本、邀请、加入），表本身不开放插入
 
 -- ———————— 函数 ————————
@@ -145,6 +162,21 @@ create policy "主用户处理建议" on public.trip_suggestions for update usin
 drop function if exists public.create_cloud_trip(uuid, text);
 drop function if exists public.invite_member(uuid, text);
 drop function if exists public.accept_invite(uuid);
+
+-- 记一条通知（内部用，不开放给前端直接调用）
+create or replace function public.log_trip_event(p_trip uuid, p_kind text, p_title text, p_detail jsonb default '{}'::jsonb)
+returns void language sql security definer set search_path = public as $$
+  insert into trip_events (trip_id, actor_id, actor_name, kind, title, detail)
+  values (p_trip, auth.uid(),
+    (select name from trip_members where trip_id = p_trip and user_id = auth.uid()),
+    p_kind, p_title, coalesce(p_detail, '{}'::jsonb));
+$$;
+revoke all on function public.log_trip_event(uuid, text, text, jsonb) from public, anon, authenticated;
+
+create or replace function public.member_name(p_trip uuid) returns text
+language sql stable security definer set search_path = public as $$
+  select coalesce(nullif((select name from trip_members where trip_id = p_trip and user_id = auth.uid()), ''), '有人');
+$$;
 
 -- 开启同步：建旅程并把自己登记为主用户
 create or replace function public.create_cloud_trip(p_id uuid, p_title text, p_name text) returns void
@@ -162,8 +194,9 @@ begin
     values (p_id, auth.uid(), nullif(public.my_email(), ''), nullif(trim(p_name), ''), 'owner');
 end $$;
 
--- 发布新版本（只有主用户）；返回新版本号
-create or replace function public.publish_version(p_trip uuid, p_note text, p_important boolean, p_snapshot jsonb, p_title text)
+-- 发布新版本（只有主用户）；返回新版本号。p_summary：这次改了什么（给通知用）
+drop function if exists public.publish_version(uuid, text, boolean, jsonb, text);
+create or replace function public.publish_version(p_trip uuid, p_note text, p_important boolean, p_snapshot jsonb, p_title text, p_summary jsonb default null)
 returns integer
 language plpgsql security definer set search_path = public as $$
 declare v integer;
@@ -174,6 +207,9 @@ begin
     values (p_trip, v, p_note, coalesce(p_important, false), p_snapshot, auth.uid());
   update cloud_trips set latest_version = v, latest_note = p_note, latest_important = coalesce(p_important, false),
     title = coalesce(nullif(p_title, ''), title), updated_at = now() where id = p_trip;
+  perform public.log_trip_event(p_trip, 'publish',
+    public.member_name(p_trip) || ' 发布了 v' || v || case when coalesce(p_important, false) then '（重要更新）' else '' end,
+    jsonb_build_object('version', v, 'note', p_note, 'important', coalesce(p_important, false), 'summary', coalesce(p_summary, '{}'::jsonb)));
   return v;
 end $$;
 
@@ -218,7 +254,7 @@ $$;
 -- 用邀请码加入：一个邀请码只能给一台手机用；返回旅程 id
 create or replace function public.join_with_code(p_code text, p_name text) returns uuid
 language plpgsql security definer set search_path = public as $$
-declare inv trip_invites;
+declare inv trip_invites; was boolean;
 begin
   if auth.uid() is null then raise exception '请先登录'; end if;
   select * into inv from trip_invites where code = upper(replace(replace(trim(p_code), '-', ''), ' ', ''));
@@ -227,20 +263,43 @@ begin
   if inv.accepted_by is not null and inv.accepted_by <> auth.uid() then
     raise exception '这个邀请码已经在别的手机上用过了，请主用户重新生成';
   end if;
+  was := exists (select 1 from trip_members where trip_id = inv.trip_id and user_id = auth.uid());
   insert into trip_members (trip_id, user_id, name, role)
     values (inv.trip_id, auth.uid(), coalesce(nullif(trim(p_name), ''), inv.name), 'member')
     on conflict (trip_id, user_id) do update set name = excluded.name;
   update trip_invites set accepted_at = coalesce(accepted_at, now()), accepted_by = auth.uid() where id = inv.id;
+  if not was then perform public.log_trip_event(inv.trip_id, 'join', public.member_name(inv.trip_id) || ' 加入了旅程'); end if;
   return inv.trip_id;
 end $$;
 
 -- 移除成员：同时作废他用过的邀请码
 create or replace function public.remove_member(p_trip uuid, p_user uuid) returns void
 language plpgsql security definer set search_path = public as $$
+declare who text;
 begin
   if not public.is_trip_owner(p_trip) then raise exception '只有主用户可以移除成员'; end if;
-  delete from trip_members where trip_id = p_trip and user_id = p_user and role = 'member';
+  delete from trip_members where trip_id = p_trip and user_id = p_user and role = 'member' returning name into who;
+  if found then perform public.log_trip_event(p_trip, 'remove', public.member_name(p_trip) || ' 移除了 ' || coalesce(nullif(who, ''), '一位同伴')); end if;
   delete from trip_invites where trip_id = p_trip and accepted_by = p_user;
+end $$;
+
+-- 同伴自己退出（直接删自己那一行）→ 记一条通知
+create or replace function public.on_member_leave() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if old.user_id = auth.uid() and old.role = 'member' then
+    insert into trip_events (trip_id, actor_id, actor_name, kind, title)
+      values (old.trip_id, old.user_id, old.name, 'leave', coalesce(nullif(old.name, ''), '一位同伴') || ' 退出了旅程');
+  end if;
+  return old;
+end $$;
+drop trigger if exists trip_members_leave on public.trip_members;
+create trigger trip_members_leave after delete on public.trip_members for each row execute function public.on_member_leave();
+
+-- 通知实时推送（Supabase Realtime；同样受上面的读取权限限制）
+do $$ begin
+  alter publication supabase_realtime add table public.trip_events;
+exception when duplicate_object or undefined_object then null;
 end $$;
 
 -- ———————— 共享文件（证明、二维码、封面） ————————
@@ -278,7 +337,7 @@ create policy "主用户删除共享文件" on storage.objects for delete using 
 
 -- 允许登录用户调用函数
 grant execute on function public.create_cloud_trip(uuid, text, text) to authenticated;
-grant execute on function public.publish_version(uuid, text, boolean, jsonb, text) to authenticated;
+grant execute on function public.publish_version(uuid, text, boolean, jsonb, text, jsonb) to authenticated;
 grant execute on function public.create_invite(uuid, text) to authenticated;
 grant execute on function public.peek_invite(text) to authenticated;
 grant execute on function public.join_with_code(text, text) to authenticated;

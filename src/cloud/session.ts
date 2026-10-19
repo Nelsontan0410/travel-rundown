@@ -5,6 +5,7 @@ import { db } from '../db/schema';
 import { useCloud } from '../store/cloud';
 import { backend, cloudErrorText, type CloudSession } from './backend';
 import { checkUpdates } from './sync';
+import { loadEvents, watchEvents } from './notify';
 
 const USED_KEY = 'trip-sync-used';
 const NAME_KEY = 'trip-sync-name';
@@ -52,8 +53,9 @@ export async function refreshCloud(): Promise<void> {
   useCloud.setState({ session });
   if (!session) return useCloud.setState({ updates: {} });
   try {
-    const updates = await checkUpdates();
+    const [updates] = await Promise.all([checkUpdates(), loadEvents()]);
     useCloud.setState({ updates, lastError: undefined });
+    void watchEvents(() => void refreshCloud());
   } catch (e) {
     useCloud.setState({ lastError: cloudErrorText(e) });
   }

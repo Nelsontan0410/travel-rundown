@@ -6,7 +6,7 @@ import { uuid } from '../db/uuid';
 import { tripToMd } from '../importer/serialize';
 import { DEFAULT_TRANSLATE, type Doc, type Item, type Trip } from '../domain/types';
 import { isLinkDoc, LINK_MIME } from '../domain/bookings';
-import { backend } from './backend';
+import { backend, type PublishSummary } from './backend';
 import { buildSnapshot, diffSnapshots, type SnapshotDiff, type TripSnapshot } from './snapshot';
 import { localEdits, mergeSnapshot, type Choice, type Conflict } from './merge';
 
@@ -90,16 +90,40 @@ export async function pendingChanges(tripId: string): Promise<SnapshotDiff> {
   return diffSnapshots(base?.snapshot ?? { ...snapshot, days: [], items: [], docs: [] }, snapshot);
 }
 
+/** 发布时附在通知里的改动摘要（同伴不用打开就知道改了什么） */
+export function summarize(diff: SnapshotDiff): PublishSummary {
+  const n = (k: 'added' | 'changed' | 'removed') => diff.items.filter((c) => c.kind === k).length;
+  const label = { added: '新增', changed: '修改', removed: '删除' } as const;
+  const lines = [
+    ...diff.items.map((c) => `${label[c.kind]} · ${c.dayIndex ? `Day ${c.dayIndex} ` : ''}${c.title}`),
+    ...diff.docs.map((d) => `${label[d.kind]}资料 · ${d.title}`),
+    ...diff.days.map((d) => `Day ${d.index} · ${d.fields.join('、')}`),
+  ];
+  return {
+    added: n('added'),
+    changed: n('changed'),
+    removed: n('removed'),
+    docs: diff.docs.length,
+    ...(diff.trip.length ? { trip: diff.trip } : {}),
+    lines: lines.slice(0, 6),
+  };
+}
+
 export async function publishUpdate(tripId: string, note: string, important: boolean): Promise<number> {
   const be = await backend();
   const { snapshot, files } = await currentSnapshot(tripId);
+  const base = await db.cloudBases.get(tripId);
+  // 第一版不列清单（全部都是「新增」），只给数量
+  const summary = base
+    ? summarize(diffSnapshots(base.snapshot, snapshot))
+    : { added: snapshot.items.length, docs: snapshot.docs.length, lines: [] };
   const trip = (await db.trips.get(tripId))!;
   // 先传文件（同样内容只传一次），再发版本，免得同伴拿到版本却下载不到文件
   for (const [blobKey, hash] of files) {
     const rec = await db.blobs.get(blobKey);
     if (rec) await be.upload(filePath(tripId, hash), rec.blob);
   }
-  const version = await be.publish(tripId, note.trim() || '更新行程', important, snapshot, trip.title);
+  const version = await be.publish(tripId, note.trim() || '更新行程', important, snapshot, trip.title, summary);
   await db.transaction('rw', db.trips, db.cloudBases, async () => {
     await db.cloudBases.put({ tripId, version, snapshot, savedAt: now() });
     const t = await db.trips.get(tripId);

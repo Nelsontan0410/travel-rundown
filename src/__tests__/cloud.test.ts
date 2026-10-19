@@ -213,3 +213,51 @@ describe('同步：主用户发布、同伴套用', () => {
     expect(m.conflicts).toEqual([]);
   });
 });
+
+describe('通知', () => {
+  it('同伴加入 → 主用户收到；主用户发布 → 同伴收到「谁发布了什么」和改动摘要；退出 / 移除也有', async () => {
+    const tripId = await ownerSetup();
+    await mateJoin();
+    // 主用户这边看到「小明 加入了旅程」
+    cloud.as(OWNER);
+    let evs = await cloud.events([tripId]);
+    expect(evs.map((e) => e.kind)).toEqual(['publish', 'join']);
+    expect(evs[1].title).toBe('小明 加入了旅程');
+
+    // 主用户改两项、删一项后发布
+    await useDevice('owner');
+    cloud.as(OWNER);
+    const items = await db.items.toArray();
+    await updateItem(items.find((i) => i.title === '小樽运河')!.id, { start: '11:00' });
+    await deleteItem(items.find((i) => i.title === '白色恋人公园')!.id);
+    await publishUpdate(tripId, 'Day 2 晚点出发', true);
+
+    await useDevice('mate');
+    cloud.as(MATE);
+    evs = await cloud.events([tripId]);
+    const pub = evs.at(-1)!;
+    expect(pub).toMatchObject({ kind: 'publish', title: '阿权 发布了 v2（重要更新）', actorName: '阿权' });
+    expect(pub.detail).toMatchObject({ version: 2, note: 'Day 2 晚点出发', important: true });
+    expect(pub.detail.summary).toMatchObject({ added: 0, changed: 1, removed: 1 });
+    expect(pub.detail.summary!.lines).toEqual(expect.arrayContaining([expect.stringContaining('修改 · Day 2 小樽运河'), expect.stringContaining('删除 · Day 3 白色恋人公园')]));
+
+    // 只能拿 afterId 之后的
+    expect((await cloud.events([tripId], pub.id - 1)).map((e) => e.id)).toEqual([pub.id]);
+
+    await cloud.leaveTrip(tripId);
+    cloud.as(OWNER);
+    expect((await cloud.events([tripId])).at(-1)!.title).toBe('小明 退出了旅程');
+    // 外人看不到
+    cloud.as('stranger');
+    await cloud.ensureSession();
+    expect(await cloud.events([tripId])).toEqual([]);
+  });
+
+  it('未读 = 别人做的、比看过的新', async () => {
+    const { unreadOf } = await import('../store/cloud');
+    const ev = (id: number, actorId: string) => ({ id, tripId: 't', actorId, kind: 'publish', title: '', detail: {}, createdAt: '' });
+    const events = [ev(1, 'a'), ev(2, 'me'), ev(3, 'b')];
+    expect(unreadOf({ events, seenId: 0, session: { userId: 'me' } }).map((e) => e.id)).toEqual([1, 3]);
+    expect(unreadOf({ events, seenId: 2, session: { userId: 'me' } }).map((e) => e.id)).toEqual([3]);
+  });
+});

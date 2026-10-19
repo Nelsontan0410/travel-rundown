@@ -5,8 +5,9 @@ import s from './Layout.module.css';
 import { Icon, Logo, TabIconFilled, type IconKey } from './Icon';
 import { useUI } from '../store/ui';
 import { useOverlay } from '../hooks/layout';
+import { unreadOf, useCloud } from '../store/cloud';
 
-export type TabKey = 'trips' | 'itinerary' | 'docs';
+export type TabKey = 'trips' | 'itinerary' | 'docs' | 'notify';
 
 interface ScreenProps {
   header?: ReactNode;
@@ -110,22 +111,38 @@ export function BigHeader({ title, sub, action }: { title: string; sub?: string;
   );
 }
 
-const TABS: { key: TabKey; label: string; to: string; icon: 'Home' | 'CalendarDays' | 'FileText' }[] = [
+const TABS: { key: TabKey; label: string; to: string; icon: 'Home' | 'CalendarDays' | 'FileText' | 'Bell' }[] = [
   { key: 'trips', label: '旅程', to: '/trips', icon: 'Home' },
   { key: 'itinerary', label: '行程', to: '/itinerary', icon: 'CalendarDays' },
   { key: 'docs', label: '资料', to: '/docs', icon: 'FileText' },
+  { key: 'notify', label: '通知', to: '/notifications', icon: 'Bell' },
 ];
 
 export function TabBar({ active, header }: { active: TabKey; header?: ReactNode }) {
+  // 2026-10-19：这台手机用过同步才显示「通知」，红点 = 别人做的、还没看过的
+  const synced = useCloud((st) => !!st.session);
+  const unread = useCloud((st) => unreadOf(st).length);
+  const tabs = TABS.filter((t) => t.key !== 'notify' || synced || active === 'notify');
   return (
-    <nav className={`${s.fixedCol} ${s.tabbar}`} aria-label="主导航">
+    <nav className={`${s.fixedCol} ${s.tabbar}`} aria-label="主导航" style={{ gridTemplateColumns: `repeat(${tabs.length}, 1fr)` }}>
       <span className={s.navLogo} aria-hidden="true"><Logo /></span>
       {header && <div className={s.sidebarHeader}>{header}</div>}
-      {TABS.map((t) => {
+      {tabs.map((t) => {
         const on = t.key === active;
+        const badge = t.key === 'notify' && unread > 0 ? unread : 0;
         return (
-          <Link key={t.key} to={t.to} replace className={`${s.tab} ${on ? s.tabOn : ''}`} aria-current={on ? 'page' : undefined}>
-            {on ? <TabIconFilled name={t.icon} /> : <Icon name={t.icon} />}
+          <Link
+            key={t.key}
+            to={t.to}
+            replace
+            className={`${s.tab} ${on ? s.tabOn : ''}`}
+            aria-current={on ? 'page' : undefined}
+            aria-label={badge ? `${t.label}（${badge} 条未读）` : undefined}
+          >
+            <span className={s.tabIcon}>
+              {on ? <TabIconFilled name={t.icon} /> : <Icon name={t.icon} />}
+              {badge > 0 && <span className={s.badge}>{badge > 99 ? '99+' : badge}</span>}
+            </span>
             {t.label}
           </Link>
         );
