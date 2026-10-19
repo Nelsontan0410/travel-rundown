@@ -123,7 +123,7 @@ try:
         npg.goto(f'{BASE}/itinerary/{trip}'); expect(npg.get_by_role('button', name='下载到这台设备')).to_be_visible()
         # 网络失败
         OFFLINE['on'] = True
-        npg.reload(); expect(npg.get_by_text('暂时连不上同步服务')).to_be_visible()
+        npg.reload(); expect(npg.get_by_text('所以没法确认你能不能看这份旅程')).to_be_visible()
         shot(npg, '390-07-link-network-error.png')
         OFFLINE['on'] = False
         npg.get_by_role('button', name='重试').click(); npg.get_by_role('button', name='下载到这台设备').click()

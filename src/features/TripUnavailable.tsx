@@ -105,7 +105,7 @@ export default function TripUnavailable({ tripId, tab, title = '旅程' }: { tri
                 </Button>
               }
             >
-              暂时连不上同步服务：{err}
+              {err || "暂时连不上同步服务"}，所以没法确认你能不能看这份旅程。
             </InfoBanner>
           )}
           <Card className={p.cloudCard}>
