@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import p from './Page.module.css';
+import ImportSteps from '../components/ImportSteps';
 import { Screen, BackHeader } from '../components/Layout';
 import { Button, InfoBanner } from '../components/Basics';
 import { KeyValueCard } from '../components/Cards';
@@ -77,7 +78,8 @@ export default function PreviewPage() {
         : [],
     [parsed],
   );
-  if (!draft) return <Navigate to="/trips" replace />;
+  // 2026-10-19：刷新后预览没了，就回到第 1 步（草稿还在）
+  if (!draft) return <Navigate to="/import/paste" replace />;
   const { result } = draft;
   const empty = result.itemCount === 0;
   const blocked = empty || result.errors.length > 0;
@@ -165,6 +167,7 @@ export default function PreviewPage() {
       const renames: Record<string, string> = {};
       for (const r of diff?.renamed ?? []) if (accepted.has(r.oldKey)) renames[r.oldKey] = r.newKey;
       const id = await saveImport(result, draft.md, draft.targetTripId, renames);
+      setPaste('');
       nav(`/itinerary/${id}`, { replace: true });
       setTimeout(() => {
         setDraft(null);
@@ -179,8 +182,7 @@ export default function PreviewPage() {
 
   return (
     <Screen
-      tab="trips"
-      header={<BackHeader title="导入预览" onBack={back} />}
+      header={<BackHeader title="导入行程" onBack={back} />}
       bottom={
         <>
           <Button disabled={blocked || busy} onClick={() => void confirm()}>
@@ -192,6 +194,7 @@ export default function PreviewPage() {
         </>
       }
     >
+      <ImportSteps step={2} />
       <div className={p.mt8}>
         <MappingSummaryCard sum={summary} />
       </div>

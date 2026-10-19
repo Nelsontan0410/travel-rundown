@@ -6,7 +6,7 @@ React 18 + TypeScript + Vite PWA，本地优先（Dexie/IndexedDB），无 App �
 - `docs/design-reference.md`（设计唯一依据）、`src/styles/tokens.css`
 - V1.1 计划：https://claude.ai/code/artifact/d3db5181-4880-4cba-a896-501d98163fb3
 - 设计参考里「窗口更宽时内容区最大 430 居中」已废止，由 B 线响应式规格取代；「只做浅色」继续有效。
-- **视觉风格（2026-10 起）：复古拟物化 Vintage Skeuomorphism**——奶油纸张 + 深棕皮革 + 低饱和黄铜，左上光源。原「不加阴影和渐变」规则已废止；阴影、渐变、纹理一律用 `tokens.css` 里的材质变量（`--grad-*` `--shadow-*` `--tex-*`），不在组件里写新的色值或阴影。
+- **视觉风格（2026-10 起）：复古拟物化 Vintage Skeuomorphism**——奶油纸张 + 深棕皮革 + 低饱和黄铜，左上光源。**2026-10-19 起轻量化**：夏季默认主题去掉皮革纹理、缝线、凸起高光和重阴影（`tokens.css`「夏季（默认）轻量化」），正文 16px、说明 14px、主按钮 48px、小按钮触控区 ≥44px。原「不加阴影和渐变」规则已废止；阴影、渐变、纹理一律用 `tokens.css` 里的材质变量（`--grad-*` `--shadow-*` `--tex-*`），不在组件里写新的色值或阴影。
 - **主题（2026-10-15 起）**：只有春夏秋冬四季。夏季 = 上面的复古拟物化暖色（`:root`，没有 data-theme）；春 / 秋 / 冬共用一套极简材质、各自一套配色，由 `<html data-theme="spring|autumn|winter">` 切换，变量定义在 `tokens.css` 底部。旧资料里的 `classic` 一律当夏季（`domain/theme.ts` 的 `seasonOf`）。旅程页用这份旅程的主题，旅程列表、导入等公共页面跟随最近打开的旅程。任何新样式都必须只用变量，四季下都要检查对比度（`src/__tests__/themes.test.ts` 会校验文字对比度）；强调色文字用 `--color-accent-text`，不要直接用 `--color-accent`；不得在组件里写死颜色。
 
 ## 🔒 最高优先级：数据与逻辑禁区（B 线 / Codex 必读）

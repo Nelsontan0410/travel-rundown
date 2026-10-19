@@ -10,17 +10,20 @@
 .btn:disabled { opacity: var(--opacity-disabled); filter: saturate(0.4); }
 .lg { height: var(--h-btn-lg); font-size: var(--fs-card); padding: 0 var(--space-4); }
 .sm { height: var(--h-btn-sm); font-size: var(--fs-small); padding: 0 var(--space-3); }
+/* 2026-10-19：小按钮看起来 36px，实际触控区至少 44px */
+.sm::before { content: ''; position: absolute; inset: -4px 0; }
 .block { width: 100%; }
 .primary {
   background-color: var(--color-leather); background-image: var(--tex-leather), var(--grad-btn-primary);
-  border-color: var(--color-leather-edge); color: var(--color-on-leather); text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.45);
+  border-color: var(--color-leather-edge); color: var(--color-on-leather);
   box-shadow: var(--shadow-btn-primary);
 }
-.primary::after { content: ''; position: absolute; inset: 3px; border: 1px dashed color-mix(in srgb, var(--color-on-leather-hi) 35%, transparent); border-radius: calc(var(--radius-sm) - 3px); pointer-events: none; }
+/* 2026-10-19：去掉主按钮里的缝线 */
+.primary::after { content: none; }
 .primary:not(:disabled):active { box-shadow: var(--shadow-pressed), 0 1px 0 var(--color-leather-edge); }
 .outline {
   background: var(--grad-btn-cream); border-color: var(--color-border); color: var(--color-primary);
-  box-shadow: var(--shadow-raised); text-shadow: 0 1px 0 rgba(255, 252, 244, 0.7);
+  box-shadow: var(--shadow-raised);
 }
 .outline:not(:disabled):active { box-shadow: var(--shadow-inset); background: var(--grad-inset); }
 .danger {

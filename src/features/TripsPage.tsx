@@ -10,7 +10,7 @@ import { fmtDateRange, isIsoDate, nowIn } from '../domain/format';
 import { deleteTrip, setLastTrip } from '../db/repo';
 import { toast } from '../store/ui';
 import { restoreFromFile } from './importFlow';
-import { CreateTripCard, JoinTripCard } from './FirstRun';
+import { CreateOrJoin, NewUserHome } from './FirstRun';
 import type { Trip } from '../domain/types';
 
 /** 排序：没结束的旅程按开始日期升序排前面，已结束的按开始日期降序排后面 */
@@ -38,7 +38,10 @@ export default function TripsPage() {
   // 从其他页的「用邀请码加入」进来：滚到加入区块
   useEffect(() => {
     if (hash !== '#join' || !trips) return;
-    const t = setTimeout(() => document.getElementById('join')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 200);
+    const t = setTimeout(() => {
+      document.getElementById('join')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      document.getElementById('join-code')?.focus({ preventScroll: true });
+    }, 200);
     return () => clearTimeout(t);
   }, [hash, trips]);
 
@@ -62,17 +65,10 @@ export default function TripsPage() {
             />
           </div>
           <SectionTitle>新建或加入</SectionTitle>
-          <div className={p.stack}>
-            <CreateTripCard compact />
-            <JoinTripCard compact />
-          </div>
+          <CreateOrJoin />
         </>
       ) : (
-        <div className={`${p.stack} ${p.mt8}`}>
-          <p className={p.lockNote}>行程和证明保存在这台设备上，没网也能看。先选一条路开始：</p>
-          <CreateTripCard />
-          <JoinTripCard />
-        </div>
+        <NewUserHome />
       )}
 
       <Menu
@@ -80,7 +76,7 @@ export default function TripsPage() {
         onClose={() => setMenu(false)}
         items={[
           { label: '恢复备份', onClick: () => restoreFromFile() },
-          { label: '用 AI 整理行程（模板）', onClick: () => nav('/import/template') },
+          { label: '示例与模板', onClick: () => nav('/import/template') },
           { label: '关于', onClick: () => setAbout(true) },
         ]}
       />

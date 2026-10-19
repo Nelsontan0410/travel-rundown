@@ -1,0 +1,7 @@
+.steps { list-style: none; margin: var(--space-2) 0 var(--space-3); padding: 0; display: flex; align-items: center; gap: var(--space-2); font-size: var(--fs-small); color: var(--color-text-2); }
+.step { display: inline-flex; align-items: center; gap: var(--space-2); }
+.step + .step::before { content: ''; width: 28px; height: 1px; background: var(--color-border); margin-right: var(--space-1); }
+.num { width: 26px; height: 26px; border-radius: 50%; display: inline-grid; place-items: center; font-weight: 700; border: 1.5px solid var(--color-border); background: var(--color-surface-subtle); color: var(--color-text-2); }
+.on { color: var(--color-text); font-weight: 600; }
+.on .num { background: var(--color-leather); border-color: var(--color-leather); color: var(--color-on-leather); }
+.done .num { border-color: var(--color-leather); color: var(--color-leather); }

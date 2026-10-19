@@ -1,0 +1,104 @@
+// 2026-10-19 每日行程（手机）新层级的展示组件：
+//  ItineraryHeader：当前旅程名 + 切换 + 真实的同步状态 + 旅程设置
+//  NextStopCard：下一站（时间、地点、导航）
+//  TripEntries：预订资料 / 同伴 入口
+import s from './DayGlance.module.css';
+import { Icon } from './Icon';
+
+export function ItineraryHeader({
+  title,
+  phase,
+  sync,
+  onSwitch,
+  onSettings,
+}: {
+  title: string;
+  /** 例如「3 天后出发」「第 2 天 · 共 4 天」「已结束」 */
+  phase?: string;
+  /** 只在真的开启了同步时传，例如「已发布 v3」「已套用 v2」「有新版本 v3」 */
+  sync?: { label: string; attention?: boolean };
+  onSwitch: () => void;
+  onSettings: () => void;
+}) {
+  return (
+    <header className={s.header}>
+      <div className={s.row}>
+        <button type="button" className={s.titleBtn} onClick={onSwitch} aria-label={`当前旅程：${title}，切换旅程`}>
+          <span className={s.title}>{title || '未命名旅程'}</span>
+          <Icon name="ChevronRight" size="sm" className={s.chev} />
+        </button>
+        <button type="button" className={s.icon} aria-label="旅程设置" onClick={onSettings}>
+          <Icon name="Settings" />
+        </button>
+      </div>
+      {(phase || sync) && (
+        <div className={s.meta}>
+          {phase && <span className={s.phase}>{phase}</span>}
+          {sync && (
+            <span className={`${s.sync} ${sync.attention ? s.syncAttention : ''}`}>
+              <span className={s.dot} aria-hidden="true" />
+              {sync.label}
+            </span>
+          )}
+        </div>
+      )}
+    </header>
+  );
+}
+
+export function NextStopCard({
+  label,
+  time,
+  title,
+  place,
+  onOpen,
+  onNav,
+}: {
+  label: string;
+  time?: string;
+  title: string;
+  place?: string;
+  onOpen: () => void;
+  /** 没有地点或导航链接时不传，就不显示导航按钮 */
+  onNav?: () => void;
+}) {
+  return (
+    <section className={s.next} aria-label={label}>
+      {/* 整块都能点开这一项 */}
+      <button type="button" className={s.nextMain} onClick={onOpen}>
+        <span className={s.nextLabel}>{label}</span>
+        <span className={s.nextTitle}>
+          {time && <span className={s.nextTime}>{time}</span>}
+          <span>{title}</span>
+        </span>
+        <span className={s.nextLink}>
+          {place ? `${place} · ` : ''}详情
+          <Icon name="ChevronRight" size="sm" />
+        </span>
+      </button>
+      {onNav && (
+        <button type="button" className={s.navBtn} onClick={onNav}>
+          <Icon name="Navigation" size="sm" />
+          导航
+        </button>
+      )}
+    </section>
+  );
+}
+
+export function TripEntries({ docs, mates, onDocs, onMates }: { docs: string; mates: string; onDocs: () => void; onMates: () => void }) {
+  return (
+    <div className={s.entries}>
+      <button type="button" className={s.entry} onClick={onDocs}>
+        <Icon name="FileText" size="sm" />
+        <span>{docs}</span>
+        <Icon name="ChevronRight" size="sm" className={s.chev} />
+      </button>
+      <button type="button" className={s.entry} onClick={onMates}>
+        <Icon name="Globe" size="sm" />
+        <span>{mates}</span>
+        <Icon name="ChevronRight" size="sm" className={s.chev} />
+      </button>
+    </div>
+  );
+}

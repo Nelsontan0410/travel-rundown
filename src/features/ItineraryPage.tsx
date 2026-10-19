@@ -3,7 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import p from './Page.module.css';
 import TripUnavailable from './TripUnavailable';
 import { NoTripState } from './FirstRun';
-import TripSwitchBar from '../components/TripSwitchBar';
+import { ItineraryHeader, NextStopCard, TripEntries } from '../components/DayGlance';
+import { useCloud } from '../store/cloud';
 import { TripThemeScope } from '../components/TripTheme';
 import { Screen, Sheet, BigHeader } from '../components/Layout';
 import { Field, FormActions, TextInput } from '../components/Form';
@@ -16,7 +17,7 @@ import { readiness, statusOf, useAppShellReady, useCurrentTripId, useSettings, u
 import { navLink } from '../links/maps';
 import { LedgerSummaryCard } from '../components/Ledger';
 import { useUI } from '../store/ui';
-import { fmtDate, fmtDateRange, fmtMoney, SEP, utcOffsetLabel } from '../domain/format';
+import { fmtDate, fmtDateRange, fmtMoney, nowIn, SEP, utcOffsetLabel } from '../domain/format';
 import { currentItemId, defaultDay, docsForItem, itemIcon, itemSubtitle, ledgerSummary, placeCopyText, rightSlot } from '../domain/rules';
 import { openExternal } from '../links/openLink';
 import { setLastTrip } from '../db/repo';
@@ -37,6 +38,7 @@ export default function ItineraryPage() {
   const selected = useUI((s) => (tripId ? s.selectedDay[tripId] : undefined));
   const selectDay = useUI((s) => s.selectDay);
   const [now, setNow] = useState(() => new Date());
+  const updates = useCloud((st) => st.updates);
   const [dayEdit, setDayEdit] = useState<{ title: string; city: string; note: string } | null>(null);
 
   useEffect(() => {
@@ -78,28 +80,40 @@ export default function ItineraryPage() {
   const daySub = day ? `${fmtDate(day.date)}${SEP}当地时间 ${utcOffsetLabel(day.tz, now)}` : '';
   const ledger = ledgerSummary(trip.budget, td.expenses);
 
-  return (
+  // 2026-10-19 手机新层级：旅程名 / 日期 / 当天城市与主题 / 下一站 / 当天列表 / 资料与同伴
+  const phase = pickToday(td.days, now);
+  const todayIdx = phase.mode === 'today' && phase.day ? phase.day.index : undefined;
+  const firstLocal = td.days[0] ? nowIn(td.days[0].tz, now).date : '';
+  const daysToGo = phase.mode === 'before' && td.days[0] ? Math.max(1, Math.round((Date.parse(td.days[0].date) - Date.parse(firstLocal)) / 86_400_000)) : 0;
+  const phaseText =
+    phase.mode === 'before' ? `${daysToGo} 天后出发 · 共 ${td.days.length} 天` : phase.mode === 'today' ? `旅程第 ${todayIdx} 天 · 共 ${td.days.length} 天` : '旅程已结束';
+  const pendingUpdate = updates[trip.id];
+  const syncState = trip.cloud
+    ? pendingUpdate
+      ? { label: `有新版本 v${pendingUpdate.version}`, attention: true }
+      : { label: trip.cloud.role === 'owner' ? `主用户 · 已发布 v${trip.cloud.version}` : `同伴 · 已套用 v${trip.cloud.version}` }
+    : undefined;
+  // 下一站：选中今天 → 第一个还没完成的；选中以后的日子 → 当天第一站；已经过去的日子不显示
+  const dayLocal = day ? nowIn(day.tz, now) : undefined;
+  const dayState = !day || !dayLocal ? 'none' : day.date === dayLocal.date ? 'today' : day.date > dayLocal.date ? 'future' : 'past';
+  const ordered = [...items].sort((x, y) => x.order - y.order);
+  const todos = ordered.filter((it) => it.type !== 'note' && statusOf(td, it.key) === 'todo');
+  const nowT = dayLocal?.time ?? '';
+  const running = dayState === 'today' ? todos.find((it) => it.id === cur && it.start && it.start <= nowT && (!it.end || it.end > nowT || (it.endDayOffset ?? 0) > 0)) : undefined;
+  const upcoming = dayState === 'today' ? todos.find((it) => !it.start || it.start > nowT) : dayState === 'future' ? todos[0] : undefined;
+  const nextIt = running ?? upcoming;
+  const nextLabel = !nextIt ? '' : dayState === 'future' ? '当天第一站' : running ? '进行中' : '下一站';
+  const nextUrl = nextIt && day ? navLink(nextIt, day.tz, settings) : undefined;
+  const nextTarget = nextIt ? (nextIt.type === 'transit' ? nextIt.toPlace ?? nextIt.place : nextIt.place) : undefined;
+  const tools = (
     <>
-    <TripThemeScope theme={td.trip.theme} />
-    <Screen
-      tab="itinerary"
-      sidebarHeader={<>
-        <FlightTripHeader title={trip.title} onSettings={() => nav(`/trip/${trip.id}/settings`)} />
-        <div className={p.tripShortcuts}>
-          <p className={p.tripToolsTitle}>旅程工具</p>
-          <nav aria-label="旅程工具">
-      {(() => {
-        // 2026-10：「今天」页入口。行程中最显眼；出发前和结束后用来预览
-        const t = pickToday(td.days, now);
-        if (!t.day) return null;
-        return (
-          <div>
-            <Button block variant="link" icon="CalendarDays" onClick={() => nav(`/trip/${trip.id}/today`)}>
-              今日行程
-            </Button>
-          </div>
-        );
-      })()}
+      {phase.day && (
+        <div>
+          <Button block variant="link" icon="CalendarDays" onClick={() => nav(`/trip/${trip.id}/today`)}>
+            今日行程
+          </Button>
+        </div>
+      )}
       <div className={p.tripShortcutLinks}>
         <Button variant="link" icon="Image" onClick={() => nav(`/trip/${trip.id}/story`)}>
           旅程概览
@@ -113,15 +127,47 @@ export default function ItineraryPage() {
         <PhaseCard td={td} now={now} hideDepartureCountdown />
         <Button variant="link" icon="Settings" onClick={() => nav(`/trip/${trip.id}/settings`)}>查看准备事项</Button>
       </details>
-          </nav>
+    </>
+  );
+  const countdown = <FlightCountdown key={trip.id} td={td} dateRange={fmtDateRange(trip.startDate, trip.endDate)} offline={ready.allGreen} />;
+
+  return (
+    <>
+    <TripThemeScope theme={td.trip.theme} />
+    <Screen
+      tab="itinerary"
+      sidebarMobile={false}
+      header={
+        <ItineraryHeader
+          title={trip.title}
+          phase={phaseText}
+          sync={syncState}
+          onSwitch={() => nav('/trips')}
+          onSettings={() => nav(`/trip/${trip.id}/settings`)}
+        />
+      }
+      sidebarHeader={<>
+        <FlightTripHeader title={trip.title} onSettings={() => nav(`/trip/${trip.id}/settings`)} />
+        <div className={p.tripShortcuts}>
+          <p className={p.tripToolsTitle}>旅程工具</p>
+          <nav aria-label="旅程工具">{tools}</nav>
         </div>
       </>}
     >
-      <TripSwitchBar tripId={trip.id} title={trip.title} />
       <UpdateNotice tripId={trip.id} role={trip.cloud?.role} />
-      <FlightCountdown key={trip.id} td={td} dateRange={fmtDateRange(trip.startDate, trip.endDate)} offline={ready.allGreen} />
+      {phase.mode === 'before' && countdown}
       <DayTiles days={td.days} selectedId={day?.id} onSelect={(id) => selectDay(trip.id, id)} />
       {day && <DayHeading title={dayTitle} sub={daySub} />}
+      {nextIt && (
+        <NextStopCard
+          label={nextLabel}
+          time={nextIt.start ?? nextIt.timeNote}
+          title={nextIt.title}
+          place={nextTarget?.localName ?? nextTarget?.name}
+          onOpen={() => nav(`/item/${nextIt.id}`)}
+          onNav={nextUrl ? () => openExternal(nextUrl, nextTarget ? placeCopyText(nextTarget) : nextIt.title) : undefined}
+        />
+      )}
       {day && (
         <div className={p.dayTools}>
           <Button size="sm" variant="outline" icon="Plus" onClick={() => nav(`/trip/${trip.id}/add?day=${day.id}`)}>
@@ -206,6 +252,13 @@ export default function ItineraryPage() {
           })()}
         </Timeline>
       )}
+      <TripEntries
+        docs={td.docs.length ? `预订资料（${td.docs.length}）` : '预订资料'}
+        mates={trip.cloud ? '同伴与同步' : '邀请同伴'}
+        onDocs={() => nav('/docs')}
+        onMates={() => nav(`/trip/${trip.id}/settings#sync`)}
+      />
+      {phase.mode !== 'before' && <div className={p.mt16}>{countdown}</div>}
       <div style={{ marginTop: 'var(--space-6)' }}>
         <LedgerSummaryCard
           budget={ledger.budget}
@@ -215,6 +268,10 @@ export default function ItineraryPage() {
           onClick={() => nav(`/trip/${trip.id}/ledger`)}
         />
       </div>
+      <nav className={p.mobileTools} aria-label="旅程工具">
+        <p className={p.tripToolsTitle}>旅程工具</p>
+        {tools}
+      </nav>
     </Screen>
     </>
   );

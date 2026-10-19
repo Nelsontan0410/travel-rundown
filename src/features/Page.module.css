@@ -133,7 +133,21 @@
 .pasteError { font-size: var(--fs-small); color: var(--color-warning-ink); }
 .pasteHelp { display: flex; flex-direction: column; gap: var(--space-2); font-size: var(--fs-small); line-height: 1.6; color: var(--color-text-2); padding: var(--space-3); border-radius: var(--radius-sm); background: color-mix(in srgb, var(--color-surface) 60%, transparent); border: var(--border-w) solid var(--color-hairline); }
 .pasteHelp strong { color: var(--color-text); }
+.pasteExample { margin: 0; padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); background: var(--color-surface-subtle); font-family: var(--font-mono); font-size: 13px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--color-text); }
 .pasteActions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+.newHome { display: flex; flex-direction: column; gap: var(--space-4); padding-top: var(--space-2); }
+.newHero { display: flex; flex-direction: column; align-items: center; text-align: center; gap: var(--space-2); }
+.newTitle { font-family: var(--font-serif); font-size: var(--fs-page); font-weight: var(--fw-page); line-height: 1.3; }
+.newSub { font-size: var(--fs-small); color: var(--color-text-2); max-width: 28em; }
+.newActions { display: flex; flex-direction: column; align-items: center; gap: var(--space-2); }
+.newFoot { text-align: center; font-size: var(--fs-small); color: var(--color-text-2); }
+.joinBlock { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3) var(--space-4) var(--space-4); border: var(--border-w) solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface-subtle); }
+.joinLabel { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--fs-body); font-weight: 600; color: var(--color-text); scroll-margin-top: calc(var(--space-6) * 3); }
+.joinRow { display: flex; gap: var(--space-2); }
+.joinRow > input { flex: 1; min-width: 0; height: var(--h-btn-lg); }
+.twoButtons { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); }
+.mobileTools { margin-top: var(--space-6); padding-top: var(--space-4); border-top: var(--border-w) solid var(--color-hairline); display: flex; flex-direction: column; gap: var(--space-2); }
+@media (min-width: 1024px) { .mobileTools { display: none; } }
 .anchor { scroll-margin-top: calc(var(--space-6) * 2); }
 .cloudCard { padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-2); }
 .cloudHead { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-2); flex-wrap: wrap; }

@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import p from './Page.module.css';
 import { Screen, BackHeader, Dialog } from '../components/Layout';
 import { Button } from '../components/Basics';
 import { useUI } from '../store/ui';
-import { startPreview } from './importFlow';
+import { importFile, startPreview } from './importFlow';
+import ImportSteps from '../components/ImportSteps';
 import { SAMPLE_MD } from '../importer/sample';
 
 /** 粘贴页（「粘贴行程文字」、旅程设置「重新导入行程」）
@@ -18,6 +19,13 @@ export default function PastePage() {
   const [askSample, setAskSample] = useState(false);
   const [tried, setTried] = useState(false);
   const empty = !text.trim();
+  // 从「示例与模板」进来：输入框空着就直接放示例
+  useEffect(() => {
+    if (sp.get('example') === '1' && !text.trim()) setText(SAMPLE_MD);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const onFile = async () => {
+    if (await importFile(tripId)) nav('/import/preview');
+  };
 
   const go = () => {
     setTried(true);
@@ -32,19 +40,20 @@ export default function PastePage() {
 
   return (
     <Screen
-      tab="trips"
-      header={<BackHeader title={tripId ? '重新导入行程' : '粘贴行程'} />}
+      header={<BackHeader title={tripId ? '重新导入行程' : '导入行程'} />}
       bottom={
         <Button block onClick={go} aria-describedby="paste-help">
           解析并预览
         </Button>
       }
     >
+      <ImportSteps step={1} />
       <div className={p.stack}>
         <div className={p.pasteField}>
           <label htmlFor="paste-text" className={p.pasteLabel}>
             行程内容
           </label>
+          <p className={p.lockNote}>粘贴已整理好的行程，下一步先预览，确认后才保存。草稿会留在这台设备上。</p>
           <textarea
             id="paste-text"
             className={p.textarea}
@@ -64,24 +73,31 @@ export default function PastePage() {
           )}
         </div>
 
+        <div className={p.pasteActions}>
+          <Button variant="outline" icon="FileText" onClick={() => (empty ? useSample() : setAskSample(true))}>
+            查看格式示例
+          </Button>
+          <Button variant="outline" icon="FileUp" onClick={() => void onFile()}>
+            导入文件
+          </Button>
+        </div>
+
         <div id="paste-help" className={p.pasteHelp}>
           <p>
-            <strong>能识别的格式：</strong>按天分段的行程文字（每天一行「Day 1 | 13-01-2027 | 城市 | 时区」，每一项「### [类型] 时间 标题」），以及按模板整理的 JSON、CSV。
+            <strong>能识别的格式：</strong>按天分段的行程文字，以及按模板整理的 JSON、CSV。例如：
           </p>
+          <pre className={p.pasteExample}>{`## Day 1 | 13-01-2027 | 札幌 | Asia/Tokyo | 抵达
+### [spot] 10:00 大通公园
+### [meal] 12:00 午餐`}</pre>
           <p>
             普通聊天文字（比如直接从对话里复制、没有分天和类型的段落）<strong>没办法直接识别</strong>。可以先让 AI 按模板整理一下再粘贴。
           </p>
           <p>下一步只是检查和预览，不会保存；有问题会列出原因，原文会保留。</p>
         </div>
 
-        <div className={p.pasteActions}>
-          <Button variant="outline" icon="FileText" onClick={() => (empty ? useSample() : setAskSample(true))}>
-            查看示例
-          </Button>
-          <Button variant="link" onClick={() => nav('/import/template')}>
-            用 AI 整理行程（可选）
-          </Button>
-        </div>
+        <Button variant="link" onClick={() => nav('/import/template')}>
+          行程还是普通文字？用 AI 整理（可选）
+        </Button>
       </div>
       <Dialog
         open={askSample}
