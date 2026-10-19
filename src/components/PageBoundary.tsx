@@ -11,7 +11,7 @@ interface State {
   retried: number;
 }
 
-class Boundary extends Component<{ children: ReactNode }, State> {
+export class Boundary extends Component<{ children: ReactNode }, State> {
   state: State = { error: null, retried: 0 };
 
   static getDerivedStateFromError(error: unknown): Partial<State> {

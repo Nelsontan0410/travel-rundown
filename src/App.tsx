@@ -46,7 +46,11 @@ function CloudBoot() {
 
 function ScrollTop() {
   const { pathname } = useLocation();
-  useEffect(() => window.scrollTo(0, 0), [pathname]);
+  // 2026-10-19 修复：不能写成 useEffect(() => window.scrollTo(0, 0))。新版 Chrome 的 scrollTo 会返回 Promise，
+  // React 会把它当成清理函数在换页时调用 → "n is not a function"，整个 App 卸载 → 换页白屏。
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
   return null;
 }
 
