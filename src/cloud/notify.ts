@@ -1,4 +1,5 @@
 // 2026-10-19 通知：谁发布了更新、谁加入 / 退出，同步中的每个人都会收到。
+//  · 种类：publish 发布 / join 加入 / leave 退出 / remove 移除 / suggest 同伴提交建议 / decide 主用户处理建议
 //  · 应用内：底部「通知」页和红点（打开 App、回到前台、每 5 分钟、以及实时推送时更新）
 //  · 手机系统通知：用户在通知页打开后，App 在后台时有新通知会弹出（App 完全关掉时收不到，见通知页说明）
 import { db } from '../db/schema';
@@ -112,6 +113,8 @@ export async function eventLink(e: CloudEvent): Promise<string> {
   if (e.kind === 'publish' && t.cloud?.role === 'member') {
     return (e.detail.version ?? 0) > (t.cloud.version ?? 0) ? `/trip/${e.tripId}/update` : `/itinerary/${e.tripId}`;
   }
+  if (e.kind === 'suggest' && t.cloud?.role === 'owner' && e.detail.suggestionId) return `/trip/${e.tripId}/suggestion/${e.detail.suggestionId}`;
+  if (e.kind === 'decide' && t.cloud?.role === 'member') return `/trip/${e.tripId}/suggest`;
   if (t.cloud?.role === 'owner') return `/trip/${e.tripId}/settings#sync`;
   return `/itinerary/${e.tripId}`;
 }

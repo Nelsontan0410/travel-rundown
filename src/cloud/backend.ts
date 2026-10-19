@@ -1,6 +1,7 @@
 // 2026-10-18 同步：云端接口。正式环境用 Supabase（supabase.ts，按需加载）；
 // 自动测试可以换成模拟后端（setBackend，或浏览器测试在页面上放 window.__CLOUD_FAKE__）。
 import type { TripSnapshot } from './snapshot';
+import type { Item } from '../domain/types';
 
 /** 每台手机一个身份（Supabase 匿名登录），不用邮箱 */
 export interface CloudSession {
@@ -66,6 +67,12 @@ export interface CloudEvent {
     note?: string;
     important?: boolean;
     summary?: PublishSummary;
+    /** 建议相关 */
+    suggestionId?: string;
+    count?: number;
+    authorId?: string;
+    accepted?: number;
+    rejected?: number;
   };
   createdAt: string;
 }
@@ -79,6 +86,34 @@ export interface PublishSummary {
   trip?: string[];
   /** 前几项改动的标题，例如「新增 · 小樽运河」 */
   lines?: string[];
+}
+
+/** 2026-10-19 同伴的一处修改建议（以行程项为单位） */
+export interface SuggestionChange {
+  op: 'add' | 'change' | 'remove';
+  itemId: string;
+  /** 在第几天（新增 / 修改 = 改后；删除 = 原来） */
+  dayIndex?: number;
+  title: string;
+  /** 改后的样子（新增、修改） */
+  item?: Item;
+  /** 同伴提交时手上的主用户版本（修改、删除），用来看主用户之后有没有又改过 */
+  base?: Item;
+  fields?: string[];
+}
+
+export interface CloudSuggestion {
+  id: string;
+  tripId: string;
+  authorId: string;
+  authorName?: string;
+  baseVersion: number;
+  note?: string;
+  changes: SuggestionChange[];
+  status: 'pending' | 'accepted' | 'rejected' | 'partial';
+  decisions?: Record<string, 'accept' | 'reject'>;
+  createdAt: string;
+  decidedAt?: string;
 }
 
 export interface CloudBackend {
@@ -104,6 +139,14 @@ export interface CloudBackend {
   /** 用邀请码加入，返回旅程 id */
   joinWithCode(code: string, name: string): Promise<string>;
   leaveTrip(tripId: string): Promise<void>;
+
+  /** 同伴提交建议，返回建议 id */
+  submitSuggestion(tripId: string, baseVersion: number, note: string, changes: SuggestionChange[], summary?: PublishSummary): Promise<string>;
+  /** 主用户：这份旅程的全部建议；同伴：自己提交的 */
+  suggestions(tripId: string): Promise<CloudSuggestion[]>;
+  decideSuggestion(id: string, decisions: Record<string, 'accept' | 'reject'>, accepted: number, rejected: number): Promise<void>;
+  /** 作者撤回还没处理的建议 */
+  withdrawSuggestion(id: string): Promise<void>;
 
   /** 这些旅程的通知（新的在后，最多 100 条）；afterId 之后的 */
   events(tripIds: string[], afterId?: number): Promise<CloudEvent[]>;

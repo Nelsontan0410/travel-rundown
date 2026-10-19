@@ -121,7 +121,7 @@ export default function ItineraryPage() {
         </div>
       </>}
     >
-      <UpdateNotice tripId={trip.id} />
+      <UpdateNotice tripId={trip.id} role={trip.cloud?.role} />
       <FlightCountdown key={trip.id} td={td} dateRange={fmtDateRange(trip.startDate, trip.endDate)} offline={ready.allGreen} />
       <DayTiles days={td.days} selectedId={day?.id} onSelect={(id) => selectDay(trip.id, id)} />
       {day && <DayHeading title={dayTitle} sub={daySub} />}

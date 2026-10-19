@@ -1,6 +1,6 @@
 # AGENTS.md — travel-rundown
 
-React 18 + TypeScript + Vite PWA，本地优先（Dexie/IndexedDB），无 App 内 AI。2026-10-18 起可选同步：Supabase 只存主用户发布的版本和共享文件（`src/cloud/`、`supabase/schema.sql`、`docs/sync-setup.md`），资料仍以本机为准，离线照常可用。
+React 18 + TypeScript + Vite PWA，本地优先（Dexie/IndexedDB），无 App 内 AI。2026-10-18 起可选同步：Supabase 存主用户发布的版本、共享文件、通知和同伴建议（`src/cloud/`、`supabase/schema.sql`、`docs/sync-setup.md`），资料仍以本机为准，离线照常可用。
 
 ## 必读
 - `docs/design-reference.md`（设计唯一依据）、`src/styles/tokens.css`

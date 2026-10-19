@@ -19,6 +19,7 @@ import ItemEditPage from './features/ItemEditPage';
 import UpdatePage from './features/UpdatePage';
 import JoinPage from './features/JoinPage';
 import NotificationsPage from './features/NotificationsPage';
+import { MySuggestPage, ReviewSuggestionPage, SuggestionsPage } from './features/SuggestPages';
 import { initCloud } from './cloud/session';
 import StoryPage from './features/StoryPage';
 import CreditsPage from './features/CreditsPage';
@@ -75,6 +76,9 @@ export default function App() {
         <Route path="/trip/:tripId/update" element={<UpdatePage />} />
         <Route path="/join/:code" element={<JoinPage />} />
         <Route path="/notifications" element={<NotificationsPage />} />
+        <Route path="/trip/:tripId/suggest" element={<MySuggestPage />} />
+        <Route path="/trip/:tripId/suggestions" element={<SuggestionsPage />} />
+        <Route path="/trip/:tripId/suggestion/:sid" element={<ReviewSuggestionPage />} />
         <Route path="/docs" element={<DocsPage />} />
         <Route path="/trip/:tripId/settings" element={<TripSettingsPage />} />
         <Route path="/trip/:tripId/ledger" element={<LedgerPage />} />

@@ -9,7 +9,7 @@ OUT = sys.argv[1] if len(sys.argv) > 1 else os.path.join(tempfile.gettempdir(), 
 md = open(os.path.join(HERE, 'sample-v2.md'), encoding='utf-8').read()
 
 # ———— 模拟后端 ————
-S = {'trips': {}, 'members': [], 'invites': [], 'versions': [], 'files': {}, 'events': []}
+S = {'trips': {}, 'members': [], 'invites': [], 'versions': [], 'files': {}, 'events': [], 'suggestions': []}
 seq = itertools.count(1)
 def ts(): return f'2026-10-18T00:00:{next(seq):02d}.000Z'
 def is_member(me, t): return any(m['tripId'] == t and m['userId'] == me for m in S['members'])
@@ -80,6 +80,28 @@ def handle(me, name, a):
             S['members'].append({'tripId': inv['tripId'], 'userId': me, 'name': nm_, 'role': 'member'})
             log(inv['tripId'], me, 'join', f"{nm_} 加入了旅程")
         inv['acceptedAt'] = inv['acceptedAt'] or ts(); inv['acceptedBy'] = me; return inv['tripId']
+    if name == 'submitSuggestion':
+        tid, base, note, changes, summary = a
+        if not is_member(me, tid) or is_owner(me, tid): raise Exception('只有同伴可以提交建议')
+        sg = {'id': f'sg{next(seq)}', 'tripId': tid, 'authorId': me, 'authorName': mname(tid, me), 'baseVersion': base, 'note': note or None, 'changes': changes, 'status': 'pending', 'decisions': None, 'createdAt': ts(), 'decidedAt': None}
+        S['suggestions'].append(sg)
+        log(tid, me, 'suggest', f"{mname(tid, me) or '有人'} 提交了 {len(changes)} 处修改建议", {'suggestionId': sg['id'], 'note': note or None, 'count': len(changes), 'summary': summary or {}})
+        return sg['id']
+    if name == 'suggestions':
+        return [x for x in reversed(S['suggestions']) if x['tripId'] == a[0] and (is_owner(me, a[0]) or x['authorId'] == me)]
+    if name == 'decideSuggestion':
+        sid, decisions, acc, rej = a
+        sg = next((x for x in S['suggestions'] if x['id'] == sid), None)
+        if not sg: raise Exception('建议不存在或已撤回')
+        if not is_owner(me, sg['tripId']): raise Exception('只有主用户可以处理建议')
+        if sg['status'] != 'pending': raise Exception('这条建议已经处理过了')
+        sg['status'] = 'accepted' if rej == 0 else 'rejected' if acc == 0 else 'partial'; sg['decisions'] = decisions; sg['decidedAt'] = ts()
+        who = mname(sg['tripId'], me) or '有人'
+        t = f"{who} 没有采纳 {sg['authorName']} 的建议" if sg['status'] == 'rejected' else f"{who} 采纳了 {sg['authorName']} 的 {acc} 处建议" + (f"（{rej} 处未采纳）" if sg['status'] == 'partial' else '')
+        log(sg['tripId'], me, 'decide', t, {'suggestionId': sid, 'authorId': sg['authorId'], 'accepted': acc, 'rejected': rej})
+        return None
+    if name == 'withdrawSuggestion':
+        S['suggestions'] = [x for x in S['suggestions'] if not (x['id'] == a[0] and x['authorId'] == me and x['status'] == 'pending')]; return None
     if name == 'events':
         ids, after = a
         return [e for e in S['events'] if e['tripId'] in ids and is_member(me, e['tripId']) and (not after or e['id'] > after)][-100:]
@@ -126,6 +148,10 @@ FAKE_JS = r'''
     createTrip: (id, title, name) => call('createTrip', [id, title, name]),
     publish: (t, n, i, snap, title, summary) => call('publish', [t, n, i, snap, title, summary ?? null]),
     events: (ids, after) => call('events', [ids, after ?? null]),
+    submitSuggestion: (t, b, n, c, s) => call('submitSuggestion', [t, b, n, c, s ?? null]),
+    suggestions: (t) => call('suggestions', [t]),
+    decideSuggestion: (i, d, a, r) => call('decideSuggestion', [i, d, a, r]),
+    withdrawSuggestion: (i) => call('withdrawSuggestion', [i]),
     watchEvents() { return () => {}; },
     latest: (ids) => call('latest', [ids]),
     fetchVersion: (t, v) => call('fetchVersion', [t, v ?? null]),

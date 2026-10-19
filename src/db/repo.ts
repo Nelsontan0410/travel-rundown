@@ -863,8 +863,14 @@ export async function updateItem(itemId: string, patch: ItemPatch): Promise<void
   });
 }
 
-export async function addItem(tripId: string, dayId: string, draft: ItemPatch & { type: Item['type']; title: string }): Promise<string> {
-  const id = uuid();
+export async function addItem(
+  tripId: string,
+  dayId: string,
+  draft: ItemPatch & { type: Item['type']; title: string },
+  /** 2026-10-19：采纳同伴建议时沿用同伴那边的 id，同伴套用新版本时才不会变成两项 */
+  opts: { id?: string } = {},
+): Promise<string> {
+  const id = opts.id ?? uuid();
   await db.transaction('rw', EDIT_TABLES(), async () => {
     const day = await db.days.get(dayId);
     if (!day) return;

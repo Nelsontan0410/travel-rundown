@@ -261,3 +261,76 @@ describe('通知', () => {
     expect(unreadOf({ events, seenId: 2, session: { userId: 'me' } }).map((e) => e.id)).toEqual([3]);
   });
 });
+
+describe('同伴建议 → 主用户采纳 → 发布 → 同伴套用', () => {
+  it('同伴选几处修改提交；主用户接受一部分、拒绝一部分；发布后同伴那边干净合并，没采纳的仍留在本机', async () => {
+    const { myLocalChanges, submitSuggestion, decide, reviewRows } = await import('../cloud/suggest');
+    const tripId = await ownerSetup();
+    await mateJoin();
+    const items = await db.items.toArray();
+    const canal = items.find((i) => i.title === '小樽运河')!;
+    const curry = items.find((i) => i.title === '汤咖喱晚餐')!;
+    const park = items.find((i) => i.title === '白色恋人公园')!;
+    await updateItem(canal.id, { start: '11:30', note: '雪大就晚点' }); // 会被接受
+    await updateItem(curry.id, { note: '想吃辣' }); // 会被拒绝
+    await deleteItem(park.id); // 会被接受
+    const glass = await addItem(tripId, canal.dayId, { type: 'spot', title: '北一硝子', start: '15:30' }); // 会被接受；还有一处不提交
+    await addItem(tripId, canal.dayId, { type: 'meal', title: '我的私房咖啡', start: '16:30' });
+
+    const mine = await myLocalChanges(tripId);
+    expect(mine.map((c) => `${c.op}:${c.title}`).sort()).toEqual(['add:北一硝子', 'add:我的私房咖啡', 'change:小樽运河', 'change:汤咖喱晚餐', 'remove:白色恋人公园'].sort());
+    expect(mine.find((c) => c.title === '小樽运河')!.fields).toEqual(expect.arrayContaining(['开始时间', '备注']));
+    const pickIds = mine.filter((c) => c.title !== '我的私房咖啡').map((c) => c.itemId);
+    await submitSuggestion(tripId, '我的建议', pickIds);
+
+    // 主用户收到通知和建议
+    await useDevice('owner');
+    cloud.as(OWNER);
+    expect((await cloud.events([tripId])).at(-1)).toMatchObject({ kind: 'suggest', title: '小明 提交了 4 处修改建议' });
+    const [sg] = await cloud.suggestions(tripId);
+    expect(sg.changes).toHaveLength(4);
+    const rows = await reviewRows(tripId, sg);
+    expect(rows.every((r) => !r.ownerChanged)).toBe(true);
+    const decisions = Object.fromEntries(sg.changes.map((c) => [c.itemId, c.title === '汤咖喱晚餐' ? 'reject' : 'accept'])) as Record<string, 'accept' | 'reject'>;
+    expect(await decide(tripId, sg, decisions)).toEqual({ accepted: 3, rejected: 1 });
+    const owned = await db.items.toArray();
+    expect(owned.find((i) => i.id === canal.id)).toMatchObject({ start: '11:30', note: '雪大就晚点' });
+    expect(owned.some((i) => i.id === park.id)).toBe(false);
+    expect(owned.find((i) => i.id === glass)).toMatchObject({ title: '北一硝子', start: '15:30' });
+    expect(owned.find((i) => i.id === curry.id)!.note).toBeUndefined();
+    expect((await cloud.events([tripId])).at(-1)!.title).toBe('阿权 采纳了 小明 的 3 处建议（1 处未采纳）');
+    await expect(decide(tripId, sg, decisions)).rejects.toThrow('处理过了');
+    await publishUpdate(tripId, '采纳小明的建议', false);
+
+    // 同伴套用：被采纳的不再算自己的修改，没采纳 / 没提交的仍在本机
+    await useDevice('mate');
+    cloud.as(MATE);
+    const pv = (await previewUpdate(tripId))!;
+    expect(pv.conflicts).toEqual([]);
+    await applyUpdate(tripId, pv);
+    const left = await myLocalChanges(tripId);
+    expect(left.map((c) => c.title).sort()).toEqual(['我的私房咖啡', '汤咖喱晚餐']);
+    expect((await db.items.toArray()).filter((i) => i.title === '北一硝子')).toHaveLength(1);
+    const [mineSg] = await cloud.suggestions(tripId);
+    expect(mineSg.status).toBe('partial');
+  });
+
+  it('主用户之后又改过同一项 → 审核时提示；主用户不能提交建议；撤回', async () => {
+    const { myLocalChanges, submitSuggestion, reviewRows } = await import('../cloud/suggest');
+    const tripId = await ownerSetup();
+    await mateJoin();
+    const canal = (await db.items.toArray()).find((i) => i.title === '小樽运河')!;
+    await updateItem(canal.id, { note: '我的' });
+    await submitSuggestion(tripId, '', (await myLocalChanges(tripId)).map((c) => c.itemId));
+    await useDevice('owner');
+    cloud.as(OWNER);
+    await updateItem(canal.id, { note: '主用户后来改的' });
+    const [sg] = await cloud.suggestions(tripId);
+    expect((await reviewRows(tripId, sg))[0].ownerChanged).toBe(true);
+    await expect(cloud.submitSuggestion(tripId, 1, '', sg.changes)).rejects.toThrow('只有同伴');
+    await useDevice('mate');
+    cloud.as(MATE);
+    await cloud.withdrawSuggestion(sg.id);
+    expect(await cloud.suggestions(tripId)).toEqual([]);
+  });
+});
