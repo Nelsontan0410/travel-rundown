@@ -9,11 +9,15 @@ OUT = sys.argv[1] if len(sys.argv) > 1 else os.path.join(tempfile.gettempdir(), 
 md = open(os.path.join(HERE, 'sample-v2.md'), encoding='utf-8').read()
 
 # ———— 模拟后端 ————
-S = {'trips': {}, 'members': [], 'invites': [], 'versions': [], 'files': {}}
+S = {'trips': {}, 'members': [], 'invites': [], 'versions': [], 'files': {}, 'events': []}
 seq = itertools.count(1)
 def ts(): return f'2026-10-18T00:00:{next(seq):02d}.000Z'
 def is_member(me, t): return any(m['tripId'] == t and m['userId'] == me for m in S['members'])
 def is_owner(me, t): return t in S['trips'] and S['trips'][t]['owner'] == me
+
+def mname(t, u): return next((m['name'] for m in S['members'] if m['tripId'] == t and m['userId'] == u), None)
+def log(t, me, kind, title, detail=None):
+    S['events'].append({'id': len(S['events']) + 1, 'tripId': t, 'actorId': me, 'actorName': mname(t, me), 'kind': kind, 'title': title, 'detail': detail or {}, 'createdAt': ts()})
 
 def handle(me, name, a):
     if not me: raise Exception('请先登录')
@@ -24,10 +28,11 @@ def handle(me, name, a):
             S['members'].append({'tripId': tid, 'userId': me, 'name': nm, 'role': 'owner'})
         return None
     if name == 'publish':
-        tid, note, important, snap, title = a
+        tid, note, important, snap, title, summary = a
         if not is_owner(me, tid): raise Exception('只有主用户可以发布更新')
         t = S['trips'][tid]; t['version'] += 1; t.update(note=note, important=important, title=title, updatedAt=ts())
         S['versions'].append({'tripId': tid, 'version': t['version'], 'note': note, 'important': important, 'snapshot': snap, 'createdAt': ts()})
+        log(tid, me, 'publish', f"{mname(tid, me) or '有人'} 发布了 v{t['version']}{'（重要更新）' if important else ''}", {'version': t['version'], 'note': note, 'important': important, 'summary': summary or {}})
         return t['version']
     if name == 'latest':
         return [{'id': i, 'title': S['trips'][i]['title'], 'version': S['trips'][i]['version'], 'note': S['trips'][i]['note'], 'important': S['trips'][i]['important'], 'updatedAt': S['trips'][i]['updatedAt']} for i in a[0] if is_member(me, i)]
@@ -53,7 +58,9 @@ def handle(me, name, a):
     if name == 'removeMember':
         tid, uid = a
         if not is_owner(me, tid): raise Exception('只有主用户可以移除成员')
-        S['members'] = [m for m in S['members'] if not (m['tripId'] == tid and m['userId'] == uid and m['role'] == 'member')]
+        gone = [m for m in S['members'] if m['tripId'] == tid and m['userId'] == uid and m['role'] == 'member']
+        S['members'] = [m for m in S['members'] if m not in gone]
+        if gone: log(tid, me, 'remove', f"{mname(tid, me) or '有人'} 移除了 {gone[0]['name'] or '一位同伴'}")
         S['invites'] = [i for i in S['invites'] if not (i['tripId'] == tid and i['acceptedBy'] == uid)]
         return None
     if name == 'peekInvite':
@@ -64,13 +71,18 @@ def handle(me, name, a):
         return {'tripId': inv['tripId'], 'tripTitle': t['title'], 'inviterName': inv['inviterName'], 'name': inv['name'],
                 'usable': (inv['acceptedBy'] in (None, me)) and t['owner'] != me, 'mine': t['owner'] == me or inv['acceptedBy'] == me}
     if name == 'joinWithCode':
-        c, nm = a
+        c, nm_ = a
         c = c.upper().replace('-', '').replace(' ', '')
         inv = next((i for i in S['invites'] if i['code'] == c), None)
         if not inv: raise Exception('邀请码不对，或者已被主用户撤回')
         if inv['acceptedBy'] not in (None, me): raise Exception('这个邀请码已经在别的手机上用过了，请主用户重新生成')
-        if not is_member(me, inv['tripId']): S['members'].append({'tripId': inv['tripId'], 'userId': me, 'name': nm, 'role': 'member'})
+        if not is_member(me, inv['tripId']):
+            S['members'].append({'tripId': inv['tripId'], 'userId': me, 'name': nm_, 'role': 'member'})
+            log(inv['tripId'], me, 'join', f"{nm_} 加入了旅程")
         inv['acceptedAt'] = inv['acceptedAt'] or ts(); inv['acceptedBy'] = me; return inv['tripId']
+    if name == 'events':
+        ids, after = a
+        return [e for e in S['events'] if e['tripId'] in ids and is_member(me, e['tripId']) and (not after or e['id'] > after)][-100:]
     if name == 'leaveTrip':
         S['members'] = [m for m in S['members'] if not (m['tripId'] == a[0] and m['userId'] == me and m['role'] == 'member')]; return None
     if name == 'upload':
@@ -112,7 +124,9 @@ FAKE_JS = r'''
     },
     onSessionChange(cb) { listeners.add(cb); return () => listeners.delete(cb); },
     createTrip: (id, title, name) => call('createTrip', [id, title, name]),
-    publish: (t, n, i, snap, title) => call('publish', [t, n, i, snap, title]),
+    publish: (t, n, i, snap, title, summary) => call('publish', [t, n, i, snap, title, summary ?? null]),
+    events: (ids, after) => call('events', [ids, after ?? null]),
+    watchEvents() { return () => {}; },
     latest: (ids) => call('latest', [ids]),
     fetchVersion: (t, v) => call('fetchVersion', [t, v ?? null]),
     members: (t) => call('members', [t]),
@@ -192,6 +206,16 @@ try:
         mp.get_by_role('checkbox', name='标记完成：小樽运河').click(); mp.wait_for_timeout(300)
         print('ok mate join')
 
+        # 主用户：底部「通知」有红点，点进去看到「小明 加入了旅程」
+        op.goto(f'{BASE}/trips'); op.wait_for_timeout(800)
+        expect(op.get_by_role('link', name='通知（1 条未读）')).to_be_visible()
+        op.get_by_role('link', name='通知（1 条未读）').click(); op.wait_for_url('**/notifications')
+        expect(op.get_by_text('小明 加入了旅程')).to_be_visible()
+        expect(op.get_by_text('你 发布了 v1')).to_be_visible()
+        op.screenshot(path=os.path.join(OUT, '1280-00-notify.png'), full_page=True)
+        expect(op.get_by_role('link', name='通知', exact=True)).to_be_visible()
+        print('ok owner sees join notification')
+
         # 主用户：改标题和时间，发布重要更新
         op.goto(f'{BASE}/itinerary/{trip}'); op.get_by_role('tab').nth(1).click(); op.wait_for_timeout(300)
         op.get_by_text('小樽运河').first.click(); op.wait_for_url('**/item/**')
@@ -208,6 +232,15 @@ try:
         dlg.get_by_role('button', name='发布').click()
         expect(op.get_by_text('已发布 v2')).to_be_visible()
         print('ok owner publish v2')
+
+        # 同伴：通知页看到「阿权 发布了 v2（重要更新）」和改了什么，点它进预览
+        mp.goto(f'{BASE}/notifications'); mp.wait_for_timeout(800)
+        expect(mp.get_by_text('阿权 发布了 v2（重要更新）')).to_be_visible()
+        expect(mp.get_by_text('Day 2 运河晚一点去').first).to_be_visible()
+        expect(mp.get_by_text('修改 1')).to_be_visible()
+        mp.screenshot(path=os.path.join(OUT, '390-01b-notify.png'), full_page=True)
+        mp.get_by_text('阿权 发布了 v2（重要更新）').click(); mp.wait_for_url('**/update')
+        print('ok mate sees publish notification')
 
         # 同伴：重新打开就看到重要更新 → 预览 → 套用；勾选保留
         mp.goto(f'{BASE}/itinerary/{trip}'); mp.wait_for_timeout(800)

@@ -6,8 +6,8 @@
   "src/__tests__/address.test.ts": "a25b1bda54b4804191cc27f7415a762a1e3ae32269e6b4e6c03ac681abbcc3e9",
   "src/__tests__/bookings.test.ts": "788a3fb01caf93813b3809d11efcb064e1024cd723b3f6817d39bbf61c31502d",
   "src/__tests__/check.test.ts": "c03006dfac430ffa49abdc5aaba5163603589d40936dc8e767b9428612b89075",
-  "src/__tests__/cloud.test.ts": "ba63cf525f816103d4e4017a37d5c899b7f4969045149ae7a784d00ef3514ce9",
-  "src/__tests__/cloudFake.ts": "731a2f3bcebb22e462852da25319b262a996ff27ade532fed6d8d6c6b679ae98",
+  "src/__tests__/cloud.test.ts": "3e78c493eedc823de5ebe2d8aedad51737fbcba9fbce6465d75b9526186b5e50",
+  "src/__tests__/cloudFake.ts": "1f0bca9c9d3768be79a9db52deaffa597ac23d984c4c2badeea6306d79b0d75c",
   "src/__tests__/diff.test.ts": "e2e132e697b19c33860998fb6452e8a401c4ae6f3c5a39cb02658362bdfa0daa",
   "src/__tests__/edit.test.ts": "1c1fd84eb80cd913974f400e165090356fce984db4c2481fa0c1c0883fcaeeb7",
   "src/__tests__/flightCountdown.test.ts": "4dc4b8a06feb32e3ca5cabb5ccd4cd4b418bdc90daca3c2047e357ca30ca0816",
@@ -70,8 +70,8 @@
   "src/links/linkLabel.ts": "190303571887c2fefa626d53682e053955b3687dc4c8fbd44210186297cd5136",
   "src/links/maps.ts": "5f50fbcb226d2d0064583c32e8a8df533cfae8b4203e0f99949ce4517ce294a8",
   "src/links/openLink.ts": "295de11abc50802d993d3d8d7185fe101a7f6bad7c76ed8e02ba1755502c14d5",
-  "src/store/cloud.ts": "970576af5139ff9e8abaf22659755b9ba34e603f4f03e23990094324f2a24761",
+  "src/store/cloud.ts": "524a78afe4bf09c35a6fe40cbec0e51b12469502bae32aa13527f1adb846fac6",
   "src/store/ui.ts": "e937bb4f82e8d5df295b4244f5668fec0da8241659c65c23dd228a7d925751a5",
   "tsconfig.json": "7fbfd482c28f17738c8403c66b189076b5243cc6e7ff60c2898ef82f0fd8c8dd",
-  "vite.config.ts": "735fefcc628ca8af78da2bb431b5a4136d050e2ea490c10c3f5c9ff45613c1a4"
+  "vite.config.ts": "102b48c60032901d296e3a59430a26a6b0b4feb68aa43bc3f0095777378e45e9"
 }

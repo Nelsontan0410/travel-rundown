@@ -2,6 +2,7 @@
 // 需要「实心」的几处（Tab 激活、勾圆、实心 AlertCircle）用同一套 lucide 几何画成填充版。
 import {
   AlertCircle,
+  Bell,
   Building2,
   CalendarDays,
   Camera,
@@ -46,6 +47,7 @@ import type { CSSProperties } from 'react';
 
 export const ICONS = {
   AlertCircle,
+  Bell,
   Building2,
   CalendarDays,
   Camera,
@@ -150,7 +152,7 @@ export function AlertFilled({ size = 'sm', color }: FilledProps) {
 }
 
 /** Tab 栏激活时的填充版图标（lucide 同一套几何） */
-export function TabIconFilled({ name }: { name: 'Home' | 'CalendarDays' | 'FileText' }) {
+export function TabIconFilled({ name }: { name: 'Home' | 'CalendarDays' | 'FileText' | 'Bell' }) {
   const common = { width: 'var(--size-icon)', height: 'var(--size-icon)' } as CSSProperties;
   const inner = { stroke: 'var(--color-surface)', strokeWidth: 1.75, strokeLinecap: 'round' as const, fill: 'none' };
   const outer = { fill: 'currentColor', stroke: 'currentColor', strokeWidth: 1.75, strokeLinejoin: 'round' as const };
@@ -159,6 +161,13 @@ export function TabIconFilled({ name }: { name: 'Home' | 'CalendarDays' | 'FileT
       <svg viewBox="0 0 24 24" style={common} aria-hidden>
         <path {...outer} d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
         <path d="M14.5 21v-7a1 1 0 0 0-1-1h-3a1 1 0 0 0-1 1v7z" fill="var(--color-surface)" />
+      </svg>
+    );
+  if (name === 'Bell')
+    return (
+      <svg viewBox="0 0 24 24" style={common} aria-hidden>
+        <path {...outer} d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+        <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" />
       </svg>
     );
   if (name === 'CalendarDays')
