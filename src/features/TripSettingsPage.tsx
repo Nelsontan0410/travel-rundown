@@ -27,6 +27,8 @@ import { docsForItem } from '../domain/rules';
 import { DEFAULT_SETTINGS, type TranslateLang } from '../domain/types';
 
 /** 05 旅程设置（从 01 的设置图标进入） */
+declare const __BUILD__: string;
+
 export default function TripSettingsPage() {
   const nav = useNavigate();
   const { tripId } = useParams();
@@ -239,6 +241,7 @@ export default function TripSettingsPage() {
         />
         <SettingsRow icon="Trash2" label="删除这个旅程" danger onClick={() => setConfirmDel(true)} />
       </SettingsGroup>
+      <p className={p.lockNote} style={{ textAlign: 'center', marginTop: 'var(--space-4)' }}>版本 {__BUILD__}</p>
 
       <ChoiceSheet
         open={themeSheet}
