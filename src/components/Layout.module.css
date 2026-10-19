@@ -180,3 +180,9 @@
   .sidebarHeader { display: block; margin-bottom: var(--space-3); padding-bottom: var(--space-3); border-bottom: 1px solid var(--color-stitch); }
   .mainWithSidebarHeader { padding-top: var(--space-4); }
 }
+
+@media (min-width: 1024px) {
+  .fixedCol.tabbar { overflow-y: auto; }
+  .sidebarHeader { flex-shrink: 0; }
+  .tab { flex-shrink: 0; }
+}

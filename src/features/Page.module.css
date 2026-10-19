@@ -128,3 +128,26 @@
 .diffText { font-size: var(--fs-body); color: var(--color-text); overflow-wrap: anywhere; min-width: 0; }
 .diffFields { color: var(--color-text-2); font-size: var(--fs-small); }
 .conflictCols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-3); padding: var(--space-2) 0; }
+
+/* Trip shortcuts share the existing sidebar header; no duplicate controls in the itinerary. */
+.tripShortcuts { margin-top: var(--space-3); }
+.tripPreparation > summary {
+  cursor: pointer; min-height: var(--size-hit); padding: var(--space-3);
+  font-size: var(--fs-body); font-weight: var(--fw-card); border-radius: var(--radius-sm);
+}
+.tripShortcuts > nav, .tripShortcutLinks { display: flex; flex-direction: column; gap: var(--space-1); }
+.tripShortcuts button { width: 100%; justify-content: flex-start; white-space: normal; text-align: left; min-height: var(--size-hit); height: auto; padding: var(--space-3); }
+.tripPreparation { min-width: 0; }
+.tripPreparation > div { margin-top: 0; }
+.tripPreparation summary:hover { text-decoration: underline; }
+.tripToolsTitle { font-size: var(--fs-small); color: var(--color-text-2); margin: var(--space-2) var(--space-3); }
+@media (min-width: 1024px) {
+  .tripToolsTitle { display: none; }
+  .tripShortcuts { --color-primary: var(--color-on-leather-hi); color: var(--color-on-leather); }
+  .tripPreparation > div { --color-primary: var(--color-text); }
+}
+@media (max-width: 1023px) {
+  .tripShortcuts > nav { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-1) var(--space-2); }
+  .tripShortcutLinks { display: contents; }
+  .tripPreparation { grid-column: 1 / -1; }
+}
