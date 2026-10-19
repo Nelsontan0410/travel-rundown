@@ -97,3 +97,25 @@
   font-size: var(--fs-small); color: var(--color-text-2); font-weight: 600;
 }
 .divider::after { content: ''; flex: 1; height: 1px; background: var(--color-hairline); }
+
+/* Phone-only: keep the existing tablet and desktop arrangement intact. */
+@media (max-width: 767px) {
+  .rows, .divider { --w-time: var(--size-icon-lg); }
+  .rows, .card { min-width: 0; }
+  .row { grid-template-columns: var(--w-time) var(--w-dot-col) minmax(0, 1fr); }
+  .cardMain {
+    display: grid;
+    grid-template-columns: calc(var(--space-5) + var(--space-2)) minmax(0, 1fr);
+    gap: var(--space-2);
+  }
+  .cardIcon { grid-column: 1; grid-row: 1; --size-icon: var(--size-icon-sm); justify-self: center; align-self: start; }
+  .cardText { grid-column: 2; grid-row: 1; }
+  .cardTitle { display: block; overflow-wrap: anywhere; }
+  .cardSub { white-space: normal; overflow-wrap: anywhere; }
+  .check { grid-column: 1; grid-row: 2; margin: 0; }
+  .slot { grid-column: 2; grid-row: 2; min-width: 0; min-height: var(--size-hit); justify-content: space-between; }
+  .slot > button { min-height: var(--size-hit); }
+  .actions { flex-wrap: wrap; }
+  .actions > button { min-height: var(--size-hit); }
+  .dayTitle, .daySub { overflow-wrap: anywhere; }
+}
