@@ -37,7 +37,15 @@ function blocksFromAtoms(atoms: Atom[], page: number): TicketTextBlock[] {
   return blocks;
 }
 /** No OCR and no server: read text only, then release the existing pdf.js worker/document. */
-export async function readFlightTicketPdf(blob: Blob, referenceYear: number, signal?: AbortSignal) {
+/** 2026-10-19：PDF 本身设了打开密码。need = 还没给密码；wrong = 密码不对 */
+export class PdfPasswordError extends Error {
+  constructor(public reason: 'need' | 'wrong') {
+    super(reason === 'need' ? '这份 PDF 有打开密码，请输入后再识别。' : 'PDF 密码不正确，请再试一次。');
+    this.name = 'PdfPasswordError';
+  }
+}
+
+export async function readFlightTicketPdf(blob: Blob, referenceYear: number, signal?: AbortSignal, password?: string) {
   if(blob.size>MAX_BYTES) throw new Error('PDF 超过 20 MB，请选择较小的机票文件。');
   let pdf: PDFDocumentProxy|undefined;let task: PDFDocumentLoadingTask|undefined;
   let expired=false;
@@ -50,7 +58,7 @@ export async function readFlightTicketPdf(blob: Blob, referenceYear: number, sig
     const pdfjs=await import('pdfjs-dist/legacy/build/pdf.mjs');
     const worker=await import('pdfjs-dist/legacy/build/pdf.worker.min.mjs?url');
     check();pdfjs.GlobalWorkerOptions.workerSrc=worker.default;
-    const data=await blob.arrayBuffer();check();task=pdfjs.getDocument({data,isEvalSupported:false});
+    const data=await blob.arrayBuffer();check();task=pdfjs.getDocument({data,isEvalSupported:false,...(password?{password}:{})});
     pdf=await task.promise;check();
     if(pdf.numPages>20) throw new Error('请选取不超过 20 页的机票 PDF。');
     const blocks:TicketTextBlock[]=[];let chars=0;
@@ -71,7 +79,7 @@ export async function readFlightTicketPdf(blob: Blob, referenceYear: number, sig
   } catch(e) {
     if(signal?.aborted) throw new DOMException('已取消','AbortError');
     if(expired) throw new Error('PDF 读取超时，请使用较小的文字型机票 PDF。');
-    if(e instanceof Error&&e.name==='PasswordException') throw new Error('这份 PDF 有密码，请先解锁文件后再识别。');
+    if(e instanceof Error&&e.name==='PasswordException') throw new PdfPasswordError((e as Error&{code?:number}).code===2||password?'wrong':'need');
     if(e instanceof Error&&['InvalidPDFException','MissingPDFException'].includes(e.name)) throw new Error('无法读取这份 PDF，请检查文件是否完整。');
     throw e;
   } finally {clearTimeout(timer);signal?.removeEventListener('abort',abort);await task?.destroy().catch(()=>{});}
