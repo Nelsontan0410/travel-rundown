@@ -30,12 +30,12 @@ class Boundary extends Component<{ children: ReactNode }, State> {
   render() {
     const { error, retried } = this.state;
     if (!error) return this.props.children;
-    if (isDbLost(error) && retried < 2) return null;
+    if (isDbLost(error) && retried < 2) return <p style={{ padding: 'var(--space-5)', textAlign: 'center', color: 'var(--color-text-2)' }}>正在重新连接本机资料…</p>;
     return (
       <div style={{ padding: 'var(--space-5)', maxWidth: 480, margin: '0 auto' }}>
         <EmptyState
           title="这一页没有显示出来"
-          text="资料都还在手机上。重新载入一下就好。"
+          text={`资料都还在手机上。重新载入一下就好。\n\n（错误：${String((error as Error)?.message ?? error).slice(0, 160)}）`}
           action={<Button onClick={() => window.location.reload()}>重新载入</Button>}
         />
       </div>

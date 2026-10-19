@@ -50,8 +50,9 @@
   --font-serif: Georgia, "Songti SC", "STSong", "Noto Serif SC", "Noto Serif CJK SC", "Source Han Serif SC", "SimSun", serif;
 
   /* 材质：纸张颗粒、皮革纹理（SVG 噪点，极低不透明度，不影响阅读） */
-  --tex-paper: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .35 0 0 0 0 .25 0 0 0 0 .15 0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  --tex-leather: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='l'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.55' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .32 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23l)'/%3E%3C/svg%3E");
+  /* 2026-10-19：原来是 SVG feTurbulence 实时生成的噪点，手机上每次换页都要重算（Android 上会白屏一阵）。改成同样效果预先渲染好的小图 */
+  --tex-paper: url('/tex/paper.webp');
+  --tex-leather: url('/tex/leather.webp');
   --grad-paper: linear-gradient(160deg, #F4EAD8 0%, #EFE2CC 55%, #E9DAC0 100%);
   --grad-leather: radial-gradient(120% 80% at 20% 0%, #6A4A31 0%, #503522 45%, #3A2617 100%);
   --grad-btn-primary: linear-gradient(180deg, #6A4A31 0%, #503522 55%, #432C1B 100%);
