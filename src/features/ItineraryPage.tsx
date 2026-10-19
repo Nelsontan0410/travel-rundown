@@ -87,31 +87,42 @@ export default function ItineraryPage() {
     <TripThemeScope theme={td.trip.theme} />
     <Screen
       tab="itinerary"
-      sidebarHeader={<FlightTripHeader title={trip.title} onSettings={() => nav(`/trip/${trip.id}/settings`)} />}
-    >
-      <UpdateNotice tripId={trip.id} />
-      <FlightCountdown key={trip.id} td={td} dateRange={fmtDateRange(trip.startDate, trip.endDate)} offline={ready.allGreen} />
+      sidebarHeader={<>
+        <FlightTripHeader title={trip.title} onSettings={() => nav(`/trip/${trip.id}/settings`)} />
+        <div className={p.tripShortcuts}>
+          <p className={p.tripToolsTitle}>旅程工具</p>
+          <nav aria-label="旅程工具">
       {(() => {
         // 2026-10：「今天」页入口。行程中最显眼；出发前和结束后用来预览
         const t = pickToday(td.days, now);
         if (!t.day) return null;
         return (
-          <div className={p.todayEntry}>
-            <Button block variant={t.mode === 'today' ? 'primary' : 'outline'} icon="CalendarDays" onClick={() => nav(`/trip/${trip.id}/today`)}>
-              {t.mode === 'today' ? `今天 · Day ${t.day.index}：下一项、酒店、穿搭` : t.mode === 'before' ? '预览「今天」页（从 Day 1 开始）' : '「今天」页（回看最后一天）'}
+          <div>
+            <Button block variant="link" icon="CalendarDays" onClick={() => nav(`/trip/${trip.id}/today`)}>
+              今日行程
             </Button>
           </div>
         );
       })()}
-      <div className={`${p.mt8} ${p.btnRow}`}>
-        <Button variant="outline" icon="Image" onClick={() => nav(`/trip/${trip.id}/story`)}>
-          翻开旅程介绍
+      <div className={p.tripShortcutLinks}>
+        <Button variant="link" icon="Image" onClick={() => nav(`/trip/${trip.id}/story`)}>
+          旅程概览
         </Button>
-        <Button variant="outline" icon="StickyNote" onClick={() => nav(`/trip/${trip.id}/outfits`)}>
-          穿搭与打包
+        <Button variant="link" icon="StickyNote" onClick={() => nav(`/trip/${trip.id}/outfits`)}>
+          穿搭与行李
         </Button>
       </div>
-      <PhaseCard td={td} now={now} hideDepartureCountdown />
+      <details className={p.tripPreparation}>
+        <summary>出发准备</summary>
+        <PhaseCard td={td} now={now} hideDepartureCountdown />
+        <Button variant="link" icon="Settings" onClick={() => nav(`/trip/${trip.id}/settings`)}>查看准备事项</Button>
+      </details>
+          </nav>
+        </div>
+      </>}
+    >
+      <UpdateNotice tripId={trip.id} />
+      <FlightCountdown key={trip.id} td={td} dateRange={fmtDateRange(trip.startDate, trip.endDate)} offline={ready.allGreen} />
       <DayTiles days={td.days} selectedId={day?.id} onSelect={(id) => selectDay(trip.id, id)} />
       {day && <DayHeading title={dayTitle} sub={daySub} />}
       {day && (
