@@ -2,7 +2,8 @@ import type { ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
 import s from './Layout.module.css';
-import { Icon, Logo, TabIconFilled, type IconKey } from './Icon';
+import { Icon, TabIconFilled, type IconKey } from './Icon';
+import { BrandLockup } from './Brand';
 import { useUI } from '../store/ui';
 import { useOverlay } from '../hooks/layout';
 import { unreadOf, useCloud } from '../store/cloud';
@@ -48,7 +49,7 @@ export function RootHeader({ title, icon, iconLabel, onIcon }: { title: string; 
   return (
     <header className={s.header}>
       <div className={s.headerRow}>
-        <Logo />
+        <span className={s.brand}><BrandLockup height={32} /></span>
         <h1 className={s.headerTitle}>{title}</h1>
         <button type="button" className={s.hit} aria-label={iconLabel} onClick={onIcon}>
           <Icon name={icon} />
@@ -128,7 +129,7 @@ export function TabBar({ active, header }: { active: TabKey; header?: ReactNode 
   const tabs = TABS.filter((t) => t.key !== 'notify' || synced || active === 'notify');
   return (
     <nav className={`${s.fixedCol} ${s.tabbar}`} aria-label="主导航" style={{ gridTemplateColumns: `repeat(${tabs.length}, 1fr)` }}>
-      <span className={s.navLogo} aria-hidden="true"><Logo /></span>
+      <span className={s.navLogo}><BrandLockup height={30} /></span>
       {header && <div className={s.sidebarHeader}>{header}</div>}
       {tabs.map((t) => {
         const on = t.key === active;

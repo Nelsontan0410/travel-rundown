@@ -17,6 +17,8 @@
   padding: var(--safe-top) var(--space-2) 0 var(--page-x);
   box-shadow: 0 1px 0 var(--color-hairline), 0 2px 0 rgba(255, 252, 244, 0.7);
 }
+/* tongxing8 页头标志：纯单色，随主题文字色变化，默认不混合 */
+.brand { margin-right: var(--space-2); display: inline-flex; align-items: center; color: var(--color-text); mix-blend-mode: normal; flex-shrink: 0; }
 .headerRow { height: var(--h-header); display: flex; align-items: center; gap: var(--space-2); }
 .headerTitle { font-family: var(--font-serif); font-size: var(--fs-title); font-weight: var(--fw-title); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hit { width: var(--size-hit); height: var(--size-hit); display: inline-flex; align-items: center; justify-content: center; color: var(--color-text); flex-shrink: 0; border-radius: var(--radius-full); transition: background var(--duration) var(--ease), box-shadow var(--duration) var(--ease); }
@@ -158,10 +160,9 @@
   }
   .navLogo {
     display: flex; align-items: center; gap: var(--space-2); height: var(--h-header); padding: 0 var(--space-3); margin-bottom: var(--space-4); flex-shrink: 0;
-    --color-primary: var(--color-on-leather-hi); color: var(--color-on-leather);
+    color: var(--color-on-leather-hi); mix-blend-mode: normal;
     border-bottom: 1px solid rgba(0, 0, 0, 0.28); box-shadow: 0 1px 0 color-mix(in srgb, var(--color-on-leather-hi) 10%, transparent);
   }
-  .navLogo::after { content: '旅程 Rundown'; font-family: var(--font-serif); font-style: italic; font-size: var(--fs-title); letter-spacing: 0.02em; color: var(--color-on-leather-hi); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.5); }
   .tab { flex-direction: row; justify-content: flex-start; gap: var(--space-3); height: var(--size-hit); padding: 0 var(--space-3); border-radius: var(--radius-sm); font-size: var(--fs-body); }
   .tab:hover { background: color-mix(in srgb, var(--color-on-leather-hi) 6%, transparent); }
   .tabOn { background: linear-gradient(180deg, var(--color-plate-1) 0%, var(--color-plate-2) 100%); color: var(--color-on-leather-hi); box-shadow: inset 1px 1px 0 color-mix(in srgb, var(--color-on-leather-hi) 25%, transparent), inset -1px -1px 0 rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.4); --color-surface: var(--color-plate-2); }
