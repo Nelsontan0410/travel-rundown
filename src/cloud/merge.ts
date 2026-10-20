@@ -7,7 +7,7 @@
 // 每天按「第几天」对应；旅程资料（名称、日期、预算…）一律用主用户的。
 import { makeItemKey } from '../domain/itemKey';
 import type { Day, Item } from '../domain/types';
-import { ITEM_FIELD_LABEL, sameDay, sameItem, stable, type TripSnapshot } from './snapshot';
+import { ITEM_FIELD_LABEL, reorderedDays, sameDay, sameItem, stable, type TripSnapshot } from './snapshot';
 
 export type Choice = 'mine' | 'theirs';
 
@@ -77,6 +77,14 @@ export function mergeSnapshot(
   const lItem = new Map(local.items.map((i) => [i.id, i]));
   const nItem = new Map(incoming.items.map((i) => [i.id, i]));
   const ids = new Set([...bItem.keys(), ...lItem.keys(), ...nItem.keys()]);
+  // 审查修复 #4：主用户调整过顺序的那几天，没被同伴挪到别天的项按主用户的新顺序排
+  const ownerReordered = reorderedDays(base, incoming);
+  const followsOwnerOrder = (id: string): boolean => {
+    const n = nItem.get(id);
+    const l = lItem.get(id);
+    const i = n && incomingDayIndex.get(n.dayId);
+    return i !== undefined && ownerReordered.has(i) && (!l || localDayIndex.get(l.dayId) === i);
+  };
   const pick = new Map<string, { it: Item; fromLocal: boolean }>();
   const conflicts: Conflict[] = [];
   const keptMine: string[] = [];
@@ -97,7 +105,9 @@ export function mergeSnapshot(
     const mineChanged = !l || !sameItem(l, b);
     const theirsChanged = !n || !sameItem(n, b);
     let take: 'mine' | 'theirs';
-    if (!theirsChanged) take = 'mine';
+    // 两边内容都没改：主用户调整过这天的顺序就用主用户的（内容一样，只是顺序不同）
+    if (!theirsChanged && !mineChanged) take = followsOwnerOrder(id) ? 'theirs' : 'mine';
+    else if (!theirsChanged) take = 'mine';
     else if (!mineChanged) take = 'theirs';
     else if ((!l && !n) || (l && n && sameItem(l, n))) take = 'theirs';
     else {
@@ -118,8 +128,9 @@ export function mergeSnapshot(
   for (const [id, p] of pick) placed.set(id, placeIn(p.it, p.fromLocal));
   const out: Item[] = [];
   for (const d of days) {
+    // 保留了自己内容修改的项，如果主用户调整过这天的顺序，也按主用户的位置排
     const fromIncoming = incoming.items
-      .filter((i) => placed.has(i.id) && !pick.get(i.id)!.fromLocal && placed.get(i.id)!.dayId === d.id)
+      .filter((i) => placed.has(i.id) && (!pick.get(i.id)!.fromLocal || followsOwnerOrder(i.id)) && placed.get(i.id)!.dayId === d.id)
       .sort((a, b) => a.order - b.order)
       .map((i) => placed.get(i.id)!);
     const list = [...fromIncoming];
