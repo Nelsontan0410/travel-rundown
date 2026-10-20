@@ -33,6 +33,7 @@ import { navLink } from '../../links/maps';
 import { openExternal } from '../../links/openLink';
 import { placeCopyText } from '../../domain/rules';
 import { useUI } from '../../store/ui';
+import { ReadHighlights } from './Highlights';
 import { AddSheet, EditableText, GuidePhoto, PhotoSheet, SaveBadge, useSaver } from './parts';
 
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -243,7 +244,7 @@ export default function GuidePage() {
         {/* B 精选亮点 */}
         <section className={g.section} aria-labelledby="g-hl">
           <h2 id="g-hl" tabIndex={-1} className={g.h2}>
-            精选亮点 <small>Highlights</small>
+            这一趟的精选亮点 <small>Highlights</small>
           </h2>
           <div className={g.rule} />
           {shown.length === 0 ? (
@@ -261,6 +262,8 @@ export default function GuidePage() {
                 </Button>
               )}
             </div>
+          ) : !edit ? (
+            <ReadHighlights list={shown} dayOf={(h) => h.dayIndex ?? (h.itemId && itemById.get(h.itemId) ? td.dayById.get(itemById.get(h.itemId)!.dayId)?.index : undefined)} />
           ) : (
             <ol className={g.hList} style={{ listStyle: 'none', padding: 0, margin: 0 }}>
               {shown.map((h, i) => {
@@ -271,7 +274,7 @@ export default function GuidePage() {
                 const pos = ids.indexOf(h.id);
                 const classes = [g.hCard, i === 0 ? g.hFirst : '', h.hidden ? g.hCardHidden : '', drag?.id === h.id ? g.hCardDrag : '', drag && drag.id !== h.id && drag.over === pos ? g.hCardOver : ''].join(' ');
                 return (
-                  <li key={h.id} className={classes} ref={(el) => { if (el) cardRefs.current.set(h.id, el); else cardRefs.current.delete(h.id); }}>
+                  <li key={h.id} className={classes} data-hl={h.id} ref={(el) => { if (el) cardRefs.current.set(h.id, el); else cardRefs.current.delete(h.id); }}>
                     {(edit || h.photoKey) && (
                       <div className={g.hPhotoWrap}>
                         <GuidePhoto

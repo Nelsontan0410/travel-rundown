@@ -41,7 +41,7 @@
   "src/domain/flightCountdown.ts": "5fecc800a8be592bc7f5f5afc4ef0cde3e56d994079234d880fa08d79cd57b11",
   "src/domain/flightTicket.ts": "d0b51ac78cf9e8e7705b0cf7047e6c713dc178ba85b992e024b9fc2b1184e8ea",
   "src/domain/format.ts": "251ab6a1c13a92a62fc4eda21fc8b22802e7095a15ac8755c29d234117529c3f",
-  "src/domain/guide.ts": "c2ee971ec5ba1d8e3b7b53dfdf3dd0cc3e7eb468e7578f724d2b86733828630e",
+  "src/domain/guide.ts": "bca8e1bac91b5f87b91b361d305b63a6ce2397232059c29459f3a1c4c1c2fc9a",
   "src/domain/itemKey.ts": "9d86f91e557b83131927f2aa213574bfc9c9cf256588043048287749df4e86c1",
   "src/domain/landing.ts": "cd6714bdcc88653703e00e6fd357200214252c54dc6b0ff0c5d01f3d5724c42f",
   "src/domain/landingCredits.json": "2e7f5dc008f544c677193959007b42231b47b10af089cfae13ae909a6a86f6b0",

@@ -85,7 +85,7 @@ try:
 
         # ———— 3 简介：直接编辑，长度限制 ————
         pg.get_by_role('button', name='编辑', exact=True).click()
-        intro = pg.get_by_label('旅行简介'); intro.click(); intro.fill('老城街巷、壮族文化、地道广西味道。' * 10); pg.get_by_role('heading', name='精选亮点').click()
+        intro = pg.get_by_label('旅行简介'); intro.click(); intro.fill('老城街巷、壮族文化、地道广西味道。' * 10); pg.get_by_role('heading', name=re.compile('精选亮点')).click(); pg.wait_for_timeout(250)
         expect(pg.get_by_text('已保存')).to_be_visible()
         assert len(intro.input_value()) == 120, len(intro.input_value())
         ok('3 简介限长 120')
@@ -112,9 +112,9 @@ try:
         ok('4 添加（行程关联 / 手动 / 照片）')
 
         # ———— 5 改标题：超长中英文都限长，且不会撑破版面 ————
-        t = pg.get_by_label('亮点标题').nth(1); t.click(); t.fill('Super long highlight title ' * 6 + '超长的中文标题' * 10); pg.get_by_role('heading', name='精选亮点').click()
+        t = pg.get_by_label('亮点标题').nth(1); t.click(); t.fill('Super long highlight title ' * 6 + '超长的中文标题' * 10); pg.get_by_role('heading', name=re.compile('精选亮点')).click(); pg.wait_for_timeout(250)
         assert len(t.input_value()) == 40, len(t.input_value())
-        t0 = pg.get_by_label('亮点标题').nth(2); t0.click(); t0.fill('   '); pg.get_by_role('heading', name='精选亮点').click()
+        t0 = pg.get_by_label('亮点标题').nth(2); t0.click(); t0.fill('   '); pg.get_by_role('heading', name=re.compile('精选亮点')).click(); pg.wait_for_timeout(250)
         assert t0.input_value().strip(), '标题不能被清空'
         no_overflow(pg, '编辑 390'); pg.screenshot(path=f'{OUT}/03-edit.png')
         ok('5 标题限长、不能清空')
@@ -131,17 +131,25 @@ try:
         hide = pg.get_by_role('button', name='隐藏').first; hide.click(); pg.wait_for_timeout(300)
         expect(pg.get_by_text('已隐藏')).to_be_visible()
         pg.get_by_role('button', name='完成').click()
-        assert pg.get_by_label('亮点标题').count() == 0 and pg.locator('[class*=hCard]').count() == 2  # 阅读时隐藏的不出现
+        assert pg.get_by_label('亮点标题').count() == 0 and pg.locator('[data-hl]').count() == 2  # 阅读时隐藏的不出现
         pg.get_by_role('button', name='编辑', exact=True).click(); pg.get_by_role('button', name='显示').first.click(); pg.wait_for_timeout(300)
-        pg.get_by_role('button', name='完成').click(); assert pg.locator('[class*=hCard]').count() == 3
+        pg.get_by_role('button', name='完成').click(); assert pg.locator('[data-hl]').count() == 3
         ok('6 按钮排序、拖动排序、隐藏与恢复')
 
         # ———— 7 刷新后全部保留（文字、照片、顺序） ————
-        order_before = [h.inner_text() for h in pg.locator('[class*=hTitle]').all()]
+        order_before = [h.inner_text() for h in pg.locator('[data-hl-title]').all()]
         pg.reload(); pg.wait_for_timeout(900)
-        assert [h.inner_text() for h in pg.locator('[class*=hTitle]').all()] == order_before
-        assert pg.locator('[class*=hCard] img').count() >= 2
+        assert [h.inner_text() for h in pg.locator('[data-hl-title]').all()] == order_before
+        assert pg.locator('[data-hl] img').count() >= 2
         no_overflow(pg, '阅读 390'); pg.screenshot(path=f'{OUT}/04-read.png', full_page=True); ok('7 刷新后保留')
+        # 按类别分组：只显示有内容的类别；筛选只看某一类
+        cats = [c.inner_text().split('\n')[0].split(' ')[0] for c in pg.locator('[class*=catTitle]').all()]
+        assert len(cats) == len(set(cats)) and 1 <= len(cats) <= 3, cats
+        if pg.get_by_role('group', name='按类别筛选').count():
+            pg.get_by_role('group', name='按类别筛选').get_by_role('button', name=re.compile('^美食')).click(); pg.wait_for_timeout(200)
+            assert pg.locator('[class*=catTitle]').count() == 1 and '美食' in pg.locator('[class*=catTitle]').first.inner_text()
+            pg.get_by_role('group', name='按类别筛选').get_by_role('button', name=re.compile('^全部')).click()
+        ok('7b 按类别分组与筛选')
 
         # ———— 8 上传失败：不是图片 / 太大 / 损坏；之后重试成功 ————
         pg.get_by_role('button', name='编辑', exact=True).click(); pg.get_by_role('button', name='更换封面').click()
@@ -155,9 +163,9 @@ try:
         # ———— 9 删除：说明范围；行程不受影响 ————
         pg.get_by_role('button', name='删除', exact=True).first.click()
         expect(pg.get_by_role('alertdialog')).to_contain_text(re.compile('不会删除行程里的|不能恢复'))
-        pg.get_by_role('button', name='取消').click(); assert pg.locator('[class*=hCard]').count() == 3
+        pg.get_by_role('button', name='取消').click(); assert pg.locator('[data-hl]').count() == 3
         pg.get_by_role('button', name='删除', exact=True).first.click(); pg.get_by_role('alertdialog').get_by_role('button', name='删除').click(); pg.wait_for_timeout(400)
-        assert pg.locator('[class*=hCard]').count() == 2
+        assert pg.locator('[data-hl]').count() == 2
         assert item_titles(pg, trip) == before, '行程内容被改动了'
         ok('9 删除亮点，行程原样')
 
