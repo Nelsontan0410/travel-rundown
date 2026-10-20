@@ -41,6 +41,7 @@ export function InfoSection({
   onRemove,
   onMove,
   onToggle,
+  compact,
 }: {
   tips: GuideTip[];
   edit: boolean;
@@ -52,6 +53,8 @@ export function InfoSection({
   onRemove: (id: string) => void;
   onMove: (id: string, dir: -1 | 1) => void;
   onToggle: (id: string, done: boolean) => void | Promise<unknown>;
+  /** 放在电脑编辑面板里：单栏、不要大标题 */
+  compact?: boolean;
 }) {
   const [cat, setCat] = useState<TipCategory>('tip');
   const [text, setText] = useState('');
@@ -61,11 +64,15 @@ export function InfoSection({
   const groups = TIP_CATEGORIES.map((c) => ({ c, list: tips.filter((t) => t.category === c) })).filter((x) => x.list.length > 0);
   if (!edit && !groups.length && !stay.length && !places.length) return null;
   return (
-    <section className={g.section} aria-labelledby="g-info">
-      <h2 id="g-info" className={g.h2}>
-        旅行实用信息 <small>Useful info</small>
-      </h2>
-      <div className={g.rule} />
+    <section className={compact ? g.infoCompact : g.section} aria-labelledby={compact ? undefined : 'g-info'} aria-label={compact ? '编辑实用信息' : undefined}>
+      {!compact && (
+        <>
+          <h2 id="g-info" className={g.h2}>
+            旅行实用信息 <small>Useful info</small>
+          </h2>
+          <div className={g.rule} />
+        </>
+      )}
       <div className={g.infoGrid}>
         <div className={g.infoCol}>
           {places.length > 0 && (

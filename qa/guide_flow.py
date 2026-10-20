@@ -292,7 +292,7 @@ try:
             p2, e2 = ctx(w, h)
             t2 = import_trip(p2)
             p2.goto(f'{BASE}/trip/{t2}/highlights'); p2.wait_for_timeout(600)
-            p2.get_by_role('button', name='编辑', exact=True).click(); p2.get_by_role('button', name='添加封面照片').click()
+            p2.get_by_role('button', name=re.compile('^(编辑|编辑模式)$')).click(); p2.get_by_role('button', name='添加封面照片').click()
             pick(p2, lambda: p2.get_by_role('button', name='从相册选择').click(), PHOTOS[0]); p2.get_by_role('button', name='确认', exact=True).click(); expect(p2.get_by_text('已保存')).to_be_visible()
             for i, nm in enumerate(['青秀山', '老友粉', '三街两巷']):
                 p2.get_by_role('button', name='添加亮点').first.click(); p2.get_by_role('button', name=re.compile('手动创建')).click()
@@ -318,6 +318,19 @@ try:
                 pick(p2, lambda: dlg.get_by_role('button', name='从相册选择').click(), PHOTOS[2])
                 expect(dlg.get_by_role('group', name='裁切比例')).to_be_visible()
                 dlg.get_by_role('button', name='16:9').click(); dlg.get_by_role('button', name='确认', exact=True).click(); expect(p2.get_by_text('已保存')).to_be_visible()
+                # 电脑总览：左侧导航、亮点卡片、每天的编辑、实用信息、管理顺序都在一屏的编辑入口里
+                expect(p2.get_by_role('navigation').get_by_role('link', name='每日行程')).to_be_visible()
+                p2.get_by_role('button', name='编辑 Day 1').click()
+                expect(p2.get_by_role('complementary', name='编辑 Day 1')).to_be_visible()
+                p2.get_by_label('Day 1 主题').fill('初见'); p2.keyboard.press('Tab'); p2.wait_for_timeout(300)
+                expect(p2.locator('[data-day-card]').first).to_contain_text('初见')
+                p2.get_by_role('button', name='编辑贴士').click(); expect(p2.get_by_role('complementary', name='编辑实用信息')).to_be_visible()
+                form = p2.locator('form').filter(has=p2.get_by_role('group', name='贴士类别'))
+                form.get_by_role('button', name='出发清单', exact=True).click(); form.get_by_label('内容').fill('带转换插头'); form.get_by_role('button', name='添加', exact=True).click(); p2.wait_for_timeout(300)
+                expect(p2.locator('section[aria-labelledby=g-info]')).to_contain_text('带转换插头')
+                p2.get_by_role('button', name='管理顺序').click(); expect(p2.get_by_role('complementary', name='管理亮点')).to_be_visible()
+                p2.get_by_role('button', name=re.compile('^下移「')).first.click(); p2.wait_for_timeout(300)
+                p2.get_by_role('button', name=re.compile('^修改「')).first.click(); expect(p2.get_by_role('complementary', name=re.compile('编辑亮点'))).to_be_visible()
             no_overflow(p2, f'{name} 编辑'); p2.screenshot(path=f'{OUT}/05-{name}-edit.png')
             p2.get_by_role('button', name='完成').click(); no_overflow(p2, f'{name} 阅读'); p2.screenshot(path=f'{OUT}/06-{name}-read.png', full_page=True)
             for th in ['winter', 'spring', 'autumn']:
