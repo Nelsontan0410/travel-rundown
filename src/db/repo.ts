@@ -416,9 +416,29 @@ export async function setTripTheme(tripId: string, theme: TripTheme): Promise<vo
   await db.trips.update(tripId, { theme, updatedAt: now() });
 }
 
+/**
+ * 审查修复 #1（2026-10-21）：别的旅程还在用的文件 key（证明、封面、亮点照片、每日照片，含缩略图）。
+ * 同步来的文件按内容存成 cloud:<sha256>，两份旅程可能共用同一个；删旅程时只删没人再用的。
+ */
+async function blobKeysUsedByOthers(tripId: string): Promise<Set<string>> {
+  const used = new Set<string>();
+  const add = (k?: string) => {
+    if (!k) return;
+    used.add(k);
+    used.add(`${k}#thumb`);
+  };
+  for (const t of await db.trips.toArray()) if (t.id !== tripId) add(t.coverBlobKey);
+  for (const d of await db.docs.toArray()) if (d.tripId !== tripId) add(d.blobKey);
+  for (const h of await db.highlights.toArray()) if (h.tripId !== tripId) add(h.photoKey);
+  for (const g of await db.guides.toArray()) if (g.tripId !== tripId) for (const d of Object.values(g.days ?? {})) add(d.photoKey);
+  return used;
+}
+
 export async function deleteTrip(tripId: string): Promise<void> {
   await db.transaction('rw', [db.trips, db.days, db.items, db.docs, db.blobs, db.itemStates, db.settings, db.expenses, db.outfits, db.packItems, db.packChecks, db.cloudBases, db.guides, db.highlights], async () => {
     const trip = await db.trips.get(tripId);
+    const inUse = await blobKeysUsedByOthers(tripId);
+    const dropBlobs = (keys: string[]) => db.blobs.bulkDelete(keys.filter((k) => !inUse.has(k)));
     await db.cloudBases.delete(tripId);
     await db.expenses.where('tripId').equals(tripId).delete();
     // 穿搭、打包清单跟着旅程删；衣橱是所有旅程共用的，保留
@@ -429,12 +449,12 @@ export async function deleteTrip(tripId: string): Promise<void> {
       const hs = await db.highlights.where('tripId').equals(tripId).toArray();
       const gd = await db.guides.get(tripId);
       const gk = [...hs.flatMap((h) => (h.photoKey ? [h.photoKey] : [])), ...Object.values(gd?.days ?? {}).flatMap((d) => (d.photoKey ? [d.photoKey] : []))];
-      await db.blobs.bulkDelete([...gk, ...gk.map((k) => `${k}#thumb`)]);
+      await dropBlobs([...gk, ...gk.map((k) => `${k}#thumb`)]);
       await db.highlights.where('tripId').equals(tripId).delete();
       await db.guides.delete(tripId);
     }
     const docs = await db.docs.where('tripId').equals(tripId).toArray();
-    await db.blobs.bulkDelete([...docs.map((d) => d.blobKey), ...(trip?.coverBlobKey ? [trip.coverBlobKey] : []), flightBackgroundKey(tripId, 'origin'), flightBackgroundKey(tripId, 'destination')]);
+    await dropBlobs([...docs.map((d) => d.blobKey), ...(trip?.coverBlobKey ? [trip.coverBlobKey] : []), flightBackgroundKey(tripId, 'origin'), flightBackgroundKey(tripId, 'destination')]);
     await db.docs.bulkDelete(docs.map((d) => d.id));
     await db.days.where('tripId').equals(tripId).delete();
     await db.items.where('tripId').equals(tripId).delete();
