@@ -2,16 +2,27 @@
 // 这里的内容只引用行程项的 id，从不改写、删除行程项。
 import type { Day, Item } from './types';
 
-export type HighlightCategory = 'spot' | 'food' | 'culture' | 'shopping' | 'lodging' | 'other';
+export type HighlightCategory = 'spot' | 'food' | 'culture' | 'experience' | 'shopping' | 'lodging' | 'other';
 export const CATEGORY_LABEL: Record<HighlightCategory, string> = {
   spot: '景点',
   food: '美食',
-  culture: '文化体验',
+  culture: '文化',
+  experience: '体验',
   shopping: '购物',
   lodging: '住宿',
   other: '其他',
 };
 export const CATEGORIES = Object.keys(CATEGORY_LABEL) as HighlightCategory[];
+/** 阅读时每个类别的小标题（中文 + 手帐式英文副标） */
+export const CATEGORY_TITLE: Record<HighlightCategory, [string, string]> = {
+  spot: ['必去景点', 'Must visit'],
+  food: ['必吃美食', 'Foodie list'],
+  culture: ['文化', 'Culture'],
+  experience: ['特别体验', 'Experiences'],
+  shopping: ['购物与手信', 'Shopping'],
+  lodging: ['住宿', 'Stay'],
+  other: ['其他亮点', 'More'],
+};
 
 export type TipCategory = 'food' | 'shopping' | 'photo' | 'note' | 'other';
 export const TIP_LABEL: Record<TipCategory, string> = { food: '必吃清单', shopping: '购物 / 手信', photo: '拍照建议', note: '个人备注', other: '其他贴士' };
