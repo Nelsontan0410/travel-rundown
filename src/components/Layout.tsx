@@ -1,20 +1,26 @@
-import type { ReactNode } from 'react';
+import { Fragment, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
 import s from './Layout.module.css';
 import { Icon, TabIconFilled, type IconKey } from './Icon';
-import { BrandLockup } from './Brand';
+import { BrandFull, BrandLockup } from './Brand';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db } from '../db/schema';
+import { useCurrentTripId } from '../hooks/data';
 import { useUI } from '../store/ui';
 import { useOverlay } from '../hooks/layout';
 import { unreadOf, useCloud } from '../store/cloud';
 
-export type TabKey = 'trips' | 'itinerary' | 'docs' | 'notify';
+/** 手机底栏只有 trips / itinerary / docs / notify；电脑侧栏还有这趟旅程的各个页面 */
+export type TabKey = 'trips' | 'itinerary' | 'docs' | 'notify' | 'story' | 'highlights' | 'ledger' | 'outfits' | 'settings';
 
 interface ScreenProps {
   header?: ReactNode;
   sidebarHeader?: ReactNode;
   /** 2026-10-19：false = 侧栏内容只在电脑上显示（手机上页面自己另外安排） */
   sidebarMobile?: boolean;
+  /** 电脑上内容区不限制在 960px（旅行亮点总览用） */
+  wideContent?: boolean;
   tab?: TabKey;
   bottom?: ReactNode; // ActionBar 或底部按钮区
   bottomStyle?: 'action' | 'plain';
@@ -23,11 +29,11 @@ interface ScreenProps {
 }
 
 /** 页面骨架：页头 + 内容 + 可选的底部操作栏 + 同一套响应式导航 */
-export function Screen({ header, sidebarHeader, sidebarMobile = true, tab, bottom, bottomStyle = 'action', full, children }: ScreenProps) {
+export function Screen({ header, sidebarHeader, sidebarMobile = true, tab, bottom, bottomStyle = 'action', full, wideContent, children }: ScreenProps) {
   const pad = tab ? (bottom ? s.withTabBottom : s.withTab) : bottom ? s.withBottom : '';
   return (
     <div className={`${s.screen} ${tab ? s.withSidebar : ''}`}>
-      <div className={s.contentColumn}>
+      <div className={`${s.contentColumn} ${wideContent ? s.contentWide : ''}`}>
       {header}
       {sidebarHeader && sidebarMobile && <div className={s.mobileSidebarHeader}>{sidebarHeader}</div>}
       <main className={`${s.main} ${sidebarHeader ? s.mainWithSidebarHeader : ''} ${full ? s.full : ''} ${pad}`}>{children}</main>
@@ -114,32 +120,66 @@ export function BigHeader({ title, sub, action }: { title: string; sub?: string;
   );
 }
 
-const TABS: { key: TabKey; label: string; to: string; icon: 'Home' | 'CalendarDays' | 'FileText' | 'Bell' }[] = [
+type MainKey = 'trips' | 'itinerary' | 'docs' | 'notify';
+const TABS: { key: MainKey; label: string; to: string; icon: 'Home' | 'CalendarDays' | 'FileText' | 'Bell' }[] = [
   // 2026-10-19：底部用短标签「旅程 / 日程 / 资料」，页面标题用完整名称（我的旅程 / 每日行程 / 预订资料）
   { key: 'trips', label: '旅程', to: '/trips', icon: 'Home' },
   { key: 'itinerary', label: '日程', to: '/itinerary', icon: 'CalendarDays' },
   { key: 'docs', label: '资料', to: '/docs', icon: 'FileText' },
   { key: 'notify', label: '通知', to: '/notifications', icon: 'Bell' },
 ];
+/** 电脑侧栏里不在底栏上的页面，手机上高亮它们所属的底栏项 */
+const MOBILE_OF: Record<TabKey, MainKey> = {
+  trips: 'trips', itinerary: 'itinerary', docs: 'docs', notify: 'notify',
+  story: 'itinerary', highlights: 'itinerary', ledger: 'itinerary', outfits: 'itinerary', settings: 'trips',
+};
+
+/** 2026-10-20：电脑侧栏的完整导航（和旅程页同一个侧栏、同一种样式），标题写清楚每页是做什么的 */
+function deskItems(tripId: string | null | undefined): { key: TabKey; label: string; to: string; icon: IconKey; group: 'all' | 'trip' | 'end' }[] {
+  const t = tripId ? (path: string) => `/trip/${tripId}/${path}` : null;
+  return [
+    { key: 'trips', label: '我的旅程', to: '/trips', icon: 'Home', group: 'all' },
+    ...(t
+      ? ([
+          { key: 'story', label: '旅程封面', to: t('story'), icon: 'Image', group: 'trip' },
+          { key: 'highlights', label: '旅行亮点', to: t('highlights'), icon: 'Mountain', group: 'trip' },
+          { key: 'itinerary', label: '每日行程', to: `/itinerary/${tripId}`, icon: 'CalendarDays', group: 'trip' },
+          { key: 'docs', label: '预订凭证', to: '/docs', icon: 'FileText', group: 'trip' },
+          { key: 'ledger', label: '旅行账本', to: t('ledger'), icon: 'Wallet', group: 'trip' },
+          { key: 'outfits', label: '穿搭打包', to: t('outfits'), icon: 'StickyNote', group: 'trip' },
+          { key: 'settings', label: '旅程设置', to: t('settings'), icon: 'Settings', group: 'trip' },
+        ] as const)
+      : ([
+          { key: 'itinerary', label: '每日行程', to: '/itinerary', icon: 'CalendarDays', group: 'trip' },
+          { key: 'docs', label: '预订凭证', to: '/docs', icon: 'FileText', group: 'trip' },
+        ] as const)),
+    { key: 'notify', label: '通知', to: '/notifications', icon: 'Bell', group: 'end' },
+  ];
+}
 
 export function TabBar({ active, header }: { active: TabKey; header?: ReactNode }) {
   // 2026-10-19：这台手机用过同步才显示「通知」，红点 = 别人做的、还没看过的
   const synced = useCloud((st) => !!st.session);
   const unread = useCloud((st) => unreadOf(st).length);
-  const tabs = TABS.filter((t) => t.key !== 'notify' || synced || active === 'notify');
+  const tripId = useCurrentTripId();
+  const tripTitle = useLiveQuery(async () => (tripId ? (await db.trips.get(tripId))?.title ?? '' : ''), [tripId]);
+  const mobileActive = MOBILE_OF[active];
+  const tabs = TABS.filter((t) => t.key !== 'notify' || synced || mobileActive === 'notify');
+  const desk = deskItems(tripId).filter((t) => t.key !== 'notify' || synced || active === 'notify');
+  const badgeOf = (key: TabKey) => (key === 'notify' && unread > 0 ? unread : 0);
   return (
     <nav className={`${s.fixedCol} ${s.tabbar}`} aria-label="主导航" style={{ gridTemplateColumns: `repeat(${tabs.length}, 1fr)` }}>
-      <span className={s.navLogo}><BrandLockup height={30} /></span>
-      {header && <div className={s.sidebarHeader}>{header}</div>}
+      <span className={s.navLogo}><BrandFull height={72} /></span>
+      {/* 手机：底栏 */}
       {tabs.map((t) => {
-        const on = t.key === active;
-        const badge = t.key === 'notify' && unread > 0 ? unread : 0;
+        const on = t.key === mobileActive;
+        const badge = badgeOf(t.key);
         return (
           <Link
             key={t.key}
             to={t.to}
             replace
-            className={`${s.tab} ${on ? s.tabOn : ''}`}
+            className={`${s.tab} ${s.mobileOnly} ${on ? s.tabOn : ''}`}
             aria-current={on ? 'page' : undefined}
             aria-label={badge ? `${t.label}（${badge} 条未读）` : undefined}
           >
@@ -151,6 +191,32 @@ export function TabBar({ active, header }: { active: TabKey; header?: ReactNode 
           </Link>
         );
       })}
+      {/* 电脑：侧栏完整导航 */}
+      {desk.map((t, i) => {
+        const on = t.key === active;
+        const badge = badgeOf(t.key);
+        const groupStart = t.group === 'trip' && desk[i - 1]?.group !== 'trip';
+        return (
+          <Fragment key={`d-${t.key}`}>
+            {groupStart && tripTitle && <p className={`${s.navGroup} ${s.deskOnly}`}>{tripTitle}</p>}
+            {t.group === 'end' && <span className={`${s.navGap} ${s.deskOnly}`} aria-hidden />}
+            <Link
+              to={t.to}
+              className={`${s.tab} ${s.deskOnly} ${on ? s.tabOn : ''}`}
+              aria-current={on ? 'page' : undefined}
+              aria-label={badge ? `${t.label}（${badge} 条未读）` : undefined}
+            >
+              <span className={s.tabIcon}>
+                <Icon name={t.icon} />
+                {badge > 0 && <span className={s.badge}>{badge > 99 ? '99+' : badge}</span>}
+              </span>
+              {t.label}
+            </Link>
+          </Fragment>
+        );
+      })}
+      {/* 页面自己的侧栏内容（例如每日行程的「今日行程 / 出发准备」）放在导航下面 */}
+      {header && <div className={s.sidebarHeader}>{header}</div>}
     </nav>
   );
 }

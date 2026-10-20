@@ -75,7 +75,8 @@ try:
         op.goto(BASE + '/import/paste'); op.get_by_label('行程内容').fill(md); op.get_by_role('button', name='解析并预览').click()
         op.get_by_role('button', name='确认导入').click(); op.wait_for_url('**/itinerary/**')
         trip = op.url.rsplit('/', 1)[1]
-        expect(op.get_by_role('button', name=re.compile('当前旅程：北海道，日本'))).to_be_visible()
+        # 2026-10-20：电脑上不再显示行程页头（旅程名在左侧导航里）
+        expect(op.get_by_role('navigation', name='主导航')).to_contain_text('北海道，日本')
         op.goto(BASE + '/trips'); expect(op.get_by_text('我的旅程（1）')).to_be_visible()  # 有旅程：先看到自己的旅程
         first_heading = op.locator('main h2, main h3').first.inner_text()
         assert '我的旅程' in first_heading or '北海道' in op.locator('main').inner_text()[:200], first_heading
@@ -115,7 +116,7 @@ try:
         npg.goto(f'{BASE}/itinerary/{trip}'); npg.get_by_label('邀请码').fill(code[:5] + '-' + code[5:])
         npg.get_by_role('button', name='用邀请码加入').click(); npg.wait_for_url('**/join/**')
         npg.get_by_role('button', name='加入并下载行程').click(); npg.wait_for_url(f'**/itinerary/{trip}')
-        expect(npg.get_by_role('button', name=re.compile('当前旅程：北海道，日本'))).to_be_visible()
+        expect(npg.get_by_role('navigation', name='主导航')).to_contain_text('北海道，日本') if npg.viewport_size['width'] >= 1024 else expect(npg.get_by_role('button', name=re.compile('当前旅程：北海道，日本'))).to_be_visible()
         expect(npg.get_by_text('同伴 · 已套用 v1')).to_be_visible()  # 真实同步状态
         shot(npg, '390-06-joined.png')
         print('ok no-access link → join → back to the trip')

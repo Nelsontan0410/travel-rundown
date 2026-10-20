@@ -36,6 +36,8 @@
 
 /* TabBar：手机端是一条缝线皮革底栏；电脑端变成皮革侧栏 */
 .navLogo { display: none; }
+.deskOnly { display: none !important; }
+.navGroup, .navGap { display: none; }
 .tabbar {
   bottom: 0; padding: var(--space-1) var(--space-2) calc(var(--space-1) + var(--safe-bottom)); display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-1);
   --color-surface: var(--color-leather);
@@ -113,6 +115,7 @@
 @media (min-width: 768px) {
   .screen { max-width: none; }
   .contentColumn { max-width: var(--content-max); }
+  .contentColumn.contentWide { max-width: none; }
   .shellBottom, .tabbar { max-width: var(--content-max); }
 
   .fixedCol.sheet, .fixedCol.menuPosition {
@@ -158,8 +161,13 @@
     left: var(--space-2); right: var(--space-2); top: var(--space-2); bottom: var(--space-2); height: auto;
     border: 1px dashed var(--color-stitch); border-radius: calc(var(--radius-md) - 6px);
   }
+  .mobileOnly { display: none !important; }
+  .deskOnly { display: flex !important; }
+  .navGroup.deskOnly { display: block !important; margin: var(--space-3) var(--space-3) 0; font-size: var(--fs-caption); letter-spacing: 0.08em; color: var(--color-on-leather-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 0; }
+  .navGap.deskOnly { display: block !important; flex: 1; min-height: var(--space-3); }
+  /* 侧栏标志：图形在上、tongxing8 在下（完整版竖排） */
   .navLogo {
-    display: flex; align-items: center; gap: var(--space-2); height: var(--h-header); padding: 0 var(--space-3); margin-bottom: var(--space-4); flex-shrink: 0;
+    display: flex; justify-content: center; align-items: center; padding: var(--space-2) var(--space-3) var(--space-4); margin-bottom: var(--space-3); flex-shrink: 0;
     color: var(--color-on-leather-hi); mix-blend-mode: normal;
     border-bottom: 1px solid rgba(0, 0, 0, 0.28); box-shadow: 0 1px 0 color-mix(in srgb, var(--color-on-leather-hi) 10%, transparent);
   }
@@ -182,7 +190,7 @@
 .mainWithSidebarHeader { padding-top: var(--space-2); }
 @media (min-width: 1024px) {
   .mobileSidebarHeader { display: none; }
-  .sidebarHeader { display: block; margin-bottom: var(--space-3); padding-bottom: var(--space-3); border-bottom: 1px solid var(--color-stitch); }
+  .sidebarHeader { display: block; margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--color-stitch); }
   .mainWithSidebarHeader { padding-top: var(--space-4); }
 }
 

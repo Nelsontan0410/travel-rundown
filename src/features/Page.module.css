@@ -110,6 +110,10 @@
 .editRow { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-3); }
 .editRow > * { min-width: 0; }
 .dayTools { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-2); }
+/* 当天标题 + 两个按钮同一排；放不下时按钮换到下一行 */
+.dayHeadRow { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 0 var(--space-4); }
+.dayHeadText { flex: 1 1 280px; min-width: 0; }
+.dayHeadRow .dayTools { margin: 0 0 var(--space-4); flex-shrink: 0; }
 .editLink { margin-top: var(--space-2); }
 
 /* 2026-10-18 同步 */

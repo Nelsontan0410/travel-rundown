@@ -351,19 +351,7 @@ button.switch::before { content: ''; position: absolute; inset: -8px; }
   .infoGrid { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 24px; align-items: start; }
 }
 /* ———— 电脑总览（≥ 1024px，参照用户提供的 W 总览图）：左导航 + 主栏网格 ———— */
-.dShell { display: grid; grid-template-columns: 232px minmax(0, 1fr); min-height: 100dvh; }
-.dNav { position: sticky; top: 0; height: 100dvh; display: flex; flex-direction: column; gap: var(--space-4); padding: var(--space-5) var(--space-4); border-right: 1px solid var(--color-hairline); background: color-mix(in srgb, var(--color-surface-muted) 45%, var(--color-page)); overflow-y: auto; }
-.dBrand { display: inline-flex; color: var(--color-text); text-decoration: none; min-height: 44px; align-items: center; }
-.dTrip { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2); border-radius: var(--radius-sm); background: var(--color-surface); border: 1px solid var(--color-hairline); }
-.dTripThumb { flex: 0 0 52px; width: 52px; height: 52px; border-radius: var(--radius-xs); }
-.dTrip > span { min-width: 0; display: grid; }
-.dTrip strong { font-size: var(--fs-small); font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.dTrip small { font-size: var(--fs-caption); color: var(--color-text-3); }
-.dLinks { display: grid; gap: 2px; }
-.dLink { display: flex; align-items: center; gap: var(--space-3); min-height: 44px; padding: 0 var(--space-3); border-radius: var(--radius-sm); color: var(--color-text-2); text-decoration: none; font-size: var(--fs-body); }
-.dLink:hover { background: color-mix(in srgb, var(--color-accent) 10%, transparent); }
-.dLinkOn { background: var(--color-surface-muted); color: var(--color-text); font-weight: 700; }
-.dScript { margin-top: auto; font-family: var(--font-serif); font-style: italic; font-size: var(--fs-section); line-height: 1.5; color: var(--color-text-3); transform: rotate(-6deg); transform-origin: left bottom; padding-bottom: var(--space-4); }
+.dShell { min-height: 100dvh; }
 .dMain { min-width: 0; padding: 0 var(--space-6) var(--space-6); }
 .dTop { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: var(--space-3); height: 57px; margin: 0 calc(-1 * var(--space-6)); padding: 0 var(--space-6); background: color-mix(in srgb, var(--color-page) 94%, transparent); backdrop-filter: blur(6px); border-bottom: 1px solid var(--color-hairline); }
 .dCrumb { font-size: var(--fs-small); color: var(--color-text-3); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -371,7 +359,7 @@ button.switch::before { content: ''; position: absolute; inset: -8px; }
 .dCrumb strong { color: var(--color-text); }
 .dEditBtn { display: inline-flex; align-items: center; gap: var(--space-2); min-height: 44px; padding: 0 var(--space-4); border-radius: var(--radius-sm); background: var(--color-primary); color: var(--color-on-leather); font-weight: 700; font-size: var(--fs-body); }
 .dEditBtnOn { background: var(--color-surface); color: var(--color-primary); border: 1px solid var(--color-primary); }
-.dGrid { display: grid; grid-template-columns: minmax(0, 2.1fr) minmax(300px, 1fr); grid-template-areas: 'cover side' 'hl side' 'info side'; gap: var(--space-5); margin-top: var(--space-5); align-items: start; }
+.dGrid { display: grid; grid-template-columns: minmax(0, 2.1fr) minmax(300px, 1fr); grid-template-areas: 'cover side' 'hl side' 'info side'; grid-template-rows: auto auto 1fr; gap: var(--space-5); margin-top: var(--space-5); align-items: start; }
 .dCover { grid-area: cover; position: relative; min-height: 380px; border-radius: var(--radius-md); overflow: hidden; display: flex; align-items: flex-end; background: var(--color-surface); border: 1px solid var(--color-hairline); }
 .dCoverEmpty { min-height: 300px; background: var(--color-surface-muted); }
 .dCover .dCoverPhoto { position: absolute; inset: 0; width: 100%; height: 100%; }
@@ -450,7 +438,6 @@ button.dHlBtn:hover { border-color: var(--color-primary); }
 .withPanel .dMain { padding-right: calc(var(--space-6) + 380px); }
 .withPanel.page { padding-right: 0; }
 @media (max-width: 1279px) {
-  .dShell { grid-template-columns: 200px minmax(0, 1fr); }
   .dGrid { grid-template-columns: minmax(0, 1.7fr) minmax(280px, 1fr); }
   .dCards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .withPanel .dGrid { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'cover' 'hl' 'info' 'side'; }

@@ -267,7 +267,7 @@ export default function OutfitsPage() {
   const [addPack, setAddPack] = useState(false);
 
   if (td === null) return <TripUnavailable tripId={tripId ?? ''} title="穿搭与打包" />;
-  if (!td || !pk || !wardrobe) return <Screen tab="itinerary" header={<BackHeader title="穿搭与打包" />}>{null}</Screen>;
+  if (!td || !pk || !wardrobe) return <Screen tab="outfits" header={<BackHeader title="穿搭与打包" />}>{null}</Screen>;
 
   const byId = new Map(wardrobe.map((g) => [g.id, g]));
   const list = packingList(td.days, pk.outfits, byId, pk.items, pk.packed);
@@ -281,7 +281,7 @@ export default function OutfitsPage() {
   return (
     <>
       <TripThemeScope theme={td.trip.theme} />
-      <Screen tab="itinerary" header={<BackHeader title="穿搭与打包" />}>
+      <Screen tab="outfits" header={<BackHeader title="穿搭与打包" />}>
         <FilterChips options={TABS} value={tab} onChange={setTab} />
 
         {tab === 'days' && (
