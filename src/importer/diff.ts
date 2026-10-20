@@ -1,13 +1,26 @@
 import type { Item, ItemType } from '../domain/types';
+import { ITEM_FIELD_LABEL, stable } from '../cloud/snapshot';
+
+/**
+ * 审查修复 #6（2026-10-21）：重新导入时整项覆盖写入的「内容」= 行程项去掉 id、所属旅程 / 天、顺序、原文行号。
+ * 预览比较和确认导入都以它为准（单一来源），以后行程项加了新字段，预览自动会比较，不会再漏报。
+ */
+const NOT_CONTENT = ['id', 'tripId', 'dayId', 'order', 'src'] as const;
+export type ImportContent = Omit<Item, (typeof NOT_CONTENT)[number]>;
+export function importContent<T extends Partial<Item>>(it: T): Omit<T, (typeof NOT_CONTENT)[number]> {
+  const out = { ...it } as Record<string, unknown>;
+  for (const k of NOT_CONTENT) delete out[k];
+  return out as Omit<T, (typeof NOT_CONTENT)[number]>;
+}
 
 /** 重新导入差异：纯函数，不碰数据库。 */
-export interface DiffOldItem extends Pick<Item, 'key' | 'type' | 'title' | 'start' | 'end' | 'navUrl' | 'note' | 'bookingRef'> {
+export interface DiffOldItem extends ImportContent {
   date: string;
   placeName?: string;
   /** 这一项是否带有用户数据（完成状态或已关联证明） */
   hasUserData: boolean;
 }
-export interface DiffNewItem extends Pick<Item, 'key' | 'type' | 'title' | 'start' | 'end' | 'navUrl' | 'note' | 'bookingRef'> {
+export interface DiffNewItem extends ImportContent {
   date: string;
   placeName?: string;
 }
@@ -34,15 +47,28 @@ export interface ImportDiff {
   removedWithData: DiffOldItem[];
 }
 
-const FIELDS: [keyof DiffNewItem, string][] = [
-  ['title', '标题'],
-  ['start', '开始时间'],
-  ['end', '结束时间'],
-  ['placeName', '地点'],
-  ['navUrl', '导航'],
-  ['bookingRef', '订单'],
-  ['note', '备注'],
-];
+/** 预览里的字段名：原来就有的几项保持原文案，其余沿用同步改动里的叫法 */
+const FIELD_LABEL: Record<string, string> = {
+  ...ITEM_FIELD_LABEL,
+  title: '标题',
+  start: '开始时间',
+  end: '结束时间',
+  place: '地点',
+  navUrl: '导航',
+  bookingRef: '订单',
+  note: '备注',
+};
+/** 显示顺序：原来的几项在前，其余按同步改动的顺序，认不出的字段放最后 */
+const FIELD_ORDER = [...new Set(['title', 'start', 'end', 'place', 'navUrl', 'bookingRef', 'note', ...Object.keys(ITEM_FIELD_LABEL)])];
+/** 不是内容、或者不在这里比较的：key 和日期决定是不是同一项；placeName 只是 place.name 的简写 */
+const SKIP = new Set<string>(['key', 'date', 'placeName', 'hasUserData', ...NOT_CONTENT]);
+/** 空字符串、空数组、空对象和没写一样 */
+const norm = (v: unknown): string => {
+  if (v === undefined || v === null || v === '') return '';
+  if (Array.isArray(v) && !v.length) return '';
+  if (typeof v === 'object' && !Array.isArray(v) && !Object.values(v as object).some((x) => norm(x) !== '')) return '';
+  return stable(v);
+};
 
 function bigrams(s: string): string[] {
   const t = s.toLowerCase().replace(/[\s\p{P}]+/gu, '');
@@ -73,9 +99,16 @@ export function similarity(a: string, b: string): number {
 export const SIMILAR_THRESHOLD = 0.6;
 
 function diffFields(a: DiffOldItem, b: DiffNewItem): string[] {
+  const ra = a as unknown as Record<string, unknown>;
+  const rb = b as unknown as Record<string, unknown>;
+  const keys = [...new Set([...Object.keys(ra), ...Object.keys(rb)])].filter((k) => !SKIP.has(k));
+  const rank = (k: string) => (FIELD_ORDER.includes(k) ? FIELD_ORDER.indexOf(k) : FIELD_ORDER.length);
+  keys.sort((x, y) => rank(x) - rank(y) || x.localeCompare(y));
   const out: string[] = [];
-  for (const [k, label] of FIELDS) {
-    if ((a[k] ?? '') !== (b[k] ?? '')) out.push(label);
+  for (const k of keys) {
+    if (norm(ra[k]) === norm(rb[k])) continue;
+    const label = FIELD_LABEL[k] ?? k;
+    if (!out.includes(label)) out.push(label);
   }
   return out;
 }
@@ -136,10 +169,5 @@ export function diffImport(oldItems: DiffOldItem[], newItems: DiffNewItem[]): Im
 
 /** 把解析结果摊平成 diff 的输入 */
 export function flattenParsed(days: { date: string; items: Omit<Item, 'id' | 'tripId' | 'dayId'>[] }[]): DiffNewItem[] {
-  return days.flatMap((d) =>
-    d.items.map((i) => ({
-      key: i.key, type: i.type, title: i.title, start: i.start, end: i.end,
-      navUrl: i.navUrl, note: i.note, bookingRef: i.bookingRef, placeName: i.place?.name, date: d.date,
-    })),
-  );
+  return days.flatMap((d) => d.items.map((i) => ({ ...importContent(i), placeName: i.place?.name, date: d.date })));
 }

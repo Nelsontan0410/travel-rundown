@@ -4,7 +4,7 @@ import { db, type CloudBase } from './schema';
 import { uuid } from './uuid';
 import type { TripTheme } from '../domain/types';
 import type { ParseResult } from '../importer/parseMd';
-import type { DiffOldItem } from '../importer/diff';
+import { importContent, type DiffOldItem } from '../importer/diff';
 import { encryptBlob, decryptBlob } from '../lib/crypto';
 import { addDays, daysBetween } from '../domain/format';
 import { makeItemKey } from '../domain/itemKey';
@@ -162,15 +162,9 @@ export async function loadDiffOld(tripId: string): Promise<DiffOldItem[]> {
   const dateOf = new Map(days.map((d) => [d.id, d.date]));
   const withState = new Set(states.filter((s) => s.status !== 'todo').map((s) => s.itemKey));
   const withDoc = new Set(docs.flatMap((d) => d.itemKeys));
+  // 审查修复 #6：带上导入会覆盖的全部内容字段（和 flattenParsed 同一份），预览才不会漏报
   return items.map((i) => ({
-    key: i.key,
-    type: i.type,
-    title: i.title,
-    start: i.start,
-    end: i.end,
-    navUrl: i.navUrl,
-    note: i.note,
-    bookingRef: i.bookingRef,
+    ...importContent(i),
     placeName: i.place?.name,
     date: dateOf.get(i.dayId) ?? '',
     hasUserData: withState.has(i.key) || withDoc.has(i.key),
