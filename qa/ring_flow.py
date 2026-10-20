@@ -115,12 +115,11 @@ try:
                 assert q1 == q2, 'hover 没有暂停'
                 page.mouse.move(5, h - 5)
             # 按钮可用
-            page.get_by_role('button', name='查看旅行亮点').click(); page.wait_for_timeout(900)
-            assert page.evaluate("document.getElementById('highlights').getBoundingClientRect().top") < 200
-            page.evaluate('scrollTo(0, 0)'); page.wait_for_timeout(300)
-            page.get_by_role('button', name='探索行程').click(); page.wait_for_timeout(900)
-            assert page.evaluate("document.getElementById('days').getBoundingClientRect().top") < 200
-            page.evaluate('scrollTo(0, 0)'); page.wait_for_timeout(300)
+            # 2026-10-20：概览成为入口页，两个按钮分别进入旅行亮点和行程
+            page.get_by_role('button', name='查看旅行亮点').click(); page.wait_for_url('**/highlights')
+            page.go_back(); page.wait_for_url('**/story'); page.wait_for_timeout(600)
+            page.get_by_role('button', name='探索行程').click(); page.wait_for_url('**/itinerary/**')
+            page.go_back(); page.wait_for_url('**/story'); page.wait_for_timeout(600)
             if n_total > 8:
                 page.get_by_role('button', name=f'全部 {n_total} 张照片').click(); page.wait_for_timeout(900)
                 assert page.locator('#album li').count() == n_total
