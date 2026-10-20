@@ -9,6 +9,7 @@ import { encryptBlob, decryptBlob } from '../lib/crypto';
 import { addDays, daysBetween } from '../domain/format';
 import { makeItemKey } from '../domain/itemKey';
 import { migrateItemV2 } from '../domain/migrate';
+import type { Guide, Highlight } from '../domain/guide';
 import { isLinkDoc, LINK_MIME } from '../domain/bookings';
 import { tripToMd } from '../importer/serialize';
 import {
@@ -416,7 +417,7 @@ export async function setTripTheme(tripId: string, theme: TripTheme): Promise<vo
 }
 
 export async function deleteTrip(tripId: string): Promise<void> {
-  await db.transaction('rw', [db.trips, db.days, db.items, db.docs, db.blobs, db.itemStates, db.settings, db.expenses, db.outfits, db.packItems, db.packChecks, db.cloudBases], async () => {
+  await db.transaction('rw', [db.trips, db.days, db.items, db.docs, db.blobs, db.itemStates, db.settings, db.expenses, db.outfits, db.packItems, db.packChecks, db.cloudBases, db.guides, db.highlights], async () => {
     const trip = await db.trips.get(tripId);
     await db.cloudBases.delete(tripId);
     await db.expenses.where('tripId').equals(tripId).delete();
@@ -424,6 +425,12 @@ export async function deleteTrip(tripId: string): Promise<void> {
     await db.outfits.where('tripId').equals(tripId).delete();
     await db.packItems.where('tripId').equals(tripId).delete();
     await db.packChecks.where('tripId').equals(tripId).delete();
+    {
+      const hs = await db.highlights.where('tripId').equals(tripId).toArray();
+      await db.blobs.bulkDelete(hs.flatMap((h) => (h.photoKey ? [h.photoKey] : [])));
+      await db.highlights.where('tripId').equals(tripId).delete();
+      await db.guides.delete(tripId);
+    }
     const docs = await db.docs.where('tripId').equals(tripId).toArray();
     await db.blobs.bulkDelete([...docs.map((d) => d.blobKey), ...(trip?.coverBlobKey ? [trip.coverBlobKey] : []), flightBackgroundKey(tripId, 'origin'), flightBackgroundKey(tripId, 'destination')]);
     await db.docs.bulkDelete(docs.map((d) => d.id));
@@ -464,6 +471,9 @@ interface BackupJson {
   packChecks?: PackCheck[];
   /** 2026-10-18 v4：同步基准版本 */
   cloudBases?: CloudBase[];
+  /** 2026-10-20 v5：旅行亮点（展示资料；照片在 blobs 里） */
+  guides?: Guide[];
+  highlights?: Highlight[];
   trips: Trip[];
   days: Day[];
   items: Item[];
@@ -506,8 +516,9 @@ export async function exportBackup(): Promise<Blob> {
     db.packChecks.toArray(),
   ]);
   const cloudBases = await db.cloudBases.toArray();
+  const [guides, highlights] = await Promise.all([db.guides.toArray(), db.highlights.toArray()]);
   return zipBackup(
-    { scope: 'all', attachments: true, trips, days, items, docs, itemStates, settings, expenses, garments, outfits, packItems, packChecks, cloudBases },
+    { scope: 'all', attachments: true, trips, days, items, docs, itemStates, settings, expenses, garments, outfits, packItems, packChecks, cloudBases, guides, highlights },
     blobs,
   );
 }
@@ -530,6 +541,7 @@ async function tripBlobKeys(tripId: string): Promise<{ keys: string[]; missing: 
     ...docs.filter((d) => !isLinkDoc(d)).map((d) => d.blobKey),
     ...(trip?.coverBlobKey ? [trip.coverBlobKey] : []),
     ...garments.flatMap((g) => (g.photoBlobKey ? [g.photoBlobKey] : [])),
+    ...(await db.highlights.where('tripId').equals(tripId).toArray()).flatMap((h) => (h.photoKey ? [h.photoKey] : [])),
   ];
   const present = wanted.length ? ((await db.blobs.where('key').anyOf(wanted).primaryKeys()) as string[]) : [];
   return { keys: present, missing: wanted.length - present.length };
@@ -582,6 +594,8 @@ export async function exportTripPackage(tripId: string, opts: { attachments: boo
       packItems,
       packChecks,
       cloudBases: (await db.cloudBases.where('tripId').equals(tripId).toArray()),
+      guides: await db.guides.where('tripId').equals(tripId).toArray(),
+      highlights: await db.highlights.where('tripId').equals(tripId).toArray(),
     },
     blobs,
   );
@@ -601,8 +615,10 @@ export async function restoreBackupDetailed(file: Blob): Promise<RestoreResult> 
   if (!raw) throw new Error('不是有效的备份文件');
   const json = JSON.parse(strFromU8(raw)) as BackupJson;
   if (json.app !== 'travel-rundown') throw new Error('不是有效的备份文件');
-  await db.transaction('rw', [db.trips, db.days, db.items, db.docs, db.blobs, db.itemStates, db.settings, db.expenses, db.garments, db.outfits, db.packItems, db.packChecks, db.cloudBases], async () => {
+  await db.transaction('rw', [db.trips, db.days, db.items, db.docs, db.blobs, db.itemStates, db.settings, db.expenses, db.garments, db.outfits, db.packItems, db.packChecks, db.cloudBases, db.guides, db.highlights], async () => {
     await db.trips.bulkPut(json.trips);
+    if (json.guides?.length) await db.guides.bulkPut(json.guides);
+    if (json.highlights?.length) await db.highlights.bulkPut(json.highlights);
     if (json.cloudBases?.length) await db.cloudBases.bulkPut(json.cloudBases);
     if (json.expenses?.length) await db.expenses.bulkPut(json.expenses);
     if (json.garments?.length) await db.garments.bulkPut(json.garments);

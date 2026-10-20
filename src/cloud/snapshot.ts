@@ -2,10 +2,33 @@
 // 只放大家共用的内容：旅程资料（含预算）、每天、每一项、共享的证明资料和封面。
 // 完成勾选、实际记账、穿搭打包、主题都是各自的，不进快照。
 import type { Day, Doc, Item, Trip } from '../domain/types';
+import { sortHighlights, type Focus, type Guide, type GuideTip, type Highlight, type HighlightCategory } from '../domain/guide';
 
 export interface SnapshotDoc extends Omit<Doc, 'blobKey' | 'fromCloud'> {
   /** 文件内容的 sha256（链接资料没有） */
   fileHash?: string;
+}
+
+/** 2026-10-20：旅行亮点跟着版本一起发布。照片按内容哈希放云端（和封面、证明文件同一套） */
+export interface SnapshotHighlight {
+  id: string;
+  category: HighlightCategory;
+  title: string;
+  desc?: string;
+  photoHash?: string;
+  photoMime?: string;
+  focus?: Focus;
+  dayIndex?: number;
+  /** 关联的行程项 id（同伴那边的行程项 id 和主用户一致） */
+  itemId?: string;
+  hidden: boolean;
+}
+export interface SnapshotGuide {
+  intro?: string;
+  coverFocus?: Focus;
+  tips: GuideTip[];
+  /** 已按显示顺序排好 */
+  highlights: SnapshotHighlight[];
 }
 
 export interface TripSnapshot {
@@ -17,6 +40,8 @@ export interface TripSnapshot {
   days: Day[];
   items: Item[];
   docs: SnapshotDoc[];
+  /** 旧版本（2026-10-20 之前）没有这一项；没写任何亮点内容时也不带 */
+  guide?: SnapshotGuide;
 }
 
 /** 比较内容时忽略：原文行号、显示顺序（别的项插进来会重新编号）、key（按规则从内容算出）、所属旅程 */
@@ -53,8 +78,10 @@ export function buildSnapshot(
   items: Item[],
   docs: Doc[],
   fileHashOf: (blobKey: string) => string | undefined,
+  guideData?: { guide?: Guide; highlights: Highlight[]; mimeOf?: (blobKey: string) => string | undefined },
 ): TripSnapshot {
   const coverHash = trip.coverBlobKey ? fileHashOf(trip.coverBlobKey) : undefined;
+  const guide = guideData ? buildGuide(guideData.guide, guideData.highlights, fileHashOf, guideData.mimeOf) : undefined;
   return {
     schema: 1,
     trip: {
@@ -76,8 +103,62 @@ export function buildSnapshot(
       const fileHash = fileHashOf(blobKey);
       return { ...d, tripId: trip.id, ...(fileHash ? { fileHash } : {}) };
     }),
+    ...(guide ? { guide } : {}),
   };
 }
+
+/** 本机的亮点资料 → 快照里的样子；什么内容都没有就返回 undefined */
+export function buildGuide(
+  g: Guide | undefined,
+  hs: Highlight[],
+  fileHashOf: (blobKey: string) => string | undefined,
+  mimeOf?: (blobKey: string) => string | undefined,
+): SnapshotGuide | undefined {
+  if (!g?.intro && !g?.coverFocus && !g?.tips.length && !hs.length) return undefined;
+  const highlights = sortHighlights(hs).map((h): SnapshotHighlight => {
+    const photoHash = h.photoKey ? fileHashOf(h.photoKey) : undefined;
+    return {
+      id: h.id,
+      category: h.category,
+      title: h.title,
+      ...(h.desc ? { desc: h.desc } : {}),
+      ...(photoHash ? { photoHash, ...(mimeOf?.(h.photoKey!) ? { photoMime: mimeOf(h.photoKey!) } : {}) } : {}),
+      ...(h.focus ? { focus: h.focus } : {}),
+      ...(h.dayIndex !== undefined ? { dayIndex: h.dayIndex } : {}),
+      ...(h.itemId ? { itemId: h.itemId } : {}),
+      hidden: h.hidden,
+    };
+  });
+  return {
+    ...(g?.intro ? { intro: g.intro } : {}),
+    ...(g?.coverFocus ? { coverFocus: g.coverFocus } : {}),
+    tips: g?.tips ?? [],
+    highlights,
+  };
+}
+
+/** 旅行亮点这一块相对上次版本改了什么（一条一句话） */
+export function diffGuide(base: SnapshotGuide | undefined, next: SnapshotGuide | undefined): string[] {
+  const a = base ?? { tips: [], highlights: [] };
+  const b = next ?? { tips: [], highlights: [] };
+  const out: string[] = [];
+  if ((a.intro ?? '') !== (b.intro ?? '')) out.push('旅行简介');
+  if (stable(a.coverFocus) !== stable(b.coverFocus)) out.push('封面位置');
+  if (stable(a.tips) !== stable(b.tips)) out.push('实用贴士');
+  const am = new Map(a.highlights.map((h) => [h.id, h]));
+  const bm = new Map(b.highlights.map((h) => [h.id, h]));
+  for (const h of b.highlights) {
+    const o = am.get(h.id);
+    if (!o) out.push(`新增亮点 · ${h.title}`);
+    else if (stable(o) !== stable(h)) out.push(`修改亮点 · ${h.title}`);
+  }
+  for (const h of a.highlights) if (!bm.has(h.id)) out.push(`删除亮点 · ${h.title}`);
+  // 只是换了顺序
+  const ids = (x: SnapshotGuide) => x.highlights.map((h) => h.id).filter((id) => am.has(id) && bm.has(id));
+  if (!out.some((l) => l.includes('亮点')) && stable(a.highlights.map((h) => h.id)) !== stable(b.highlights.map((h) => h.id)) && ids(a).join() !== ids(b).join()) out.push('亮点顺序');
+  return out;
+}
+
 
 // ———————— 差异（主用户「还没发布的改动」、同伴「这个版本改了什么」都用它） ————————
 
@@ -105,6 +186,8 @@ export interface SnapshotDiff {
   days: { index: number; fields: string[] }[];
   items: ItemChange[];
   docs: { id: string; kind: 'added' | 'removed' | 'changed'; title: string }[];
+  /** 旅行亮点的改动，一条一句话 */
+  guide: string[];
   /** 改动总数（给「有 N 处改动」用） */
   count: number;
 }
@@ -170,5 +253,6 @@ export function diffSnapshots(base: TripSnapshot | undefined, next: TripSnapshot
     for (const d of base.docs) if (!next.docs.some((x) => x.id === d.id)) docs.push({ id: d.id, kind: 'removed', title: d.title });
   }
   items.sort((a, b) => (a.dayIndex ?? 0) - (b.dayIndex ?? 0));
-  return { trip, days, items, docs, count: trip.length + days.length + items.length + docs.length };
+  const guide = base ? diffGuide(base.guide, next.guide) : [];
+  return { trip, days, items, docs, guide, count: trip.length + days.length + items.length + docs.length + guide.length };
 }
