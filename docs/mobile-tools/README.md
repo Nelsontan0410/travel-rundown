@@ -59,3 +59,12 @@ QA_URL=http://127.0.0.1:4227 python qa/mobile-tools/check.py after
 ```
 
 before 服务必须来自上述基线的独立 checkout，after 服务来自 PR 分支。预览 URL 也可作为 QA_URL；脚本只使用其自己的新浏览器上下文和本地导入资料。
+
+## Netlify PR Preview
+
+[Preview #57](https://deploy-preview-57--tongxing8.netlify.app) 的 `c4be432` 部署状态 ready；同一套五视口/交互验收全部通过，已人工检查 390/768/1280 截图。证据见 `preview/`。验收屏蔽 Netlify 注入的 `/.netlify/scripts/cdp` 审阅工具栏（它覆盖手机点击），只影响隔离测试上下文，没有改站点配置。生产未部署。
+
+- [390 工具抽屉](preview/390-tools.png)
+- [768 页面](preview/768-home.png)
+- [1280 页面](preview/1280-home.png)
+- [预览验收测量](preview/measurements.json)

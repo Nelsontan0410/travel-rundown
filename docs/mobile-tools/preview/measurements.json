@@ -1,0 +1,246 @@
+{
+  "360": {
+    "unset": {
+      "countdown": {
+        "top": 93,
+        "height": 206.1875,
+        "bottom": 299.1875
+      },
+      "dates": {
+        "top": 315.1875,
+        "height": 80,
+        "bottom": 395.1875
+      },
+      "day": {
+        "top": 415.1875,
+        "height": 33,
+        "bottom": 448.1875
+      },
+      "first": {
+        "top": 528.1875,
+        "height": 95,
+        "bottom": 623.1875
+      },
+      "overflow": false
+    },
+    "set": {
+      "countdown": {
+        "top": 93,
+        "height": 219.78125,
+        "bottom": 312.78125
+      },
+      "dates": {
+        "top": 328.78125,
+        "height": 80,
+        "bottom": 408.78125
+      },
+      "day": {
+        "top": 428.78125,
+        "height": 33,
+        "bottom": 461.78125
+      },
+      "first": {
+        "top": 541.78125,
+        "height": 95,
+        "bottom": 636.78125
+      },
+      "overflow": false
+    },
+    "interactions": "four entries, share, focus trap/restore, inert background, scroll lock/restore, Escape/backdrop/close, dates, edit/reload, 200% text + long title + 34px safe area passed"
+  },
+  "390": {
+    "unset": {
+      "countdown": {
+        "top": 93,
+        "height": 206.1875,
+        "bottom": 299.1875
+      },
+      "dates": {
+        "top": 315.1875,
+        "height": 80,
+        "bottom": 395.1875
+      },
+      "day": {
+        "top": 415.1875,
+        "height": 33,
+        "bottom": 448.1875
+      },
+      "first": {
+        "top": 528.1875,
+        "height": 95,
+        "bottom": 623.1875
+      },
+      "overflow": false
+    },
+    "set": {
+      "countdown": {
+        "top": 93,
+        "height": 219.78125,
+        "bottom": 312.78125
+      },
+      "dates": {
+        "top": 328.78125,
+        "height": 80,
+        "bottom": 408.78125
+      },
+      "day": {
+        "top": 428.78125,
+        "height": 33,
+        "bottom": 461.78125
+      },
+      "first": {
+        "top": 541.78125,
+        "height": 95,
+        "bottom": 636.78125
+      },
+      "overflow": false
+    },
+    "interactions": "four entries, share, focus trap/restore, inert background, scroll lock/restore, Escape/backdrop/close, dates, edit/reload, 200% text + long title + 34px safe area passed",
+    "extra": "four seasons, departed/ended phases and countdown-before-dates passed"
+  },
+  "430": {
+    "unset": {
+      "countdown": {
+        "top": 93,
+        "height": 206.1875,
+        "bottom": 299.1875
+      },
+      "dates": {
+        "top": 315.1875,
+        "height": 80,
+        "bottom": 395.1875
+      },
+      "day": {
+        "top": 415.1875,
+        "height": 33,
+        "bottom": 448.1875
+      },
+      "first": {
+        "top": 528.1875,
+        "height": 71,
+        "bottom": 599.1875
+      },
+      "overflow": false
+    },
+    "set": {
+      "countdown": {
+        "top": 93,
+        "height": 202.03125,
+        "bottom": 295.03125
+      },
+      "dates": {
+        "top": 311.03125,
+        "height": 80,
+        "bottom": 391.03125
+      },
+      "day": {
+        "top": 411.03125,
+        "height": 33,
+        "bottom": 444.03125
+      },
+      "first": {
+        "top": 524.03125,
+        "height": 71,
+        "bottom": 595.03125
+      },
+      "overflow": false
+    },
+    "interactions": "four entries, share, focus trap/restore, inert background, scroll lock/restore, Escape/backdrop/close, dates, edit/reload, 200% text + long title + 34px safe area passed"
+  },
+  "768": {
+    "unset": {
+      "countdown": {
+        "top": 93,
+        "height": 174.5,
+        "bottom": 267.5
+      },
+      "dates": {
+        "top": 283.5,
+        "height": 80,
+        "bottom": 363.5
+      },
+      "day": {
+        "top": 383.5,
+        "height": 33,
+        "bottom": 416.5
+      },
+      "first": {
+        "top": 496.5,
+        "height": 71,
+        "bottom": 567.5
+      },
+      "overflow": false
+    },
+    "set": {
+      "countdown": {
+        "top": 93,
+        "height": 174.875,
+        "bottom": 267.875
+      },
+      "dates": {
+        "top": 283.875,
+        "height": 80,
+        "bottom": 363.875
+      },
+      "day": {
+        "top": 383.875,
+        "height": 33,
+        "bottom": 416.875
+      },
+      "first": {
+        "top": 496.875,
+        "height": 71,
+        "bottom": 567.875
+      },
+      "overflow": false
+    }
+  },
+  "1280": {
+    "unset": {
+      "countdown": {
+        "top": 117,
+        "height": 174.5,
+        "bottom": 291.5
+      },
+      "dates": {
+        "top": 307.5,
+        "height": 80,
+        "bottom": 387.5
+      },
+      "day": {
+        "top": 407.5,
+        "height": 33,
+        "bottom": 440.5
+      },
+      "first": {
+        "top": 520.5,
+        "height": 71,
+        "bottom": 591.5
+      },
+      "overflow": false
+    },
+    "set": {
+      "countdown": {
+        "top": 117,
+        "height": 174.875,
+        "bottom": 291.875
+      },
+      "dates": {
+        "top": 307.875,
+        "height": 80,
+        "bottom": 387.875
+      },
+      "day": {
+        "top": 407.875,
+        "height": 33,
+        "bottom": 440.875
+      },
+      "first": {
+        "top": 520.875,
+        "height": 71,
+        "bottom": 591.875
+      },
+      "overflow": false
+    }
+  }
+}

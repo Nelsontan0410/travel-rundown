@@ -92,6 +92,8 @@ with sync_playwright() as pw:
     for w in [360,390,430,768,1280]:
         ctx=browser.new_context(viewport={'width':w,'height':844},locale='zh-CN',timezone_id='Asia/Singapore',reduced_motion='reduce',service_workers='block')
         ctx.route('**/*.supabase.co/**',lambda route:route.abort())
+        # Hosting review toolbar is not part of the app and intercepts mobile pointer input.
+        ctx.route('**/.netlify/scripts/cdp*',lambda route:route.abort())
         p=ctx.new_page();errors=[];p.on('pageerror',lambda e:errors.append(str(e)))
         p.clock.install(time=NOW)
         url=setup(p)
