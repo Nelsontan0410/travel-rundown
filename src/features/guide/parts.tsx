@@ -5,10 +5,11 @@ import { Icon } from '../../components/Icon';
 import { Button } from '../../components/Basics';
 import { Sheet } from '../../components/Layout';
 import { useBlobUrl } from '../../hooks/data';
-import { CATEGORIES, CATEGORY_LABEL, candidatesFrom, clampFocus, DEFAULT_FOCUS, focusStyle, LIMITS, type Candidate, type Focus, type Highlight, type HighlightCategory } from '../../domain/guide';
+import { CATEGORY_LABEL, candidatesFrom, clampFocus, DEFAULT_FOCUS, focusStyle, LIMITS, type Candidate, type Focus, type Highlight, type HighlightCategory } from '../../domain/guide';
 import { PHOTO_ACCEPT, PhotoError, processPhoto } from '../../lib/photo';
 import { pickFile } from '../../lib/files';
 import type { Day, Item } from '../../domain/types';
+import { CategoryTiles } from './Tiles';
 
 // ———————— 保存状态：以真实写入结果为准 ————————
 export type SaveState = 'idle' | 'saving' | 'saved' | 'error';
@@ -339,6 +340,7 @@ export function AddSheet({
   const [q, setQ] = useState('');
   const [title, setTitle] = useState('');
   const [cat, setCat] = useState<HighlightCategory>('spot');
+  const [catChosen, setCatChosen] = useState(false);
   const [desc, setDesc] = useState('');
   const [day, setDay] = useState<number | undefined>();
   const [photo, setPhoto] = useState<Blob | undefined>();
@@ -351,6 +353,7 @@ export function AddSheet({
       setQ('');
       setTitle('');
       setCat('spot');
+      setCatChosen(false);
       setDesc('');
       setDay(undefined);
       setPhoto(undefined);
@@ -388,7 +391,7 @@ export function AddSheet({
     }
   };
   return (
-    <Sheet open={open} onClose={onClose} title={mode === 'choose' ? '添加亮点' : mode === 'rundown' ? '从行程里选' : '手动创建'}>
+    <Sheet open={open} onClose={onClose} title={mode === 'choose' ? '添加亮点' : mode === 'rundown' ? '从行程里选' : catChosen ? '手动创建' : '选择内容类型'}>
       <div className={g.sheetBody}>
         {mode === 'choose' && (
           <div className={g.choice}>
@@ -433,19 +436,32 @@ export function AddSheet({
             </Button>
           </>
         )}
-        {mode === 'manual' && (
+        {mode === 'manual' && !catChosen && (
           <>
+            <CategoryTiles
+              value={undefined}
+              onPick={(c) => {
+                setCat(c);
+                setCatChosen(true);
+              }}
+            />
+            <Button variant="outline" onClick={() => setMode('choose')}>
+              返回
+            </Button>
+          </>
+        )}
+        {mode === 'manual' && catChosen && (
+          <>
+            <p className={g.hint}>
+              类别：{CATEGORY_LABEL[cat]}
+              <button type="button" className={g.linkBtn} onClick={() => setCatChosen(false)}>
+                更改
+              </button>
+            </p>
             <label className={g.field}>
               标题
               <input value={title} maxLength={LIMITS.title} placeholder="例如：青秀山" onChange={(e) => setTitle(e.target.value)} />
             </label>
-            <div className={g.chips} role="group" aria-label="类别">
-              {CATEGORIES.map((c) => (
-                <button key={c} type="button" className={`${g.chip} ${cat === c ? g.chipOn : ''}`} aria-pressed={cat === c} onClick={() => setCat(c)}>
-                  {CATEGORY_LABEL[c]}
-                </button>
-              ))}
-            </div>
             <label className={g.field}>
               简短描述（可选）
               <textarea value={desc} maxLength={LIMITS.desc} rows={2} placeholder="一两句话就好" onChange={(e) => setDesc(e.target.value)} />
@@ -473,7 +489,7 @@ export function AddSheet({
               </p>
             )}
             <div className={g.sheetBtns}>
-              <Button variant="outline" onClick={() => setMode('choose')}>
+              <Button variant="outline" onClick={() => setCatChosen(false)}>
                 返回
               </Button>
               <Button disabled={busy || !title.trim()} onClick={() => void guard(() => onCreate({ title, category: cat, desc, dayIndex: day, photo }))}>

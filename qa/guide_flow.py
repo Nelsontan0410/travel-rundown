@@ -90,51 +90,81 @@ try:
         assert len(intro.input_value()) == 120, len(intro.input_value())
         ok('3 简介限长 120')
 
-        # ———— 4 从 Rundown 关联 + 手动添加 + 照片 ————
+        # ———— 4 从 Rundown 关联 + 手动添加（先选类型）+ 照片；添加后直接打开编辑 ————
+        def close_editor():
+            pg.keyboard.press('Escape'); pg.wait_for_timeout(250)
+        def open_editor(title):
+            pg.get_by_role('button', name=f'编辑「{title}」').click(); pg.wait_for_timeout(250)
+        def row_titles():
+            return [t.inner_text() for t in pg.locator('[data-hl] [data-hl-title]').all()]
         pg.get_by_role('button', name='添加亮点').first.click()
         pg.get_by_role('button', name=re.compile('从行程里选')).click()
         name = pg.locator('[class*=candTitle]').first.inner_text()
         pg.get_by_label('搜索').fill(name[:2]); pg.locator('[class*=candList] button:not([disabled])').first.click()
-        expect(pg.get_by_label('亮点标题').first).to_have_value(name)
-        pg.get_by_role('button', name='添加亮点').click(); pg.get_by_role('button', name=re.compile('手动创建')).click()
-        pg.get_by_label('标题', exact=True).fill('青秀山'); pg.get_by_role('button', name='美食').click()
-        pg.get_by_label('简短描述（可选）').fill('城市绿肺，俯瞰南宁')
-        pick(pg, lambda: pg.get_by_role('button', name='选照片').click(), PHOTOS[1])
-        expect(pg.get_by_alt_text('已选照片')).to_be_visible()
-        pg.get_by_label('手动创建').get_by_role('button', name='添加', exact=True).click()
-        expect(pg.get_by_label('亮点标题')).to_have_count(2)
-        pg.get_by_role('button', name='添加亮点').click(); pg.get_by_role('button', name=re.compile('手动创建')).click()
-        pg.get_by_label('标题', exact=True).fill('三街两巷'); pg.get_by_label('手动创建').get_by_role('button', name='添加', exact=True).click()
-        expect(pg.get_by_label('亮点标题')).to_have_count(3)
-        # 给第一条加照片
-        pick(pg, lambda: pg.get_by_role('button', name=re.compile('^(照片|换照片)$')).first.click() or pg.get_by_role('button', name=re.compile('从相册选择|换一张')).click(), PHOTOS[2])
+        expect(pg.get_by_label('亮点标题')).to_have_value(name)  # 添加后直接打开这一条的编辑
+        expect(pg.get_by_text('关联的行程项目')).to_be_visible(); expect(pg.get_by_text(f'「{name}」')).to_be_visible()
+        close_editor()
+        def add_manual(title, cat, desc=None, photo=None):
+            pg.get_by_role('button', name='添加亮点').first.click(); pg.get_by_role('button', name=re.compile('手动创建')).click()
+            expect(pg.get_by_role('dialog', name='选择内容类型')).to_be_visible()
+            pg.get_by_role('dialog', name='选择内容类型').get_by_role('button', name=cat).click()
+            sh = pg.get_by_role('dialog', name='手动创建')
+            sh.get_by_label('标题', exact=True).fill(title)
+            if desc: sh.get_by_label('简短描述（可选）').fill(desc)
+            if photo:
+                pick(pg, lambda: sh.get_by_role('button', name='选照片').click(), photo); expect(sh.get_by_alt_text('已选照片')).to_be_visible()
+            sh.get_by_role('button', name='添加', exact=True).click()
+            expect(pg.get_by_label('亮点标题')).to_have_value(title); close_editor()
+        add_manual('青秀山', '美食', '城市绿肺，俯瞰南宁', PHOTOS[1])
+        add_manual('三街两巷', '景点')
+        assert len(row_titles()) == 3, row_titles()
+        # 给第一条加照片：编辑面板里点「添加照片」
+        open_editor(row_titles()[0])
+        pick(pg, lambda: pg.get_by_role('button', name=re.compile('^(添加照片|更换照片)$')).click() or pg.get_by_role('button', name=re.compile('从相册选择|换一张')).click(), PHOTOS[2])
         pg.get_by_role('button', name='确认', exact=True).click(); expect(pg.get_by_text('已保存')).to_be_visible()
-        ok('4 添加（行程关联 / 手动 / 照片）')
+        close_editor()
+        ok('4 添加（行程关联 / 先选类型再手动 / 照片），添加后直接进入编辑')
 
-        # ———— 5 改标题：超长中英文都限长，且不会撑破版面 ————
-        t = pg.get_by_label('亮点标题').nth(1); t.click(); t.fill('Super long highlight title ' * 6 + '超长的中文标题' * 10); pg.get_by_role('heading', name=re.compile('精选亮点')).click(); pg.wait_for_timeout(250)
+        # ———— 5 改标题：超长中英文都限长，不能清空；没离开输入框就要离开时提醒 ————
+        open_editor(row_titles()[1])
+        t = pg.get_by_label('亮点标题'); t.fill('Super long highlight title ' * 6 + '超长的中文标题' * 10)
         assert len(t.input_value()) == 40, len(t.input_value())
-        t0 = pg.get_by_label('亮点标题').nth(2); t0.click(); t0.fill('   '); pg.get_by_role('heading', name=re.compile('精选亮点')).click(); pg.wait_for_timeout(250)
-        assert t0.input_value().strip(), '标题不能被清空'
+        pg.keyboard.press('Tab'); pg.wait_for_timeout(300); expect(pg.get_by_text('已保存')).to_be_visible()
+        t.fill('   '); pg.keyboard.press('Tab'); pg.wait_for_timeout(300)
+        assert t.input_value().strip(), '标题不能被清空'
+        d = pg.get_by_label('简短描述'); d.fill('还没离开输入框的描述')
         no_overflow(pg, '编辑 390'); pg.screenshot(path=f'{OUT}/03-edit.png')
+        close_editor()
         ok('5 标题限长、不能清空')
 
-        # ———— 6 排序：按钮 + 拖动；隐藏 / 恢复 ————
-        titles = lambda: [pg.get_by_label('亮点标题').nth(i).input_value() for i in range(pg.get_by_label('亮点标题').count())]
-        t_before = titles()
-        pg.get_by_role('button', name=re.compile('^下移「')).first.click(); pg.wait_for_timeout(300)
-        assert titles()[1] == t_before[0], (t_before, titles())
+        # ———— 6 排序：按钮 + 拖动；隐藏 / 恢复（开关） ————
+        t_before = row_titles()
+        # 手机上行内放不下上下箭头：在这一条的编辑面板里「下移」
+        open_editor(t_before[0]); pg.get_by_role('button', name='下移', exact=True).click(); pg.wait_for_timeout(300)
+        expect(pg.get_by_text('顺序：第 2 / 3 个')).to_be_visible(); close_editor()
+        assert row_titles()[1] == t_before[0], (t_before, row_titles())
         grip = pg.get_by_role('button', name=re.compile('^拖动「')).nth(2); gb = grip.bounding_box()
         top = pg.get_by_role('button', name=re.compile('^拖动「')).nth(0).bounding_box()
-        pg.mouse.move(gb['x'] + 10, gb['y'] + 10); pg.mouse.down(); pg.mouse.move(gb['x'] + 10, top['y'] - 40, steps=12); pg.mouse.up(); pg.wait_for_timeout(400)
-        assert titles()[0] == t_before[2] or titles()[0] != t_before[0], titles()
-        hide = pg.get_by_role('button', name='隐藏').first; hide.click(); pg.wait_for_timeout(300)
-        expect(pg.get_by_text('已隐藏')).to_be_visible()
+        pg.mouse.move(gb['x'] + 10, gb['y'] + 10); pg.mouse.down(); pg.mouse.move(gb['x'] + 10, top['y'] - 20, steps=12); pg.mouse.up(); pg.wait_for_timeout(400)
+        assert row_titles()[0] != t_before[0] or row_titles() != t_before, row_titles()
+        first = row_titles()[0]
+        sw = pg.get_by_role('switch', name=f'显示「{first}」'); sw.click(); pg.wait_for_timeout(300)
+        expect(sw).to_have_attribute('aria-checked', 'false')
         pg.get_by_role('button', name='完成').click()
-        assert pg.get_by_label('亮点标题').count() == 0 and pg.locator('[data-hl]').count() == 2  # 阅读时隐藏的不出现
-        pg.get_by_role('button', name='编辑', exact=True).click(); pg.get_by_role('button', name='显示').first.click(); pg.wait_for_timeout(300)
+        assert pg.locator('[data-hl]').count() == 2  # 阅读时隐藏的不出现
+        pg.get_by_role('button', name='编辑', exact=True).click(); pg.get_by_role('switch', name=f'显示「{first}」').click(); pg.wait_for_timeout(300)
         pg.get_by_role('button', name='完成').click(); assert pg.locator('[data-hl]').count() == 3
         ok('6 按钮排序、拖动排序、隐藏与恢复')
+
+        # ———— 6b 离开提醒：编辑面板里打字没离开输入框，点返回 → 先提醒 ————
+        pg.get_by_role('button', name='编辑', exact=True).click(); open_editor(row_titles()[0])
+        pg.get_by_label('简短描述').fill('一段还没保存的文字')
+        pg.evaluate("document.querySelector('a[aria-label=返回旅程概览]').dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true}))"); pg.wait_for_timeout(300)
+        expect(pg.get_by_role('alertdialog')).to_contain_text(re.compile('还有修改|保存失败'))
+        pg.get_by_role('alertdialog').get_by_role('button', name='留下').click()
+        assert pg.url.endswith('/highlights')
+        close_editor(); pg.get_by_role('button', name='完成').click(); pg.wait_for_timeout(300)
+        ok('6b 未保存时离开会提醒')
 
         # ———— 7 刷新后全部保留（文字、照片、顺序） ————
         order_before = [h.inner_text() for h in pg.locator('[data-hl-title]').all()]
@@ -161,11 +191,12 @@ try:
         ok('8 失败提示与重试')
 
         # ———— 9 删除：说明范围；行程不受影响 ————
-        pg.get_by_role('button', name='删除', exact=True).first.click()
+        open_editor(row_titles()[0]); pg.get_by_role('button', name='删除这条亮点').click()
         expect(pg.get_by_role('alertdialog')).to_contain_text(re.compile('不会删除行程里的|不能恢复'))
         pg.get_by_role('button', name='取消').click(); assert pg.locator('[data-hl]').count() == 3
-        pg.get_by_role('button', name='删除', exact=True).first.click(); pg.get_by_role('alertdialog').get_by_role('button', name='删除').click(); pg.wait_for_timeout(400)
+        pg.get_by_role('button', name='删除这条亮点').click(); pg.get_by_role('alertdialog').get_by_role('button', name='删除').click(); pg.wait_for_timeout(400)
         assert pg.locator('[data-hl]').count() == 2
+        pg.get_by_role('button', name='完成').click(); pg.wait_for_timeout(300)
         assert item_titles(pg, trip) == before, '行程内容被改动了'
         ok('9 删除亮点，行程原样')
 
@@ -242,7 +273,21 @@ try:
             pick(p2, lambda: p2.get_by_role('button', name='从相册选择').click(), PHOTOS[0]); p2.get_by_role('button', name='确认', exact=True).click(); expect(p2.get_by_text('已保存')).to_be_visible()
             for i, nm in enumerate(['青秀山', '老友粉', '三街两巷']):
                 p2.get_by_role('button', name='添加亮点').first.click(); p2.get_by_role('button', name=re.compile('手动创建')).click()
+                p2.get_by_role('dialog', name='选择内容类型').get_by_role('button', name='景点').click()
                 p2.get_by_label('标题', exact=True).fill(nm); p2.get_by_label('手动创建').get_by_role('button', name='添加', exact=True).click(); p2.wait_for_timeout(300)
+                if w < 1024: p2.keyboard.press('Escape'); p2.wait_for_timeout(200)
+            if w >= 1024:
+                expect(p2.get_by_role('complementary', name=re.compile('编辑亮点'))).to_be_visible()  # 电脑：右侧编辑面板
+                box = p2.get_by_role('complementary', name=re.compile('编辑亮点')).bounding_box()
+                main_right = p2.evaluate("Math.max(...[...document.querySelectorAll('[data-hl]')].map(e => e.getBoundingClientRect().right))")
+                assert main_right <= box['x'] + 1, (main_right, box)  # 面板不压住内容
+                # 改变窗口宽度：电脑面板变成手机弹层，没离开输入框的文字还在
+                p2.get_by_label('简短描述').fill('切换屏宽也不会丢')
+                p2.set_viewport_size({'width': 390, 'height': 844}); p2.wait_for_timeout(400)
+                expect(p2.get_by_role('dialog').get_by_label('简短描述')).to_have_value('切换屏宽也不会丢')
+                p2.get_by_role('dialog').get_by_label('简短描述').focus(); p2.keyboard.press('Tab'); p2.wait_for_timeout(300)
+                p2.set_viewport_size({'width': w, 'height': h}); p2.wait_for_timeout(400)
+                expect(p2.get_by_label('简短描述')).to_have_value('切换屏宽也不会丢')
             no_overflow(p2, f'{name} 编辑'); p2.screenshot(path=f'{OUT}/05-{name}-edit.png')
             p2.get_by_role('button', name='完成').click(); no_overflow(p2, f'{name} 阅读'); p2.screenshot(path=f'{OUT}/06-{name}-read.png', full_page=True)
             for th in ['winter', 'spring', 'autumn']:
