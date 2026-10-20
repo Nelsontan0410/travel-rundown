@@ -12,7 +12,7 @@ import { TripThemeScope } from '../../components/TripTheme';
 import { BrandLockup } from '../../components/Brand';
 import { db } from '../../db/schema';
 import { setCover } from '../../db/repo';
-import { setDayFocus, setDayHidden, setDayPhoto, setDayTitle } from '../../db/guide';
+import { moveTip, setDayFocus, setDayHidden, setDayPhoto, setDayTitle, toggleTip } from '../../db/guide';
 import { addHighlight, addTip, deleteHighlight, removeTip, reorderHighlights, setCoverFocus, setHighlightPhoto, setIntro, updateHighlight, updateTip } from '../../db/guide';
 import { useBlobUrl, useSettings, useTripData } from '../../hooks/data';
 import {
@@ -23,19 +23,17 @@ import {
   moveId,
   moveTo,
   sortHighlights,
-  TIP_CATEGORIES,
-  TIP_LABEL,
   type Guide,
   type Highlight,
-  type TipCategory,
 } from '../../domain/guide';
-import { fmtDateRange } from '../../domain/format';
+import { fmtDateRange, fmtMonthDay } from '../../domain/format';
 import { navLink } from '../../links/maps';
 import { openExternal } from '../../links/openLink';
 import { placeCopyText } from '../../domain/rules';
 import { useUI } from '../../store/ui';
 import { ReadHighlights } from './Highlights';
 import { DaysSection } from './Days';
+import { InfoSection, type StayRow } from './Info';
 import { AddSheet, EditableText, GuidePhoto, PhotoSheet, SaveBadge, useSaver } from './parts';
 
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -54,8 +52,6 @@ export default function GuidePage() {
   const [photoFor, setPhotoFor] = useState<'cover' | string | null>(null);
   const [adding, setAdding] = useState(false);
   const [confirmDel, setConfirmDel] = useState<Highlight | null>(null);
-  const [tipCat, setTipCat] = useState<TipCategory>('food');
-  const [tipText, setTipText] = useState('');
   const [drag, setDrag] = useState<{ id: string; over: number } | null>(null);
   const cardRefs = useRef(new Map<string, HTMLElement>());
 
@@ -116,7 +112,14 @@ export default function GuidePage() {
   const photoTarget = photoFor && photoFor !== 'cover' && !photoFor.startsWith('day:') ? all.find((h) => h.id === photoFor) : undefined;
   const photoDay = photoFor?.startsWith('day:') ? photoFor.slice(4) : undefined;
   const photoDayOwn = photoDay ? G.days?.[photoDay] : undefined;
-  const tipsBy = (c: TipCategory) => G.tips.filter((t) => t.category === c);
+  // 住宿与出行：只引用行程里已有的住宿、航班（不编价格、坐标）
+  const stayRows: StayRow[] = td.items.flatMap((it) => {
+    if (it.type !== 'lodging' && it.type !== 'flight') return [];
+    const d = td.dayById.get(it.dayId);
+    const when = [d ? `Day ${d.index} · ${fmtMonthDay(d.date)}` : '', it.start ?? it.timeNote ?? ''].filter(Boolean).join(' · ');
+    const where = it.type === 'lodging' ? it.place?.name : undefined;
+    return [{ id: it.id, icon: it.type === 'lodging' ? 'Building2' : 'Plane', title: it.title, sub: [when, where].filter(Boolean).join(' · ') }];
+  });
   const placeRows = all
     .filter((h) => !h.hidden && h.itemId)
     .flatMap((h) => {
@@ -384,91 +387,19 @@ export default function GuidePage() {
           />
         </section>
 
-        {/* D 实用信息与私人贴士 */}
-        {(G.tips.length > 0 || edit || placeRows.length > 0) && (
-          <section className={g.section} aria-labelledby="g-info">
-            <h2 id="g-info" className={g.h2}>
-              实用信息 <small>Useful info</small>
-            </h2>
-            <div className={g.rule} />
-            <div className={g.tipsGrid}>
-              {TIP_CATEGORIES.map((c) => {
-                const list = tipsBy(c);
-                if (!list.length) return null;
-                return (
-                  <div key={c} className={g.tipGroup}>
-                    <h3 className={g.tipTitle}>{TIP_LABEL[c]}</h3>
-                    {list.map((t) => (
-                      <div key={t.id} className={g.tip}>
-                        <EditableText
-                          as="span"
-                          editing={edit}
-                          multiline
-                          max={LIMITS.tip}
-                          label={`${TIP_LABEL[c]}内容`}
-                          placeholder="内容"
-                          value={t.text}
-                          onCommit={(v) => run(() => updateTip(trip.id, t.id, v))}
-                        />
-                        {edit && (
-                          <button type="button" className={`${g.tool} ${g.toolDanger}`} aria-label="删除这条贴士" onClick={() => run(() => removeTip(trip.id, t.id))}>
-                            <Icon name="Trash2" size="sm" />
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                );
-              })}
-            </div>
-            {edit && (
-              <form
-                className={g.tipAdd}
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  const text = tipText.trim();
-                  if (!text) return;
-                  run(async () => {
-                    await addTip(trip.id, tipCat, text);
-                    setTipText('');
-                  });
-                }}
-              >
-                <div className={g.chips} role="group" aria-label="贴士类别">
-                  {TIP_CATEGORIES.map((c) => (
-                    <button key={c} type="button" className={`${g.chip} ${tipCat === c ? g.chipOn : ''}`} aria-pressed={tipCat === c} onClick={() => setTipCat(c)}>
-                      {TIP_LABEL[c]}
-                    </button>
-                  ))}
-                </div>
-                <label className={g.field}>
-                  添加贴士
-                  <textarea value={tipText} maxLength={LIMITS.tip} rows={2} placeholder="例如：民族写真建议一早拍摄，光线较好" onChange={(e) => setTipText(e.target.value)} onFocus={(e) => setTimeout(() => e.target.scrollIntoView({ block: 'center', behavior: 'smooth' }), 320)} />
-                </label>
-                <Button type="submit" variant="outline" icon="Plus" disabled={!tipText.trim()}>
-                  添加
-                </Button>
-              </form>
-            )}
-            {placeRows.length > 0 && (
-              <div className={g.places}>
-                <h3 className={g.tipTitle}>地点与导航</h3>
-                {placeRows.map(({ h, it, url, copy }) => (
-                  <div key={h.id} className={g.place}>
-                    <span className={g.placeName}>
-                      {h.title}
-                      <small className={g.placeSub}>{it.place?.name}</small>
-                    </span>
-                    <button type="button" className={g.navLink} onClick={() => openExternal(url, copy)}>
-                      <Icon name="Navigation" size="sm" />
-                      导航
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
-        )}
+        {/* 第四页：实用信息与私人便签 */}
+        <InfoSection
+          tips={G.tips}
+          edit={edit}
+          canEdit={canEdit}
+          stay={stayRows}
+          places={placeRows.map(({ h, it, url, copy }) => ({ id: h.id, title: h.title, place: it.place?.name ?? '', onNav: () => openExternal(url, copy) }))}
+          onAdd={(c, text) => persist(() => addTip(trip.id, c, text))}
+          onUpdate={(id, v) => run(() => updateTip(trip.id, id, v))}
+          onRemove={(id) => run(() => removeTip(trip.id, id))}
+          onMove={(id, dir) => run(() => moveTip(trip.id, id, dir))}
+          onToggle={(id, done) => saver.run(() => toggleTip(trip.id, id, done))}
+        />
       </div>
 
       <PhotoSheet

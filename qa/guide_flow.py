@@ -73,7 +73,7 @@ try:
         box = pg.locator('[class*=cropBox]').bounding_box()
         pg.mouse.move(box['x'] + box['width'] / 2, box['y'] + box['height'] / 2); pg.mouse.down(); pg.mouse.move(box['x'] + 20, box['y'] + 30, steps=5); pg.mouse.up()
         pg.screenshot(path=f'{OUT}/02-cover-crop.png')
-        pg.get_by_role('button', name='确认').click()
+        pg.get_by_role('button', name='确认', exact=True).click()
         expect(pg.get_by_text('已保存')).to_be_visible()
         expect(pg.get_by_role('img', name=re.compile('封面'))).to_be_visible()
         pg.reload(); pg.wait_for_timeout(800)
@@ -108,7 +108,7 @@ try:
         expect(pg.get_by_label('亮点标题')).to_have_count(3)
         # 给第一条加照片
         pick(pg, lambda: pg.get_by_role('button', name=re.compile('^(照片|换照片)$')).first.click() or pg.get_by_role('button', name=re.compile('从相册选择|换一张')).click(), PHOTOS[2])
-        pg.get_by_role('button', name='确认').click(); expect(pg.get_by_text('已保存')).to_be_visible()
+        pg.get_by_role('button', name='确认', exact=True).click(); expect(pg.get_by_text('已保存')).to_be_visible()
         ok('4 添加（行程关联 / 手动 / 照片）')
 
         # ———— 5 改标题：超长中英文都限长，且不会撑破版面 ————
@@ -157,7 +157,7 @@ try:
             pick(pg, lambda: pg.get_by_role('button', name=re.compile('从相册选择|换一张')).click(), path)
             expect(pg.get_by_role('alert')).to_contain_text(msg)
         pick(pg, lambda: pg.get_by_role('button', name=re.compile('从相册选择|换一张')).click(), PHOTOS[3])
-        expect(pg.get_by_role('alert')).to_have_count(0); pg.get_by_role('button', name='确认').click(); expect(pg.get_by_text('已保存')).to_be_visible()
+        expect(pg.get_by_role('alert')).to_have_count(0); pg.get_by_role('button', name='确认', exact=True).click(); expect(pg.get_by_text('已保存')).to_be_visible()
         ok('8 失败提示与重试')
 
         # ———— 9 删除：说明范围；行程不受影响 ————
@@ -169,13 +169,37 @@ try:
         assert item_titles(pg, trip) == before, '行程内容被改动了'
         ok('9 删除亮点，行程原样')
 
-        # ———— 10 贴士 + 每日精选 + 导航 ————
+        # ———— 10 实用信息：住宿与出行（引用行程）、贴士、清单（勾选、排序、删除）、长文字；刷新保留 ————
         pg.goto(f'{BASE}/trip/{trip}/highlights'); pg.wait_for_timeout(600)
+        info = pg.locator('section[aria-labelledby=g-info]')
+        expect(info).to_contain_text('住宿与出行'); expect(info).to_contain_text('札幌站前酒店')  # 来自行程，不编价格
         pg.get_by_role('button', name='编辑', exact=True).click()
-        pg.get_by_role('button', name='拍照建议').click(); pg.get_by_label('添加贴士').fill('民族写真建议一早拍摄'); pg.get_by_role('button', name='添加', exact=True).click()
-        expect(pg.get_by_text('民族写真建议一早拍摄')).to_be_visible(); pg.get_by_role('button', name='完成').click()
+        form = pg.locator('form').filter(has=pg.get_by_role('group', name='贴士类别'))
+        def add_tip(cat, text):
+            form.get_by_role('button', name=cat, exact=True).click(); form.get_by_label('内容').fill(text); form.get_by_role('button', name='添加', exact=True).click()
+            expect(info.get_by_text(text[:12]).first).to_be_visible()
+        add_tip('拍照建议', '民族写真建议一早拍摄')
+        add_tip('出发清单', '确认民族写真预约')
+        add_tip('出发清单', '准备好手信购物清单')
+        add_tip('我的小便签', '超长的便签' * 20)
+        # 清单排序：第二条上移
+        pg.get_by_role('button', name='上移：准备好手信购物清单').click(); pg.wait_for_timeout(300)
+        items = [t.input_value() for t in pg.locator('[data-tip-group=checklist] [data-tip] textarea').all()]
+        assert '准备好手信' in items[0], items
+        pg.get_by_role('button', name='完成').click(); pg.wait_for_timeout(300)
+        # 阅读时也能勾选清单
+        pg.get_by_role('checkbox', name='勾选：确认民族写真预约').click(); pg.wait_for_timeout(400)
+        expect(pg.get_by_role('checkbox', name='取消勾选：确认民族写真预约')).to_be_checked()
+        pg.reload(); pg.wait_for_timeout(800)
+        expect(pg.get_by_role('checkbox', name='取消勾选：确认民族写真预约')).to_be_checked()
+        assert [t.inner_text() for t in pg.locator('[data-tip-group=checklist] [data-tip]').all()][0].startswith('准备好手信')
         expect(pg.get_by_text('拍照建议')).to_be_visible()
-        pg.get_by_role('button', name=re.compile('查看当天行程')).first.click(); pg.wait_for_url('**/itinerary/**'); ok('10 贴士、每日精选入口')
+        no_overflow(pg, '长便签')
+        # 删除一条
+        pg.get_by_role('button', name='编辑', exact=True).click(); pg.get_by_role('button', name='删除：民族写真建议一早拍摄').click(); pg.wait_for_timeout(300)
+        assert pg.get_by_text('民族写真建议一早拍摄').count() == 0
+        pg.get_by_role('button', name='完成').click()
+        pg.get_by_role('button', name=re.compile('查看当天行程')).first.click(); pg.wait_for_url('**/itinerary/**'); ok('10 实用信息、清单勾选 / 排序 / 删除、刷新保留')
 
         # ———— 10b 每日精选：改主题、当天照片、不显示某一天；刷新保留；行程不变 ————
         pg.goto(f'{BASE}/trip/{trip}/highlights'); pg.wait_for_timeout(600)
@@ -184,7 +208,7 @@ try:
         t1 = pg.get_by_label('Day 1 主题'); t1.click(); t1.fill('初见札幌'); pg.get_by_role('heading', name=re.compile('天的故事')).click(); pg.wait_for_timeout(250)
         expect(pg.get_by_text('已保存')).to_be_visible()
         pg.locator('[data-day-card]').nth(0).get_by_role('button', name=re.compile('^(照片|换照片)$')).click()
-        pick(pg, lambda: pg.get_by_role('button', name='从相册选择').click(), PHOTOS[1]); pg.get_by_role('button', name='确认').click(); expect(pg.get_by_text('已保存')).to_be_visible()
+        pick(pg, lambda: pg.get_by_role('button', name='从相册选择').click(), PHOTOS[1]); pg.get_by_role('button', name='确认', exact=True).click(); expect(pg.get_by_text('已保存')).to_be_visible()
         pg.locator('[data-day-card]').nth(1).get_by_role('button', name='不显示这一天').click(); pg.wait_for_timeout(300)
         pg.get_by_role('button', name='完成').click(); pg.wait_for_timeout(300)
         assert pg.locator('[data-day-card]').count() == 3
@@ -215,7 +239,7 @@ try:
             t2 = import_trip(p2)
             p2.goto(f'{BASE}/trip/{t2}/highlights'); p2.wait_for_timeout(600)
             p2.get_by_role('button', name='编辑', exact=True).click(); p2.get_by_role('button', name='添加封面照片').click()
-            pick(p2, lambda: p2.get_by_role('button', name='从相册选择').click(), PHOTOS[0]); p2.get_by_role('button', name='确认').click(); expect(p2.get_by_text('已保存')).to_be_visible()
+            pick(p2, lambda: p2.get_by_role('button', name='从相册选择').click(), PHOTOS[0]); p2.get_by_role('button', name='确认', exact=True).click(); expect(p2.get_by_text('已保存')).to_be_visible()
             for i, nm in enumerate(['青秀山', '老友粉', '三街两巷']):
                 p2.get_by_role('button', name='添加亮点').first.click(); p2.get_by_role('button', name=re.compile('手动创建')).click()
                 p2.get_by_label('标题', exact=True).fill(nm); p2.get_by_label('手动创建').get_by_role('button', name='添加', exact=True).click(); p2.wait_for_timeout(300)

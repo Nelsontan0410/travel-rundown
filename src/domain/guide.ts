@@ -24,8 +24,18 @@ export const CATEGORY_TITLE: Record<HighlightCategory, [string, string]> = {
   other: ['其他亮点', 'More'],
 };
 
-export type TipCategory = 'food' | 'shopping' | 'photo' | 'note' | 'other';
-export const TIP_LABEL: Record<TipCategory, string> = { food: '必吃清单', shopping: '购物 / 手信', photo: '拍照建议', note: '个人备注', other: '其他贴士' };
+export type TipCategory = 'tip' | 'food' | 'shopping' | 'photo' | 'checklist' | 'note' | 'other';
+export const TIP_LABEL: Record<TipCategory, string> = {
+  tip: '出发小贴士',
+  food: '必吃清单',
+  shopping: '购物 / 手信',
+  photo: '拍照建议',
+  checklist: '出发清单',
+  note: '我的小便签',
+  other: '其他',
+};
+/** 手帐式英文副标 */
+export const TIP_EN: Record<TipCategory, string> = { tip: 'Tips', food: 'Must eat', shopping: 'Souvenirs', photo: 'Photo notes', checklist: 'Checklist', note: 'My notes', other: 'More' };
 export const TIP_CATEGORIES = Object.keys(TIP_LABEL) as TipCategory[];
 
 /** 照片的显示位置：x、y 是焦点（0–1），zoom ≥ 1。不改动原图，只记录怎么摆 */
@@ -40,6 +50,21 @@ export interface GuideTip {
   id: string;
   category: TipCategory;
   text: string;
+  /** 只用于「出发清单」：已勾选 */
+  done?: boolean;
+}
+
+/** 在同一类别里上移 / 下移一条（整份顺序里交换位置，其他类别不动） */
+export function moveTipIn(tips: GuideTip[], id: string, dir: -1 | 1): GuideTip[] {
+  const t = tips.find((x) => x.id === id);
+  if (!t) return tips;
+  const same = tips.map((x, i) => (x.category === t.category ? i : -1)).filter((i) => i >= 0);
+  const k = same.findIndex((i) => tips[i].id === id);
+  const j = same[k + dir];
+  if (j === undefined) return tips;
+  const next = [...tips];
+  [next[same[k]], next[j]] = [next[j], next[same[k]]];
+  return next;
 }
 
 /** 每日精选里某一天的展示设置（按 Day 的稳定 id 存；只影响旅行亮点，不改行程里的这一天） */

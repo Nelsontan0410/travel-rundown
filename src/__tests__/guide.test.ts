@@ -5,8 +5,9 @@ import md from '../../qa/sample-v2.md?raw';
 import { parseMd } from '../importer/parseMd';
 import { db } from '../db/schema';
 import { deleteTrip, exportBackup, restoreBackup, saveImport } from '../db/repo';
+import { moveTip, toggleTip } from '../db/guide';
 import { addHighlight, addTip, deleteHighlight, reorderHighlights, setCoverFocus, setDayFocus, setDayHidden, setDayPhoto, setDayTitle, setHighlightPhoto, setIntro, updateHighlight } from '../db/guide';
-import { candidatesFrom, clampFocus, dayPicks, focusStyle, linkState, moveId, moveTo, visibleHighlights } from '../domain/guide';
+import { candidatesFrom, clampFocus, dayPicks, focusStyle, linkState, moveId, moveTipIn, moveTo, visibleHighlights } from '../domain/guide';
 import { checkPhotoFile, fitSize } from '../lib/photo';
 import { setBackend } from '../cloud/backend';
 import { enableSync, joinWithCode, pendingChanges, publishUpdate } from '../cloud/sync';
@@ -119,6 +120,26 @@ describe('每日精选：每天的主题、照片、是否显示', () => {
     const after = await db.days.where('tripId').equals(id).toArray();
     expect(after.some((d) => d.id === days[0].id)).toBe(true);
     expect((await db.guides.get(id))!.days![days[0].id]).toMatchObject({ title: '我的第一天', photoKey: `gday:${days[0].id}` });
+  });
+});
+
+describe('实用信息：贴士与清单', () => {
+  it('同类里排序，不影响其他类；清单勾选；刷新后（重新读）保持', async () => {
+    const t = (id: string, category: 'checklist' | 'food') => ({ id, category, text: id });
+    const tips = [t('a', 'checklist'), t('x', 'food'), t('b', 'checklist'), t('c', 'checklist')];
+    expect(moveTipIn(tips, 'b', -1).map((x) => x.id)).toEqual(['b', 'x', 'a', 'c']);
+    expect(moveTipIn(tips, 'a', -1)).toEqual(tips);
+    expect(moveTipIn(tips, 'c', 1)).toEqual(tips);
+    const { id } = await trip();
+    const a = await addTip(id, 'checklist', '确认预约');
+    const b = await addTip(id, 'checklist', '准备手信');
+    await addTip(id, 'food', '老友粉');
+    await moveTip(id, b, -1);
+    await toggleTip(id, a, true);
+    const g = (await db.guides.get(id))!;
+    expect(g.tips.filter((x) => x.category === 'checklist').map((x) => [x.text, !!x.done])).toEqual([['准备手信', false], ['确认预约', true]]);
+    await toggleTip(id, a, false);
+    expect((await db.guides.get(id))!.tips.find((x) => x.id === a)!.done).toBeUndefined();
   });
 });
 
