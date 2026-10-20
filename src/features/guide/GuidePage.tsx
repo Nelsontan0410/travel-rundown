@@ -1,6 +1,6 @@
 // 旅行亮点：口袋旅行指南。读取 Rundown 的日期、天数、行程项；用户自己的内容（封面摆位、简介、亮点、照片、贴士）
 // 存在独立的 guides / highlights 表里，编辑它们不会改动行程。
-import { useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import g from './Guide.module.css';
@@ -16,12 +16,9 @@ import { moveTip, setDayFocus, setDayHidden, setDayPhoto, setDayTitle, toggleTip
 import { addHighlight, addTip, deleteHighlight, removeTip, reorderHighlights, setCoverFocus, setHighlightPhoto, setIntro, updateHighlight, updateTip } from '../../db/guide';
 import { useBlobUrl, useSettings, useTripData } from '../../hooks/data';
 import {
-  CATEGORY_LABEL,
   dayPicks,
-  linkState,
-  LIMITS,
   moveId,
-  moveTo,
+  LIMITS,
   sortHighlights,
   type Guide,
   type Highlight,
@@ -33,6 +30,7 @@ import { placeCopyText } from '../../domain/rules';
 import { useUI } from '../../store/ui';
 import { ReadHighlights } from './Highlights';
 import { DaysSection } from './Days';
+import { CoverEditor, EditPanel, HighlightEditor, ManageList, useWide } from './Editor';
 import { InfoSection, type StayRow } from './Info';
 import { AddSheet, EditableText, GuidePhoto, PhotoSheet, SaveBadge, useSaver } from './parts';
 
@@ -52,8 +50,31 @@ export default function GuidePage() {
   const [photoFor, setPhotoFor] = useState<'cover' | string | null>(null);
   const [adding, setAdding] = useState(false);
   const [confirmDel, setConfirmDel] = useState<Highlight | null>(null);
-  const [drag, setDrag] = useState<{ id: string; over: number } | null>(null);
-  const cardRefs = useRef(new Map<string, HTMLElement>());
+  const [sel, setSel] = useState<{ kind: 'cover' } | { kind: 'hl'; id: string } | null>(null);
+  const [leaveTo, setLeaveTo] = useState<string | null>(null);
+  // 编辑面板里还没离开输入框的文字（草稿），用来提醒离开前没保存
+  const [dirtyKeys, setDirtyKeys] = useState<Set<string>>(() => new Set());
+  const onDirty = useCallback((key: string, d: boolean) => {
+    setDirtyKeys((cur) => {
+      if (cur.has(key) === d) return cur;
+      const next = new Set(cur);
+      if (d) next.add(key);
+      else next.delete(key);
+      return next;
+    });
+  }, []);
+  const wide = useWide();
+  const unsaved = dirtyKeys.size > 0 || saver.state === 'saving' || saver.state === 'error';
+  // 关掉或刷新页面时，有没保存的修改先提醒
+  useEffect(() => {
+    if (!unsaved) return;
+    const h = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', h);
+    return () => window.removeEventListener('beforeunload', h);
+  }, [unsaved]);
 
   const all = useMemo(() => sortHighlights(hs ?? []), [hs]);
 
@@ -78,36 +99,21 @@ export default function GuidePage() {
   const preview = all.filter((h) => !h.hidden).slice(0, 3);
   const visibleCount = all.filter((h) => !h.hidden).length;
 
-  const ids = all.map((h) => h.id);
   const reorder = (next: string[]) => run(() => reorderHighlights(trip.id, next));
-
-  // 长按拖动（触屏、鼠标都可以）；拖不方便时用上移 / 下移按钮
-  const startDrag = (id: string, e: React.PointerEvent) => {
-    e.preventDefault();
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    setDrag({ id, over: ids.indexOf(id) });
-  };
-  const moveDrag = (e: React.PointerEvent) => {
-    if (!drag) return;
-    let over = ids.length - 1;
-    for (let i = 0; i < shown.length; i++) {
-      const r = cardRefs.current.get(shown[i].id)?.getBoundingClientRect();
-      if (r && e.clientY < r.top + r.height / 2) {
-        over = ids.indexOf(shown[i].id);
-        break;
-      }
-    }
-    if (over !== drag.over) setDrag({ ...drag, over });
-  };
-  const endDrag = () => {
-    if (drag && drag.over !== ids.indexOf(drag.id)) reorder(moveTo(ids, drag.id, drag.over));
-    setDrag(null);
-  };
 
   const openDay = (dayId: string) => {
     selectDay(trip.id, dayId);
-    nav(`/itinerary/${trip.id}`);
+    if (unsaved) setLeaveTo(`/itinerary/${trip.id}`);
+    else nav(`/itinerary/${trip.id}`);
   };
+  /** 有还没保存的修改时，离开前先问一下 */
+  const guardLeave = (e: React.MouseEvent, to: string) => {
+    (document.activeElement as HTMLElement | null)?.blur?.();
+    if (!unsaved) return;
+    e.preventDefault();
+    setLeaveTo(to);
+  };
+  const selHl = sel?.kind === 'hl' ? all.find((h) => h.id === sel.id) : undefined;
 
   const photoTarget = photoFor && photoFor !== 'cover' && !photoFor.startsWith('day:') ? all.find((h) => h.id === photoFor) : undefined;
   const photoDay = photoFor?.startsWith('day:') ? photoFor.slice(4) : undefined;
@@ -131,20 +137,29 @@ export default function GuidePage() {
     });
 
   return (
-    <div className={`${g.page} ${edit ? g.pageEditing : ''}`}>
+    <div className={`${g.page} ${edit ? g.pageEditing : ''} ${edit && sel && wide ? g.withPanel : ''}`}>
       <TripThemeScope theme={trip.theme} />
       <div className={g.bar}>
         <div className={g.barRow}>
-          <Link to={`/trip/${trip.id}/story`} className={g.iconBtn} aria-label="返回旅程概览">
+          <Link to={`/trip/${trip.id}/story`} className={g.iconBtn} aria-label="返回旅程概览" onClick={(e) => guardLeave(e, `/trip/${trip.id}/story`)}>
             <Icon name="ChevronLeft" />
           </Link>
-          <Link to="/trips" className={g.brand} aria-label="tongxing8 · 我的旅程">
+          <Link to="/trips" className={g.brand} aria-label="tongxing8 · 我的旅程" onClick={(e) => guardLeave(e, '/trips')}>
             <BrandLockup height={26} />
           </Link>
           <span className={g.barSpacer} />
           {edit && <SaveBadge state={saver.state} msg={saver.msg} onRetry={saver.retry} />}
           {canEdit && (
-            <button type="button" className={`${g.editBtn} ${edit ? g.editBtnOn : ''}`} onClick={() => setEditing(!edit)}>
+            <button
+              type="button"
+              className={`${g.editBtn} ${edit ? g.editBtnOn : ''}`}
+              onClick={() => {
+                // 先让正在输入的框失去焦点，草稿会立即保存
+                (document.activeElement as HTMLElement | null)?.blur?.();
+                setSel(null);
+                setEditing(!edit);
+              }}
+            >
               {edit ? '完成' : '编辑'}
             </button>
           )}
@@ -165,10 +180,16 @@ export default function GuidePage() {
               </div>
             )}
             {edit && (
-              <button type="button" className={g.coverPhotoBtn} onClick={() => setPhotoFor('cover')}>
-                <Icon name="Camera" size="sm" />
-                {hasCover ? '更换封面' : '添加封面照片'}
-              </button>
+              <span className={g.coverBtns}>
+                <button type="button" className={g.coverPhotoBtn} onClick={() => setPhotoFor('cover')}>
+                  <Icon name="Camera" size="sm" />
+                  {hasCover ? '更换封面' : '添加封面照片'}
+                </button>
+                <button type="button" className={g.coverPhotoBtn} onClick={() => setSel({ kind: 'cover' })}>
+                  <Icon name="Pencil" size="sm" />
+                  编辑封面
+                </button>
+              </span>
             )}
           </div>
           <div className={g.coverText}>
@@ -272,94 +293,16 @@ export default function GuidePage() {
           ) : !edit ? (
             <ReadHighlights list={shown} dayOf={(h) => h.dayIndex ?? (h.itemId && itemById.get(h.itemId) ? td.dayById.get(itemById.get(h.itemId)!.dayId)?.index : undefined)} />
           ) : (
-            <ol className={g.hList} style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-              {shown.map((h, i) => {
-                const it = h.itemId ? itemById.get(h.itemId) : undefined;
-                const ls = linkState(h, td.items);
-                const day = h.dayIndex ?? (it ? td.dayById.get(it.dayId)?.index : undefined);
-                const url = it && it.place ? navLink(it, td.dayById.get(it.dayId)?.tz ?? trip.homeTz, settings) : undefined;
-                const pos = ids.indexOf(h.id);
-                const classes = [g.hCard, i === 0 ? g.hFirst : '', h.hidden ? g.hCardHidden : '', drag?.id === h.id ? g.hCardDrag : '', drag && drag.id !== h.id && drag.over === pos ? g.hCardOver : ''].join(' ');
-                return (
-                  <li key={h.id} className={classes} data-hl={h.id} ref={(el) => { if (el) cardRefs.current.set(h.id, el); else cardRefs.current.delete(h.id); }}>
-                    {(edit || h.photoKey) && (
-                      <div className={g.hPhotoWrap}>
-                        <GuidePhoto
-                          photoKey={h.photoKey}
-                          focus={h.focus}
-                          alt={h.title}
-                          className={g.hPhoto}
-                          fallback={edit ? <span>点「照片」添加一张</span> : <span>{CATEGORY_LABEL[h.category]}</span>}
-                        />
-                        {edit && (
-                          <button type="button" className={g.photoEdit} onClick={() => setPhotoFor(h.id)}>
-                            <Icon name="Camera" size="sm" />
-                            {h.photoKey ? '换照片' : '照片'}
-                          </button>
-                        )}
-                      </div>
-                    )}
-                    <div>
-                      <span className={g.hNum}>{pad(i + 1)}</span>
-                      <div className={g.hMeta}>
-                        <span>{CATEGORY_LABEL[h.category]}</span>
-                        {day !== undefined && <span className={g.dot}>Day {day}</span>}
-                        {h.hidden && <span className={g.dot}>已隐藏</span>}
-                      </div>
-                      <EditableText
-                        as="h3"
-                        className={g.hTitle}
-                        editing={edit}
-                        required
-                        max={LIMITS.title}
-                        label="亮点标题"
-                        placeholder="标题"
-                        value={h.title}
-                        onCommit={(v) => run(() => updateHighlight(h.id, { title: v }))}
-                      />
-                      <EditableText
-                        className={g.hDesc}
-                        editing={edit}
-                        multiline
-                        max={LIMITS.desc}
-                        label="亮点描述"
-                        placeholder="写一两句话（可选）"
-                        value={h.desc ?? ''}
-                        onCommit={(v) => run(() => updateHighlight(h.id, { desc: v }))}
-                      />
-                      {ls === 'missing' && edit && <p className={g.warn}>原行程里这一项已经不存在，这条亮点仍然保留。</p>}
-                      {!edit && url && it && (
-                        <button type="button" className={g.navLink} onClick={() => openExternal(url, placeCopyText(it.place!))}>
-                          <Icon name="Navigation" size="sm" />
-                          导航
-                        </button>
-                      )}
-                      {edit && (
-                        <div className={g.tools}>
-                          <button type="button" className={`${g.tool} ${g.grip}`} aria-label={`拖动「${h.title}」调整顺序`} onPointerDown={(e) => startDrag(h.id, e)} onPointerMove={moveDrag} onPointerUp={endDrag} onPointerCancel={() => setDrag(null)}>
-                            <Icon name="GripVertical" size="sm" />
-                          </button>
-                          <button type="button" className={g.tool} disabled={pos === 0} aria-label={`上移「${h.title}」`} onClick={() => reorder(moveId(ids, h.id, -1))}>
-                            <Icon name="ChevronUp" size="sm" />
-                          </button>
-                          <button type="button" className={g.tool} disabled={pos === ids.length - 1} aria-label={`下移「${h.title}」`} onClick={() => reorder(moveId(ids, h.id, 1))}>
-                            <Icon name="ChevronDown" size="sm" />
-                          </button>
-                          <button type="button" className={g.tool} onClick={() => run(() => updateHighlight(h.id, { hidden: !h.hidden }))}>
-                            <Icon name={h.hidden ? 'Eye' : 'EyeOff'} size="sm" />
-                            {h.hidden ? '显示' : '隐藏'}
-                          </button>
-                          <button type="button" className={`${g.tool} ${g.toolDanger}`} onClick={() => setConfirmDel(h)}>
-                            <Icon name="Trash2" size="sm" />
-                            删除
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </li>
-                );
-              })}
-            </ol>
+            <>
+              <p className={g.hint}>点一条亮点就能改照片和文字；按住 ⋮⋮ 拖动，或用上下箭头调整顺序。</p>
+              <ManageList
+                list={all}
+                selected={sel?.kind === 'hl' ? sel.id : undefined}
+                onOpen={(id) => setSel({ kind: 'hl', id })}
+                onReorder={reorder}
+                onToggle={(h) => run(() => updateHighlight(h.id, { hidden: !h.hidden }))}
+              />
+            </>
           )}
           {edit && shown.length > 0 && (
             <div className={g.addBtn}>
@@ -402,6 +345,59 @@ export default function GuidePage() {
         />
       </div>
 
+      <EditPanel open={edit && !!sel && (sel.kind === 'cover' || !!selHl)} wide={wide} title={sel?.kind === 'cover' ? '编辑封面' : `编辑亮点：${selHl?.title ?? ''}`} onClose={() => { (document.activeElement as HTMLElement | null)?.blur?.(); setSel(null); }}>
+        {sel?.kind === 'cover' ? (
+          <CoverEditor
+            photoKey={hasCover ? trip.coverBlobKey : undefined}
+            place={place}
+            dates={fmtDateRange(trip.startDate, trip.endDate)}
+            days={nDays > 1 ? `${nDays} 天 ${nDays - 1} 夜` : `${nDays} 天`}
+            intro={G.intro ?? ''}
+            onPhoto={() => setPhotoFor('cover')}
+            onIntro={(v) => run(() => setIntro(trip.id, v))}
+            onDirty={onDirty}
+          />
+        ) : selHl ? (
+          <HighlightEditor
+            key={selHl.id}
+            h={selHl}
+            items={td.items}
+            days={td.days}
+            onPatch={(patch) => run(() => updateHighlight(selHl.id, patch))}
+            onPhoto={() => setPhotoFor(selHl.id)}
+            onDelete={() => setConfirmDel(selHl)}
+            onDirty={onDirty}
+            order={{
+              pos: all.findIndex((h) => h.id === selHl.id),
+              total: all.length,
+              onMove: (dir) => reorder(moveId(all.map((h) => h.id), selHl.id, dir)),
+            }}
+          />
+        ) : null}
+      </EditPanel>
+      <Dialog
+        open={!!leaveTo}
+        onClose={() => setLeaveTo(null)}
+        title={saver.state === 'error' ? '有修改保存失败' : '还有修改没保存完'}
+        text={saver.state === 'error' ? '离开后这些修改会丢失。可以留下来点「重试」。' : '正在保存或还有没离开输入框的文字，离开可能会丢失。'}
+        actions={
+          <>
+            <Button variant="outline" onClick={() => setLeaveTo(null)}>
+              留下
+            </Button>
+            <Button
+              onClick={() => {
+                const to = leaveTo!;
+                setLeaveTo(null);
+                setDirtyKeys(new Set());
+                nav(to);
+              }}
+            >
+              仍然离开
+            </Button>
+          </>
+        }
+      />
       <PhotoSheet
         open={photoFor !== null}
         title={photoFor === 'cover' ? '封面照片' : photoDay ? '当天照片' : '亮点照片'}
@@ -437,8 +433,20 @@ export default function GuidePage() {
         items={td.items}
         highlights={all}
         onClose={() => setAdding(false)}
-        onPickItem={(c) => persist(() => addHighlight({ tripId: trip.id, title: c.title, category: c.category, dayIndex: c.dayIndex, itemId: c.itemId }))}
-        onCreate={(v) => persist(() => addHighlight({ tripId: trip.id, ...v }))}
+        onPickItem={async (c) => {
+          let id = '';
+          await persist(async () => {
+            id = await addHighlight({ tripId: trip.id, title: c.title, category: c.category, dayIndex: c.dayIndex, itemId: c.itemId });
+          });
+          setSel({ kind: 'hl', id });
+        }}
+        onCreate={async (v) => {
+          let id = '';
+          await persist(async () => {
+            id = await addHighlight({ tripId: trip.id, ...v });
+          });
+          setSel({ kind: 'hl', id });
+        }}
       />
       <Dialog
         open={!!confirmDel}
@@ -458,6 +466,7 @@ export default function GuidePage() {
               onClick={() => {
                 const h = confirmDel!;
                 setConfirmDel(null);
+                setSel(null);
                 run(() => deleteHighlight(h.id));
               }}
             >
