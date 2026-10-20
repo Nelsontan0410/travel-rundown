@@ -12,6 +12,7 @@
   "src/__tests__/edit.test.ts": "1c1fd84eb80cd913974f400e165090356fce984db4c2481fa0c1c0883fcaeeb7",
   "src/__tests__/fix1-sharedBlobs.test.ts": "803d7089130465e029ffe8af7a70648e446a14d08902e3fe00f3bc1c9426a9f7",
   "src/__tests__/fix2-renameDocs.test.ts": "2d7a40b79712268b90f7a7f3586511417f1c5cc8b5b442db5cbb0d502d7d8914",
+  "src/__tests__/fix3-hashCache.test.ts": "81e846cf35b2315bc7c35e3a7f3f3469238cfc616278f516188fcdc86f48d6cb",
   "src/__tests__/fix4-reorderSync.test.ts": "ac26f162566c0c3c3edf26fbefa060a7556f910a5bb26a0eccb38cc53736ceed",
   "src/__tests__/fix5-shiftSourceMd.test.ts": "0bda8b015c0a02de94122a7804c3fbc5204c041dfda3f778f5017c0a269842b0",
   "src/__tests__/flightCountdown.test.ts": "4dc4b8a06feb32e3ca5cabb5ccd4cd4b418bdc90daca3c2047e357ca30ca0816",
