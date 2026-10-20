@@ -40,28 +40,25 @@ try:
         expect(pg.get_by_text('旅程第 2 天 · 共 4 天')).to_be_visible()
         expect(pg.get_by_role('tab', selected=True)).to_contain_text('14')
         expect(pg.get_by_role('tab', selected=True)).to_contain_text('周四')
-        nxt = pg.get_by_role('region', name=re.compile('下一站|进行中'))
-        expect(nxt).to_be_visible(); expect(nxt).to_contain_text('小樽运河')
-        expect(nxt.get_by_role('button', name='导航')).to_be_visible()
+        # 「下一站」卡片已移除：页面上不应再出现
+        expect(pg.get_by_role('region', name=re.compile('下一站|进行中|当天第一站'))).to_have_count(0)
         assert pg.get_by_text('未开启同步').count() == 0 and pg.get_by_text(re.compile('已同步|已发布|已套用')).count() == 0  # 没开同步就不显示同步状态
         pg.screenshot(path=os.path.join(OUT, '390-itinerary-today.png'))
         pg.screenshot(path=os.path.join(OUT, '390-itinerary-today-full.png'), full_page=True)
-        # 完成运河后，下一站变成没地点的项 → 不显示导航
         pg.get_by_role('checkbox', name='标记完成：小樽运河').click(); pg.wait_for_timeout(400)
-        expect(nxt).to_contain_text('三角市场海鲜丼')
         # 底部入口和长列表：最后一个元素可以滚到底部导航上方
         pg.evaluate('window.scrollTo(0, document.body.scrollHeight)'); pg.wait_for_timeout(300)
         last = pg.get_by_role('navigation', name='旅程工具').last.bounding_box()
         tab = pg.get_by_role('navigation', name='主导航').bounding_box()
         assert last['y'] + last['height'] <= tab['y'] + 1, (last, tab)
         expect(pg.get_by_role('button', name='预订资料')).to_be_visible(); expect(pg.get_by_role('button', name='邀请同伴')).to_be_visible()
-        # 选一个过去的日子：不显示下一站
+        # 选一个过去的日子
         pg.evaluate('window.scrollTo(0,0)'); pg.get_by_role('tab', name=re.compile('13')).click(); pg.wait_for_timeout(300)
         expect(pg.get_by_role('region', name=re.compile('下一站|进行中|当天第一站'))).to_have_count(0)
         pg.get_by_role('tab', name=re.compile('15')).click(); pg.wait_for_timeout(300)
-        expect(pg.get_by_role('region', name='当天第一站')).to_contain_text('白色恋人公园')
+        expect(pg.get_by_role('region', name=re.compile('下一站|进行中|当天第一站'))).to_have_count(0)
         assert not errs, errs
-        print('ok during trip: phase / selected day / next stop / nav only with place / past & future days')
+        print('ok during trip: phase / selected day / next-stop card removed / past & future days')
 
         # 草稿：粘贴一半返回，再进来还在；刷新也在
         pg.goto(BASE + '/import/paste'); pg.get_by_label('行程内容').fill('# 草稿测试')
@@ -70,11 +67,11 @@ try:
         pg.screenshot(path=os.path.join(OUT, '390-import-step1.png'))
         print('ok draft kept across back / reload')
 
-        # ———— 出发前（360 宽）：显示倒数、当天第一站 ————
+        # ———— 出发前（360 宽）：显示倒数（下一站卡片已移除） ————
         pg2, errs2 = page_at(datetime.datetime(2026, 12, 20, 10, 0, tzinfo=TOKYO), 360, 740)
         import_trip(pg2); pg2.wait_for_timeout(600)
         expect(pg2.get_by_text(re.compile(r'\d+ 天后出发'))).to_be_visible()
-        expect(pg2.get_by_role('region', name='当天第一站')).to_contain_text('吉隆坡')
+        expect(pg2.get_by_role('region', name=re.compile('下一站|进行中|当天第一站'))).to_have_count(0)
         assert pg2.evaluate('document.documentElement.scrollWidth > innerWidth') is False
         pg2.screenshot(path=os.path.join(OUT, '360-itinerary-before.png'))
         pg2.goto(BASE + '/trips'); pg2.wait_for_timeout(400); pg2.screenshot(path=os.path.join(OUT, '360-trips.png'))

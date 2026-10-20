@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import p from './Page.module.css';
 import TripUnavailable from './TripUnavailable';
 import { NoTripState } from './FirstRun';
-import { ItineraryHeader, NextStopCard, TripEntries } from '../components/DayGlance';
+import { ItineraryHeader, TripEntries } from '../components/DayGlance';
 import { useCloud } from '../store/cloud';
 import { TripThemeScope } from '../components/TripTheme';
 import { Screen, Sheet, BigHeader } from '../components/Layout';
@@ -94,17 +94,6 @@ export default function ItineraryPage() {
       : { label: trip.cloud.role === 'owner' ? `主用户 · 已发布 v${trip.cloud.version}` : `同伴 · 已套用 v${trip.cloud.version}` }
     : undefined;
   // 下一站：选中今天 → 第一个还没完成的；选中以后的日子 → 当天第一站；已经过去的日子不显示
-  const dayLocal = day ? nowIn(day.tz, now) : undefined;
-  const dayState = !day || !dayLocal ? 'none' : day.date === dayLocal.date ? 'today' : day.date > dayLocal.date ? 'future' : 'past';
-  const ordered = [...items].sort((x, y) => x.order - y.order);
-  const todos = ordered.filter((it) => it.type !== 'note' && statusOf(td, it.key) === 'todo');
-  const nowT = dayLocal?.time ?? '';
-  const running = dayState === 'today' ? todos.find((it) => it.id === cur && it.start && it.start <= nowT && (!it.end || it.end > nowT || (it.endDayOffset ?? 0) > 0)) : undefined;
-  const upcoming = dayState === 'today' ? todos.find((it) => !it.start || it.start > nowT) : dayState === 'future' ? todos[0] : undefined;
-  const nextIt = running ?? upcoming;
-  const nextLabel = !nextIt ? '' : dayState === 'future' ? '当天第一站' : running ? '进行中' : '下一站';
-  const nextUrl = nextIt && day ? navLink(nextIt, day.tz, settings) : undefined;
-  const nextTarget = nextIt ? (nextIt.type === 'transit' ? nextIt.toPlace ?? nextIt.place : nextIt.place) : undefined;
   const tools = (
     <>
       {phase.day && (
@@ -158,16 +147,6 @@ export default function ItineraryPage() {
       {phase.mode === 'before' && countdown}
       <DayTiles days={td.days} selectedId={day?.id} onSelect={(id) => selectDay(trip.id, id)} />
       {day && <DayHeading title={dayTitle} sub={daySub} />}
-      {nextIt && (
-        <NextStopCard
-          label={nextLabel}
-          time={nextIt.start ?? nextIt.timeNote}
-          title={nextIt.title}
-          place={nextTarget?.localName ?? nextTarget?.name}
-          onOpen={() => nav(`/item/${nextIt.id}`)}
-          onNav={nextUrl ? () => openExternal(nextUrl, nextTarget ? placeCopyText(nextTarget) : nextIt.title) : undefined}
-        />
-      )}
       {day && (
         <div className={p.dayTools}>
           <Button size="sm" variant="outline" icon="Plus" onClick={() => nav(`/trip/${trip.id}/add?day=${day.id}`)}>
