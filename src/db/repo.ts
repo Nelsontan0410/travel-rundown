@@ -142,7 +142,8 @@ export async function saveImport(
       for (const doc of docs) {
         const mapped = doc.itemKeys.map((k) => renames[k] ?? k);
         const kept = Array.from(new Set(mapped.filter((k) => keys.has(k))));
-        if (kept.length !== doc.itemKeys.length) await db.docs.update(doc.id, { itemKeys: kept, updatedAt: ts });
+        // 审查修复 #2：比较实际的 key，不是只比数量（改名后数量不变，旧 key 会留下）
+        if (JSON.stringify(kept) !== JSON.stringify(doc.itemKeys)) await db.docs.update(doc.id, { itemKeys: kept, updatedAt: ts });
       }
     }
     await updateSettings({ lastTripId: tripId });
