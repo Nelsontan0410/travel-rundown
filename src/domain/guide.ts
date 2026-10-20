@@ -38,11 +38,17 @@ export const TIP_LABEL: Record<TipCategory, string> = {
 export const TIP_EN: Record<TipCategory, string> = { tip: 'Tips', food: 'Must eat', shopping: 'Souvenirs', photo: 'Photo notes', checklist: 'Checklist', note: 'My notes', other: 'More' };
 export const TIP_CATEGORIES = Object.keys(TIP_LABEL) as TipCategory[];
 
-/** 照片的显示位置：x、y 是焦点（0–1），zoom ≥ 1。不改动原图，只记录怎么摆 */
+/** 照片裁切比例（阶段 6）。只影响显示，原图不改 */
+export type Ratio = '1:1' | '4:3' | '3:4' | '16:9';
+export const RATIOS: Ratio[] = ['1:1', '4:3', '3:4', '16:9'];
+export const ratioCss = (r: Ratio | undefined, fallback = '4 / 3') => (r ? r.replace(':', ' / ') : fallback);
+
+/** 照片的显示位置：x、y 是焦点（0–1），zoom ≥ 1，ratio 是裁切比例。不改动原图，只记录怎么摆 */
 export interface Focus {
   x: number;
   y: number;
   zoom: number;
+  ratio?: Ratio;
 }
 export const DEFAULT_FOCUS: Focus = { x: 0.5, y: 0.5, zoom: 1 };
 
@@ -116,7 +122,9 @@ export const clean = (s: string | undefined, n: number): string | undefined => {
 
 export function clampFocus(f: Focus): Focus {
   const c = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, Number.isFinite(v) ? v : lo));
-  return { x: c(f.x, 0, 1), y: c(f.y, 0, 1), zoom: c(f.zoom, 1, 3) };
+  const out: Focus = { x: c(f.x, 0, 1), y: c(f.y, 0, 1), zoom: c(f.zoom, 1, 3) };
+  if (f.ratio && RATIOS.includes(f.ratio)) out.ratio = f.ratio;
+  return out;
 }
 
 /** CSS：把焦点和缩放变成 object-position / transform（照片放在 overflow:hidden 的容器里） */

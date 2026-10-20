@@ -5,8 +5,11 @@ import { Icon } from '../../components/Icon';
 import { Button } from '../../components/Basics';
 import { Sheet } from '../../components/Layout';
 import { useBlobUrl } from '../../hooks/data';
-import { CATEGORY_LABEL, candidatesFrom, clampFocus, DEFAULT_FOCUS, focusStyle, LIMITS, type Candidate, type Focus, type Highlight, type HighlightCategory } from '../../domain/guide';
-import { PHOTO_ACCEPT, PhotoError, processPhoto } from '../../lib/photo';
+import { CATEGORY_LABEL, candidatesFrom, clampFocus, DEFAULT_FOCUS, focusStyle, LIMITS, RATIOS, ratioCss, type Ratio, type Candidate, type Focus, type Highlight, type HighlightCategory } from '../../domain/guide';
+import { PHOTO_ACCEPT, PhotoError, processPhoto, storageErrorText } from '../../lib/photo';
+import { usePhotoUrl, useWide } from './hooks';
+import { createPortal } from 'react-dom';
+import { useOverlay } from '../../hooks/layout';
 import { pickFile } from '../../lib/files';
 import type { Day, Item } from '../../domain/types';
 import { CategoryTiles } from './Tiles';
@@ -19,7 +22,8 @@ export function useSaver() {
   const [msg, setMsg] = useState('');
   const last = useRef<(() => Promise<unknown>) | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout>>();
-  const run = useCallback(async (fn: () => Promise<unknown>): Promise<boolean> => {
+  /** 返回 true 表示已写入；失败时返回给用户看的原因 */
+  const run = useCallback(async (fn: () => Promise<unknown>): Promise<true | string> => {
     last.current = fn;
     clearTimeout(timer.current);
     setState('saving');
@@ -30,9 +34,10 @@ export function useSaver() {
       timer.current = setTimeout(() => setState('idle'), 2500);
       return true;
     } catch (e) {
+      const m = storageErrorText(e) ?? (e instanceof Error && e.message ? e.message : '保存失败');
       setState('error');
-      setMsg(e instanceof Error ? e.message : '保存失败');
-      return false;
+      setMsg(m);
+      return m;
     }
   }, []);
   const retry = useCallback(() => {
@@ -163,16 +168,39 @@ export function EditableText({
 
 // ———————— 照片 ————————
 /** 显示一张存在本机的照片；找不到文件时给出清楚的占位而不是坏图 */
-export function GuidePhoto({ photoKey, focus, alt, className, fallback }: { photoKey?: string; focus?: Focus; alt: string; className?: string; fallback?: ReactNode }) {
-  const url = useBlobUrl(photoKey);
+export function GuidePhoto({
+  photoKey,
+  focus,
+  alt,
+  className,
+  fallback,
+  thumb,
+  ratio,
+}: {
+  photoKey?: string;
+  focus?: Focus;
+  alt: string;
+  className?: string;
+  fallback?: ReactNode;
+  /** 列表、小卡片用缩略图 */
+  thumb?: boolean;
+  /** 用照片自己的裁切比例（focus.ratio）定高宽比 */
+  ratio?: boolean;
+}) {
+  const url = usePhotoUrl(photoKey, thumb);
   const [bad, setBad] = useState(false);
   useEffect(() => setBad(false), [url]);
-  if (!photoKey || bad || !url) {
-    return <div className={`${g.photoEmpty} ${className ?? ''}`}>{fallback ?? null}</div>;
+  const style = ratio && focus?.ratio ? { aspectRatio: ratioCss(focus.ratio) } : undefined;
+  if (!photoKey || bad || url === null) {
+    return (
+      <div className={`${g.photoEmpty} ${className ?? ''}`} style={style}>
+        {photoKey && url === null ? <span>照片不在这台设备上</span> : fallback ?? null}
+      </div>
+    );
   }
   return (
-    <div className={`${g.photoBox} ${className ?? ''}`}>
-      <img src={url} alt={alt} style={focusStyle(focus)} onError={() => setBad(true)} draggable={false} />
+    <div className={`${g.photoBox} ${className ?? ''}`} style={style}>
+      {url && <img src={url} alt={alt} style={focusStyle(focus)} onError={() => setBad(true)} draggable={false} />}
     </div>
   );
 }
@@ -187,6 +215,7 @@ export function PhotoSheet({
   onSave,
   onRemove,
   onClose,
+  ratios,
 }: {
   open: boolean;
   title: string;
@@ -196,7 +225,10 @@ export function PhotoSheet({
   onSave: (blob: Blob | undefined, focus: Focus) => Promise<unknown>;
   onRemove?: () => Promise<unknown>;
   onClose: () => void;
+  /** 可选裁切比例（亮点照片）；封面、当天照片的框是固定的 */
+  ratios?: boolean;
 }) {
+  const wide = useWide();
   const [blob, setBlob] = useState<Blob | undefined>();
   const [url, setUrl] = useState<string | undefined>();
   const [focus, setFocus] = useState<Focus>(DEFAULT_FOCUS);
@@ -228,7 +260,7 @@ export function PhotoSheet({
     setBusy(true);
     try {
       setBlob(await processPhoto(f));
-      setFocus(DEFAULT_FOCUS);
+      setFocus((cur) => ({ ...DEFAULT_FOCUS, ...(cur.ratio ? { ratio: cur.ratio } : {}) }));
     } catch (e) {
       setErr(e instanceof PhotoError ? e.message : '处理照片失败，请再试一次');
     } finally {
@@ -259,62 +291,123 @@ export function PhotoSheet({
     }
   };
   const canSave = !!blob || (!!currentKey && JSON.stringify(focus) !== JSON.stringify(currentFocus ?? DEFAULT_FOCUS));
+  const boxAspect = ratios && focus.ratio ? ratioCss(focus.ratio) : aspect;
+  const defaultRatio = aspect.replace(/\s*\/\s*/, ':') as Ratio;
+  const crop = (
+    <div
+      ref={box}
+      className={`${g.cropBox} ${shown ? g.cropOn : ''}`}
+      style={{ aspectRatio: boxAspect, ['--r' as string]: String(ratioNum(boxAspect)) }}
+      onPointerDown={shown ? down : undefined}
+      onPointerMove={shown ? move : undefined}
+      onPointerUp={() => (drag.current = null)}
+      onPointerCancel={() => (drag.current = null)}
+    >
+      {shown ? <img src={shown} alt="预览" style={focusStyle(focus)} draggable={false} /> : <span className={g.cropHint}>还没有照片</span>}
+    </div>
+  );
+  const controls = (
+    <>
+      <div className={g.sheetBtns}>
+        <Button variant="outline" icon="Image" disabled={busy} onClick={() => void choose()}>
+          {shown ? '换一张' : '从相册选择'}
+        </Button>
+        {currentKey && onRemove && !blob && (
+          <Button
+            variant="outline"
+            icon="Trash2"
+            disabled={busy}
+            onClick={() => {
+              setBusy(true);
+              onRemove().then(onClose, () => setErr('移除失败，请重试')).finally(() => setBusy(false));
+            }}
+          >
+            移除照片
+          </Button>
+        )}
+      </div>
+      {shown && (
+        <>
+          <p className={g.hint}>拖动照片调整显示位置；只改变显示方式，原图不会被修改。</p>
+          {ratios && (
+            <div className={g.ratios} role="group" aria-label="裁切比例">
+              {RATIOS.map((r) => {
+                const on = (focus.ratio ?? defaultRatio) === r;
+                return (
+                  <button key={r} type="button" className={`${g.ratio} ${on ? g.ratioOn : ''}`} aria-pressed={on} onClick={() => setFocus(clampFocus({ ...focus, ratio: r }))}>
+                    {r}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          <label className={g.zoom}>
+            放大
+            <input type="range" min={1} max={3} step={0.05} value={focus.zoom} aria-label="放大" onChange={(e) => setFocus(clampFocus({ ...focus, zoom: Number(e.target.value) }))} />
+          </label>
+        </>
+      )}
+      {err && (
+        <p className={g.err} role="alert">
+          {err}
+        </p>
+      )}
+    </>
+  );
+  const actions = (
+    <div className={g.sheetBtns}>
+      <Button variant="outline" disabled={busy} onClick={onClose}>
+        取消
+      </Button>
+      <Button disabled={busy || !canSave} onClick={() => void save()}>
+        {busy ? '处理中…' : '确认'}
+      </Button>
+    </div>
+  );
+  if (wide) return <PhotoDialog open={open} title={title} onClose={onClose} crop={crop} controls={controls} actions={actions} />;
   return (
     <Sheet open={open} onClose={onClose} title={title}>
       <div className={g.sheetBody}>
-        <div
-          ref={box}
-          className={`${g.cropBox} ${shown ? g.cropOn : ''}`}
-          style={{ aspectRatio: aspect }}
-          onPointerDown={shown ? down : undefined}
-          onPointerMove={shown ? move : undefined}
-          onPointerUp={() => (drag.current = null)}
-          onPointerCancel={() => (drag.current = null)}
-        >
-          {shown ? <img src={shown} alt="预览" style={focusStyle(focus)} draggable={false} /> : <span className={g.cropHint}>还没有照片</span>}
-        </div>
-        {shown && (
-          <>
-            <p className={g.hint}>拖动照片调整显示位置</p>
-            <label className={g.zoom}>
-              放大
-              <input type="range" min={1} max={3} step={0.05} value={focus.zoom} aria-label="放大" onChange={(e) => setFocus(clampFocus({ ...focus, zoom: Number(e.target.value) }))} />
-            </label>
-          </>
-        )}
-        {err && (
-          <p className={g.err} role="alert">
-            {err}
-          </p>
-        )}
-        <div className={g.sheetBtns}>
-          <Button variant="outline" icon="Image" disabled={busy} onClick={() => void choose()}>
-            {shown ? '换一张' : '从相册选择'}
-          </Button>
-          {currentKey && onRemove && !blob && (
-            <Button
-              variant="outline"
-              icon="Trash2"
-              disabled={busy}
-              onClick={() => {
-                setBusy(true);
-                onRemove().then(onClose, () => setErr('移除失败，请重试')).finally(() => setBusy(false));
-              }}
-            >
-              移除照片
-            </Button>
-          )}
-        </div>
-        <div className={g.sheetBtns}>
-          <Button variant="outline" disabled={busy} onClick={onClose}>
-            取消
-          </Button>
-          <Button disabled={busy || !canSave} onClick={() => void save()}>
-            {busy ? '处理中…' : '确认'}
-          </Button>
-        </div>
+        {crop}
+        {controls}
+        {actions}
       </div>
     </Sheet>
+  );
+}
+
+/** '3 / 4' → 0.75 */
+function ratioNum(a: string): number {
+  const [w, h] = a.split('/').map((x) => Number(x.trim()));
+  return w > 0 && h > 0 ? w / h : 4 / 3;
+}
+
+/** 电脑：更换 / 裁切照片对话框（W06）：左边大预览，右边操作 */
+function PhotoDialog({ open, title, onClose, crop, controls, actions }: { open: boolean; title: string; onClose: () => void; crop: ReactNode; controls: ReactNode; actions: ReactNode }) {
+  const { panelRef, backdropRef, titleId, dismiss } = useOverlay(open, onClose);
+  if (!open) return null;
+  return createPortal(
+    <div ref={backdropRef} className={g.pdWrap} onClick={(e) => e.target === e.currentTarget && dismiss()}>
+      <div ref={panelRef} className={g.pd} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}>
+        <div className={g.pdHead}>
+          <p className={g.panelEyebrow}>Replace / crop / save</p>
+          <h2 id={titleId} className={g.panelTitle}>
+            {title}
+          </h2>
+          <button type="button" className={g.iconBtn} aria-label="关闭" onClick={dismiss}>
+            <Icon name="X" />
+          </button>
+        </div>
+        <div className={g.pdBody}>
+          <div className={g.pdCrop}>{crop}</div>
+          <div className={g.pdSide}>
+            {controls}
+            <div className={g.pdActions}>{actions}</div>
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body,
   );
 }
 

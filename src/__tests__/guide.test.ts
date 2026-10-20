@@ -8,7 +8,7 @@ import { deleteTrip, exportBackup, restoreBackup, saveImport } from '../db/repo'
 import { moveTip, toggleTip } from '../db/guide';
 import { addHighlight, addTip, deleteHighlight, reorderHighlights, setCoverFocus, setDayFocus, setDayHidden, setDayPhoto, setDayTitle, setHighlightPhoto, setIntro, updateHighlight } from '../db/guide';
 import { candidatesFrom, clampFocus, dayPicks, focusStyle, linkState, moveId, moveTipIn, moveTo, visibleHighlights } from '../domain/guide';
-import { checkPhotoFile, fitSize } from '../lib/photo';
+import { checkPhotoFile, fitSize, storageErrorText, thumbKeyOf } from '../lib/photo';
 import { setBackend } from '../cloud/backend';
 import { enableSync, joinWithCode, pendingChanges, publishUpdate } from '../cloud/sync';
 import { fakeCloud } from './cloudFake';
@@ -140,6 +140,31 @@ describe('实用信息：贴士与清单', () => {
     expect(g.tips.filter((x) => x.category === 'checklist').map((x) => [x.text, !!x.done])).toEqual([['准备手信', false], ['确认预约', true]]);
     await toggleTip(id, a, false);
     expect((await db.guides.get(id))!.tips.find((x) => x.id === a)!.done).toBeUndefined();
+  });
+});
+
+describe('照片：裁切比例与缩略图', () => {
+  it('裁切比例只接受四种；缩略图跟着换、移除、删除一起清掉；存储满了有看得懂的提示', async () => {
+    expect(clampFocus({ x: 0.5, y: 0.5, zoom: 1, ratio: '3:4' }).ratio).toBe('3:4');
+    expect(clampFocus({ x: 0.5, y: 0.5, zoom: 1, ratio: '5:4' as never }).ratio).toBeUndefined();
+    const { id } = await trip();
+    const h = await addHighlight({ tripId: id, title: 'A', category: 'spot', photo: img('M'), thumb: img('T') });
+    const key = `hl:${h}`;
+    expect(await (await db.blobs.get(thumbKeyOf(key)))!.blob.text()).toBe('T');
+    await setHighlightPhoto(h, img('M2'));  // 换照片没给缩略图：旧缩略图不能留着
+    expect(await db.blobs.get(thumbKeyOf(key))).toBeUndefined();
+    await setHighlightPhoto(h, img('M3'), img('T3'));
+    await updateHighlight(h, { focus: { x: 0.3, y: 0.4, zoom: 1.2, ratio: '1:1' } });
+    expect((await db.highlights.get(h))!.focus).toEqual({ x: 0.3, y: 0.4, zoom: 1.2, ratio: '1:1' });
+    await setHighlightPhoto(h, null);
+    expect(await db.blobs.get(key)).toBeUndefined();
+    expect(await db.blobs.get(thumbKeyOf(key))).toBeUndefined();
+    const h2 = await addHighlight({ tripId: id, title: 'B', category: 'spot', photo: img(), thumb: img() });
+    await deleteHighlight(h2);
+    expect(await db.blobs.get(thumbKeyOf(`hl:${h2}`))).toBeUndefined();
+    expect(storageErrorText({ name: 'QuotaExceededError' })).toContain('存储空间不够');
+    expect(storageErrorText({ name: 'AbortError', inner: { name: 'QuotaExceededError' } })).toContain('存储空间不够');
+    expect(storageErrorText(new Error('x'))).toBeUndefined();
   });
 });
 

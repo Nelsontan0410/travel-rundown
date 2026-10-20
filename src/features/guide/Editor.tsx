@@ -11,19 +11,7 @@ import { CATEGORY_LABEL, LIMITS, moveId, moveTo, type Highlight } from '../../do
 import { CATEGORY_ICON, CategoryTiles } from './Tiles';
 import type { Day, Item } from '../../domain/types';
 
-/** 电脑宽度（≥ 1024px）用右侧面板，否则用底部弹层 */
-export function useWide(): boolean {
-  const q = '(min-width: 1024px)';
-  const [wide, setWide] = useState(() => typeof window !== 'undefined' && !!window.matchMedia?.(q).matches);
-  useEffect(() => {
-    const m = window.matchMedia?.(q);
-    if (!m) return;
-    const on = () => setWide(m.matches);
-    m.addEventListener('change', on);
-    return () => m.removeEventListener('change', on);
-  }, []);
-  return wide;
-}
+export { useWide } from './hooks';
 
 /** 编辑面板外壳：电脑右侧固定面板，手机底部弹层 */
 export function EditPanel({ open, wide, title, onClose, children }: { open: boolean; wide: boolean; title: string; onClose: () => void; children: ReactNode }) {
@@ -149,7 +137,7 @@ export function HighlightEditor({
   return (
     <div className={g.editor} data-editor={h.id}>
       <div className={g.editorPhoto}>
-        <GuidePhoto photoKey={h.photoKey} focus={h.focus} alt={h.title} className={g.editorImg} fallback={<span>还没有照片</span>} />
+        <GuidePhoto ratio photoKey={h.photoKey} focus={h.focus} alt={h.title} className={g.editorImg} fallback={<span>还没有照片</span>} />
         <button type="button" className={g.photoEdit} onClick={onPhoto}>
           <Icon name="Camera" size="sm" />
           {h.photoKey ? '更换照片' : '添加照片'}
@@ -321,7 +309,7 @@ export function ManageList({
             <Icon name="GripVertical" size="sm" />
           </button>
           <button type="button" className={g.mOpen} aria-label={`编辑「${h.title}」`} onClick={() => onOpen(h.id)}>
-            <GuidePhoto photoKey={h.photoKey} focus={h.focus} alt="" className={g.mThumb} fallback={<Icon name={CATEGORY_ICON[h.category]} size="sm" />} />
+            <GuidePhoto thumb photoKey={h.photoKey} focus={h.focus} alt="" className={g.mThumb} fallback={<Icon name={CATEGORY_ICON[h.category]} size="sm" />} />
             <span className={g.mText}>
               <strong data-hl-title>{h.title}</strong>
               <small>

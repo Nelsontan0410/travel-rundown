@@ -10,6 +10,7 @@ import { Button } from '../../components/Basics';
 import { Dialog } from '../../components/Layout';
 import { TripThemeScope } from '../../components/TripTheme';
 import { BrandLockup } from '../../components/Brand';
+import { makeThumb } from '../../lib/photo';
 import { db } from '../../db/schema';
 import { setCover } from '../../db/repo';
 import { moveTip, setDayFocus, setDayHidden, setDayPhoto, setDayTitle, toggleTip } from '../../db/guide';
@@ -87,7 +88,8 @@ export default function GuidePage() {
   const G: Guide = guide ?? { tripId: trip.id, tips: [], updatedAt: '' };
   const shown = edit ? all : all.filter((h) => !h.hidden);
   const persist = async (fn: () => Promise<unknown>) => {
-    if (!(await saver.run(fn))) throw new Error('');
+    const r = await saver.run(fn);
+    if (r !== true) throw new Error(r);
   };
   const run = (fn: () => Promise<unknown>) => void saver.run(fn);
   const nDays = td.days.length;
@@ -258,7 +260,7 @@ export default function GuidePage() {
             <ol className={g.previewList}>
               {preview.map((h, i) => (
                 <li key={h.id} className={g.previewCard}>
-                  <GuidePhoto photoKey={h.photoKey} focus={h.focus} alt={h.title} className={g.previewPhoto} fallback={<span className={g.previewNum}>{pad(i + 1)}</span>} />
+                  <GuidePhoto thumb photoKey={h.photoKey} focus={h.focus} alt={h.title} className={g.previewPhoto} fallback={<span className={g.previewNum}>{pad(i + 1)}</span>} />
                   <p className={g.previewTitle}>{h.title}</p>
                   {h.desc && <p className={g.previewDesc}>{h.desc}</p>}
                 </li>
@@ -404,6 +406,7 @@ export default function GuidePage() {
         currentKey={photoFor === 'cover' ? (hasCover ? trip.coverBlobKey : undefined) : photoDay ? photoDayOwn?.photoKey : photoTarget?.photoKey}
         currentFocus={photoFor === 'cover' ? G.coverFocus : photoDay ? photoDayOwn?.focus : photoTarget?.focus}
         aspect={photoFor === 'cover' ? '4 / 5' : '4 / 3'}
+        ratios={!!photoTarget}
         onClose={() => setPhotoFor(null)}
         onSave={(blob, focus) =>
           persist(async () => {
@@ -411,10 +414,10 @@ export default function GuidePage() {
               if (blob) await setCover(trip.id, blob);
               await setCoverFocus(trip.id, focus);
             } else if (photoDay) {
-              if (blob) await setDayPhoto(trip.id, photoDay, blob);
+              if (blob) await setDayPhoto(trip.id, photoDay, blob, await makeThumb(blob));
               await setDayFocus(trip.id, photoDay, focus);
             } else if (photoTarget) {
-              if (blob) await setHighlightPhoto(photoTarget.id, blob);
+              if (blob) await setHighlightPhoto(photoTarget.id, blob, await makeThumb(blob));
               await updateHighlight(photoTarget.id, { focus });
             }
           })
@@ -443,7 +446,7 @@ export default function GuidePage() {
         onCreate={async (v) => {
           let id = '';
           await persist(async () => {
-            id = await addHighlight({ tripId: trip.id, ...v });
+            id = await addHighlight({ tripId: trip.id, ...v, thumb: v.photo ? await makeThumb(v.photo) : undefined });
           });
           setSel({ kind: 'hl', id });
         }}
