@@ -1,6 +1,5 @@
 // 2026-10-19 每日行程（手机）新层级的展示组件：
 //  ItineraryHeader：当前旅程名 + 切换 + 真实的同步状态 + 旅程设置
-//  NextStopCard：下一站（时间、地点、导航）
 //  TripEntries：预订资料 / 同伴 入口
 import s from './DayGlance.module.css';
 import { Icon } from './Icon';
@@ -43,46 +42,6 @@ export function ItineraryHeader({
         </div>
       )}
     </header>
-  );
-}
-
-export function NextStopCard({
-  label,
-  time,
-  title,
-  place,
-  onOpen,
-  onNav,
-}: {
-  label: string;
-  time?: string;
-  title: string;
-  place?: string;
-  onOpen: () => void;
-  /** 没有地点或导航链接时不传，就不显示导航按钮 */
-  onNav?: () => void;
-}) {
-  return (
-    <section className={s.next} aria-label={label}>
-      {/* 整块都能点开这一项 */}
-      <button type="button" className={s.nextMain} onClick={onOpen}>
-        <span className={s.nextLabel}>{label}</span>
-        <span className={s.nextTitle}>
-          {time && <span className={s.nextTime}>{time}</span>}
-          <span>{title}</span>
-        </span>
-        <span className={s.nextLink}>
-          {place ? `${place} · ` : ''}详情
-          <Icon name="ChevronRight" size="sm" />
-        </span>
-      </button>
-      {onNav && (
-        <button type="button" className={s.navBtn} onClick={onNav}>
-          <Icon name="Navigation" size="sm" />
-          导航
-        </button>
-      )}
-    </section>
   );
 }
 
