@@ -116,7 +116,7 @@ export default function ItineraryPage() {
       )}
       <div className={p.tripShortcutLinks}>
         <Button variant="link" icon="Image" onClick={() => nav(`/trip/${trip.id}/story`)}>
-          旅程概览
+          旅行亮点
         </Button>
         <Button variant="link" icon="StickyNote" onClick={() => nav(`/trip/${trip.id}/outfits`)}>
           穿搭与行李
