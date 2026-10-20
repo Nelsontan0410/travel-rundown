@@ -2,7 +2,23 @@ import type { PDFDocumentLoadingTask, PDFDocumentProxy } from 'pdfjs-dist/types/
 import { MAX_BYTES } from './files';
 import { ARRIVAL_LABEL, DEPARTURE_LABEL, parseFlightTicketText, type TicketTextBlock } from '../domain/flightTicket';
 import { cleanTicketText, parseItinerary, type ItineraryCandidate } from './flightItinerary';
-export interface Atom { x: number; y: number; width: number; text: string }
+export interface Atom { x: number; y: number; width: number; text: string; size?: number }
+/**
+ * 2026-10-21：同一行的 text item 按水平间距拼接——pdf.js 常把 "13:05," 拆成 "13" ":" "05" "," 几段，
+ * 一律加空格会变成 "13 : 05 ,"。间距小于字号的约 15%（或 1pt）视为同一个词，不加空格。
+ */
+export function joinRow(atoms: Atom[]): string {
+  let out='';let prev: Atom|undefined;
+  for(const a of atoms) {
+    if(prev) {
+      const gap=a.x-(prev.x+prev.width);
+      const tight=prev.width>0&&gap<Math.max(1,(a.size??prev.size??10)*0.15);
+      if(!tight&&!/\s$/.test(out)&&!/^\s/.test(a.text)) out+=' ';
+    }
+    out+=a.text;prev=a;
+  }
+  return out;
+}
 interface Row { y: number; atoms: Atom[] }
 function blocksFromAtoms(atoms: Atom[], page: number): TicketTextBlock[] {
   const rows: Row[]=[];
@@ -29,12 +45,12 @@ function blocksFromAtoms(atoms: Atom[], page: number): TicketTextBlock[] {
       used.add(j);
       if(rows[j].atoms.some(a=>a.x<boundary&&a.x+a.width>boundary+8&&((a.text.match(/\b20\d{2}\b/g)?.length??0)>1||(a.text.match(/\b\d{1,2}[:.]\d{2}\b/g)?.length??0)>1))) ambiguousLayout=true;
       const parts=rows[j].atoms.filter(a=>left?a.x<boundary:a.x>=boundary);
-      if(parts.length) lines.push(parts.map(a=>a.text).join(' '));
+      if(parts.length) lines.push(joinRow(parts));
     }
     used.add(h.index);if(!ambiguousLayout)blocks.push({page,text:lines.join('\n'),departureColumn:true});
   });
   // 清洗后再交给原解析器：去掉粘在 Departure 前的页码（"1Departure" 没有单词边界，原来认不出）
-  const ordinary=cleanTicketText(rows.filter((_,i)=>!used.has(i)).map(r=>r.atoms.map(a=>a.text).join(' ')).join('\n'));
+  const ordinary=cleanTicketText(rows.filter((_,i)=>!used.has(i)).map(r=>joinRow(r.atoms)).join('\n'));
   if(ordinary.trim()) blocks.push({page,text:ordinary});
   return blocks;
 }
@@ -47,7 +63,7 @@ export class PdfPasswordError extends Error {
   }
 }
 
-/** 2026-10-21：识别失败时带上提取到的原始文字（前约 600 字），方便对照。 */
+/** 2026-10-21：识别失败时带上提取到的原始文字（从航班信息开始约 1200 字），方便对照。 */
 export class TicketParseError extends Error {
   constructor(message: string, public excerpt: string) { super(message); this.name = 'TicketParseError'; }
 }
@@ -58,7 +74,7 @@ export function pageText(atoms: Atom[]): string {
     const last=rows.at(-1);
     if(last&&Math.abs(last.y-atom.y)<3) last.atoms.push(atom);else rows.push({y:atom.y,atoms:[atom]});
   }
-  return rows.map(r=>r.atoms.sort((a,b)=>a.x-b.x).map(a=>a.text).join(' ')).join('\n');
+  return rows.map(r=>joinRow(r.atoms.sort((a,b)=>a.x-b.x))).join('\n');
 }
 /** 纯文字 → 候选：先按行程单航段解析（带航班号、机场时区），认不出再用原有的通用解析。 */
 export function ticketCandidates(pages: string[], blocks: TicketTextBlock[], referenceYear: number): ItineraryCandidate[] {
@@ -66,7 +82,12 @@ export function ticketCandidates(pages: string[], blocks: TicketTextBlock[], ref
   if(itinerary.length) return itinerary;
   return parseFlightTicketText(blocks,referenceYear);
 }
-export const excerptOf=(pages: string[])=>cleanTicketText(pages.join('\n')).slice(0,600);
+/** 失败时给用户看的文字：跳过前面的乘客信息，从第一个 "Flight Information"（或 Departure / 起飞）开始，约 1200 字。 */
+export function excerptOf(pages: string[]): string {
+  const text=cleanTicketText(pages.join('\n'));
+  const at=[/Flight\s*Information|航班信息|航班資訊/i,/Departure|起飞|起飛|出发|出發/i].map(re=>text.search(re)).find(i=>i>=0)??0;
+  return text.slice(at,at+1200);
+}
 
 export async function readFlightTicketPdf(blob: Blob, referenceYear: number, signal?: AbortSignal, password?: string) {
   if(blob.size>MAX_BYTES) throw new Error('PDF 超过 20 MB，请选择较小的机票文件。');
@@ -91,7 +112,7 @@ export async function readFlightTicketPdf(blob: Blob, referenceYear: number, sig
       for(const item of content.items) if('str' in item&&item.str.trim()) {
         chars+=item.str.length;
         if(chars>200000||atoms.length>50000) throw new Error('PDF 文字过多，请只保留机票页面后重试。');
-        atoms.push({text:item.str,x:item.transform[4],y:item.transform[5],width:item.width});
+        atoms.push({text:item.str,x:item.transform[4],y:item.transform[5],width:item.width,size:Math.hypot(item.transform[2],item.transform[3])||item.height||undefined});
       }
       pages.push(pageText(atoms));blocks.push(...blocksFromAtoms(atoms,n));page.cleanup();
     }

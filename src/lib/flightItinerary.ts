@@ -22,22 +22,34 @@ export interface ItinerarySegment {
 }
 
 const LABELS = 'Departure|Departs?|Arrival|Arrives?|Airline|Flight|Checked|Check-in|Baggage|Passenger|Booking';
-/** 解析前清洗：统一空白、去掉标点前的空格、去掉粘在标签前的页码（如 "1Departure"）。 */
+/**
+ * 解析前清洗：统一空白与全角标点；pdf.js 拆段造成的 "13 : 05 ," "26 , 2026" "2 0 2 6" 归一；
+ * 去掉粘在标签前的页码（如 "1Departure"）。
+ */
 export function cleanTicketText(text: string): string {
   return text.normalize('NFKC')
     .replace(/[  -​　]/g, ' ')
+    .replace(/﻿/g, '')
+    .replace(/：/g, ':').replace(/，/g, ',')
     .replace(/\r\n?/g, '\n')
     .replace(/[ \t\f\v]+/g, ' ')
     .replace(/ ?\n ?/g, '\n')
     .replace(/\n{2,}/g, '\n')
-    .replace(/ +([,，])/g, '$1')
+    // pdf.js 拆段：时间 "13 : 05" / "13 :\n05" → "13:05"
+    .replace(/(\d)\s*:\s*(?=\d)/g, '$1:')
+    // 字间距：单个数字或字母被空格隔开（≥4 个），如 "2 0 2 6" "N o v e m b e r"
+    .replace(/(?<![\dA-Za-z])\d(?: \d){3,}(?![\dA-Za-z])/g, m => m.replace(/ /g, ''))
+    .replace(/(?<![A-Za-z\d])[A-Za-z](?: [A-Za-z]){3,}(?![A-Za-z\d])/g, m => m.replace(/ /g, ''))
+    // 标点前的空白（逗号可跨行："26\n, 2026"）
+    .replace(/\s+,/g, ',')
+    .replace(/ +\.(?!\d)/g, '.')
     // 换页处页码粘在标签前：行首（或空白后）1–3 位数字紧贴标签
     .replace(new RegExp(`(^|\\n|\\s)\\d{1,3}(?=(?:${LABELS})\\b)`, 'gi'), '$1')
     .trim();
 }
 
 const AIRPORTS: { re: RegExp; info: AirportInfo }[] = [
-  { re: /kuala lumpur international|\bKLIA2?\b|\bKUL\b|吉隆坡国际|吉隆坡國際/i, info: { iata: 'KUL', tz: 'Asia/Kuala_Lumpur', country: 'MY', zh: '吉隆坡' } },
+  { re: /kuala\s*lumpur\s*international|\bKLIA2?\b|\bKUL\b|吉隆坡国际|吉隆坡國際/i, info: { iata: 'KUL', tz: 'Asia/Kuala_Lumpur', country: 'MY', zh: '吉隆坡' } },
   { re: /nanning|wuxu|\bNNG\b|南宁|南寧|吴圩/i, info: { iata: 'NNG', tz: 'Asia/Shanghai', country: 'CN', zh: '南宁' } },
   { re: /changi|\bSIN\b|singapore|樟宜|新加坡/i, info: { iata: 'SIN', tz: 'Asia/Singapore', country: 'SG', zh: '新加坡' } },
   { re: /daxing|\bPKX\b|大兴|大興/i, info: { iata: 'PKX', tz: 'Asia/Shanghai', country: 'CN', zh: '北京大兴' } },
@@ -75,7 +87,8 @@ const MONTHS = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov
 const MONTH = '(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)';
 const DATE_RES: { re: RegExp; kind: 'iso' | 'monthDay' | 'dayMonth' }[] = [
   { re: /(?<![\d:.])(20\d{2})[-/.年](\d{1,2})[-/.月](\d{1,2})日?(?!\d)/g, kind: 'iso' },
-  { re: new RegExp(`\\b(${MONTH})\\.?\\s+(\\d{1,2})(?:st|nd|rd|th)?,?\\s+(20\\d{2})(?!\\d)`, 'gi'), kind: 'monthDay' },
+  // 月、日、年之间允许任意空白（含换行）和可选逗号
+  { re: new RegExp(`\\b(${MONTH})\\.?\\s*(\\d{1,2})(?:st|nd|rd|th)?(?:\\s*,\\s*|\\s+)(20\\d{2})(?!\\d)`, 'gi'), kind: 'monthDay' },
   { re: new RegExp(`(?<![\\d:.])(\\d{1,2})(?:st|nd|rd|th)?[\\s-]*(${MONTH})\\.?[\\s,-]*(20\\d{2})(?!\\d)`, 'gi'), kind: 'dayMonth' },
 ];
 function validDate(year: number, month: number, day: number): string | undefined {
@@ -104,7 +117,7 @@ export function parseDateTime(text: string): { local: string; start: number; end
   if (!dates.length) return;
   dates.sort((a, b) => a.start - b.start);
   const date = dates[0];
-  for (const t of text.matchAll(/(?<![\d:.+-])(\d{1,2})(?:[:.]|时|時)([0-5]\d)分?(?:\s*([AaPp])\.?\s?[Mm]\.?(?![A-Za-z]))?(?![\d:])/g)) {
+  for (const t of text.matchAll(/(?<![\d:.+-])(\d{1,2})(?:\s*:\s*|\.|\s*[时時]\s*)([0-5]\d)\s*分?(?:\s*([AaPp])\.?\s?[Mm]\.?(?![A-Za-z]))?(?![\d:])/g)) {
     const start = t.index!, end = start + t[0].length;
     if (dates.some(d => start < d.end && end > d.start)) continue;
     if (/(?:UTC|GMT)\s*$/i.test(text.slice(Math.max(0, start - 6), start))) continue;
@@ -127,15 +140,23 @@ const ROUTE = /^([A-Za-z一-鿿][A-Za-z一-鿿 .'()]{1,40}?)\s+(?:-|–|—|→|
 const FLIGHT_NO = /\b([A-Z][A-Z0-9]|[0-9][A-Z])\s?(\d{1,4})[A-Z]?\b/g;
 const LABEL_AT_START = new RegExp(`^(?:${LABELS})\\b`, 'i');
 
-/** 一个字段（标签之后）若当行没有日期时间，就往下最多看 2 行。 */
+const SECTION = /^(?:Flight\s*Information|Passenger|Booking|Baggage|Checked|Ticket|Important|Notes?|航班信息|乘客|行李)\b/i;
+/**
+ * 一个字段（标签之后）的值。pdf.js 会把长句拆成多行：未找到日期时间前最多再拼 10 行，找到后再拼至多 2 行（机场名）
+ * （日期、时间、机场名都可能在续行里）；遇到下一个标签 / 航段标题 / 小节标题为止，
+ * 已有日期时间后续行若又带日期时间也停。
+ */
 function fieldValue(lines: { text: string }[], i: number, re: RegExp) {
   let value = lines[i].text.replace(re, '');
-  for (let k = 1; k <= 2 && !parseDateTime(value) && i + k < lines.length; k++) {
+  let after = 0;
+  for (let k = 1; k <= 10 && i + k < lines.length; k++) {
     const next = lines[i + k].text;
-    if (DEP.test(next) || ARR.test(next) || AIRLINE.test(next) || ROUTE.test(next)) break;
+    if (DEP.test(next) || ARR.test(next) || AIRLINE.test(next) || SECTION.test(next) || (ROUTE.test(next) && !parseDateTime(next))) break;
+    const found = !!parseDateTime(cleanTicketText(value));
+    if (found && (parseDateTime(next) || ++after > 2)) break;
     value += ' ' + next;
   }
-  return value;
+  return cleanTicketText(value);
 }
 function placeOf(value: string, dt: { start: number; end: number }) {
   return (value.slice(0, dt.start) + ' ' + value.slice(dt.end)).replace(/^[\s,，;；]+|[\s,，;；]+$/g, '').replace(/\s*,\s*,\s*/g, ', ').trim();
@@ -143,7 +164,10 @@ function placeOf(value: string, dt: { start: number; end: number }) {
 
 /** 按航段切分。pages：每页清洗后的文字（换页处的航段可以跨页）。 */
 export function itinerarySegments(pages: string[]): ItinerarySegment[] {
-  const lines = pages.flatMap((p, pi) => cleanTicketText(p).split('\n').map(text => ({ text: text.trim(), page: pi + 1 }))).filter(l => l.text);
+  // 同一行挤着多个标签（如 "Kuala Lumpur - Nanning Departure 13:05, ..."）时，在标签前断行
+  const lines = pages.flatMap((p, pi) => cleanTicketText(p)
+    .replace(/(\S) +(?=(?:Departure|Arrival|Airline)\b(?! *(?:Time|Date|Airport|City|Terminal)\b))/g, '$1\n')
+    .split('\n').map(text => ({ text: text.trim(), page: pi + 1 }))).filter(l => l.text);
   const segments: ItinerarySegment[] = [];
   let current: ItinerarySegment | undefined;
   const start = (route?: string) => { current = { route }; segments.push(current); return current; };

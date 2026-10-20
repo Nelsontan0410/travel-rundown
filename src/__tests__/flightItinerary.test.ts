@@ -61,9 +61,14 @@ describe('cleaning', () => {
       { text: 'Arrival', x: 10, y: 680, width: 50 },
     ])).toBe('Departure 13:05, November 26, 2026\nArrival');
   });
-  it('failure excerpt is cleaned and capped at 600 characters', () => {
-    expect(excerptOf(['x'.repeat(700)])).toHaveLength(600);
+  it('failure excerpt is cleaned, starts at Flight Information (or Departure) and is capped at 1200 characters', () => {
+    expect(excerptOf(['x'.repeat(1500)])).toHaveLength(1200);
     expect(excerptOf(['1Departure  soon'])).toBe('Departure soon');
+    const passenger = 'Passenger Name TAN/JING QUAN Booking No. 1234567890 '.repeat(20);
+    const ex = excerptOf([passenger + '\nFlight Information\n' + TRIP_COM + '\n' + 'y'.repeat(2000)]);
+    expect(ex.startsWith('Flight Information\nKuala Lumpur - Nanning\nDeparture 13:05, November 26, 2026')).toBe(true);
+    expect(ex).toHaveLength(1200);
+    expect(excerptOf([passenger + '\n' + TRIP_COM]).startsWith('Departure 13:05')).toBe(true);
   });
 });
 
