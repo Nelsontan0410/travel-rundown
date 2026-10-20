@@ -186,3 +186,7 @@
   .tripShortcutLinks { display: contents; }
   .tripPreparation { grid-column: 1 / -1; }
 }
+
+/* Inline itinerary tools remain on tablet, with unchanged desktop sidebar tools. */
+.tabletTools { display: none; }
+@media (min-width: 768px) and (max-width: 1023px) { .tabletTools { display: flex; } }

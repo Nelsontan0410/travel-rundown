@@ -76,7 +76,7 @@ function initialDraft(td: TripData): Draft {
   return { origin: origin?.code ?? '', destination: destination?.code ?? '', departure: td.trip.departTime ? `${td.trip.startDate}T${td.trip.departTime}` : '', returning: '', departureTz: td.trip.homeTz || 'UTC', returnTz: destination?.tz ?? td.days[0]?.tz ?? 'UTC' };
 }
 
-export default function FlightCountdown({ td, dateRange, offline }: { td: TripData; dateRange?: string; offline?: boolean }) {
+export default function FlightCountdown({ td, dateRange, offline, compactMobile = false }: { compactMobile?: boolean; td: TripData; dateRange?: string; offline?: boolean }) {
   const leftPhoto = useBlobUrl(flightBackgroundKey(td.trip.id, 'origin'));
   const rightPhoto = useBlobUrl(flightBackgroundKey(td.trip.id, 'destination'));
   const value = validFlightSettings(td.trip.flightCountdown) ? td.trip.flightCountdown : undefined;
@@ -151,10 +151,10 @@ export default function FlightCountdown({ td, dateRange, offline }: { td: TripDa
     } catch (e) { setError(e instanceof TooLargeError ? '照片过大，请选择 20 MB 以内的照片。' : e instanceof Error && e.name === 'UnknownError' ? '当前浏览器无法保存照片，请使用普通浏览窗口再试。' : e instanceof Error ? e.message : '照片保存失败，请重试。'); }
     finally { setBusy(false); }
   }
-  return <section className={s.module} aria-label="航班倒计时">
+  return <section className={`${s.module} ${compactMobile ? s.compactMobile : ''}`} aria-label="航班倒计时">
     <div className={s.card}>
       <Scenery origin={origin} destination={destination} left={leftPhoto} right={rightPhoto} />
-      <button className={s.edit} aria-label="设置航班时间" onClick={openSettings}><Settings2 size={20} /></button>
+      <button className={s.edit} aria-label={value ? "编辑航班时间" : "设置航班时间"} onClick={openSettings}><Settings2 size={20} /></button>
       {demo || value ? <Clock key={JSON.stringify(demo ?? value)} value={(demo ?? value)!} tripTitle={td.trip.title} demo={!!demo} /> : <div className={s.information}><h1 className={s.tripTitle}>{td.trip.title}</h1><h2 className={s.heading}>启程倒计时</h2><p className={s.emptyDate}>设置去程与回程起飞时间，开启准确倒数</p><Button variant="outline" onClick={openSettings}>设置航班时间</Button></div>}
       {!demo && !value && <div className={s.route} aria-hidden="true"><span className={s.aircraft}><Plane size={34} /></span></div>}
       {(['origin','destination'] as const).map((side,i) => {

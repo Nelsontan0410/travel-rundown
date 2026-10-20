@@ -1,6 +1,7 @@
 // 2026-10-19 每日行程（手机）新层级的展示组件：
 //  ItineraryHeader：当前旅程名 + 切换 + 真实的同步状态 + 旅程设置
 //  TripEntries：预订资料 / 同伴 入口
+import type { ReactNode } from 'react';
 import s from './DayGlance.module.css';
 import { Icon } from './Icon';
 
@@ -10,7 +11,9 @@ export function ItineraryHeader({
   sync,
   onSwitch,
   onSettings,
+  mobileActions,
 }: {
+  mobileActions?: ReactNode;
   title: string;
   /** 例如「3 天后出发」「第 2 天 · 共 4 天」「已结束」 */
   phase?: string;
@@ -26,9 +29,10 @@ export function ItineraryHeader({
           <span className={s.title}>{title || '未命名旅程'}</span>
           <Icon name="ChevronRight" size="sm" className={s.chev} />
         </button>
-        <button type="button" className={s.icon} aria-label="旅程设置" onClick={onSettings}>
+        <button type="button" className={`${s.icon} ${mobileActions ? s.desktopSettings : ''}`} aria-label="旅程设置" onClick={onSettings}>
           <Icon name="Settings" />
         </button>
+        {mobileActions}
       </div>
       {(phase || sync) && (
         <div className={s.meta}>
