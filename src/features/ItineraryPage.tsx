@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import p from './Page.module.css';
+import { useBreakpoint } from '../hooks/layout';
+import TripTools from '../components/TripTools';
 import TripUnavailable from './TripUnavailable';
 import { NoTripState } from './FirstRun';
 import { ItineraryHeader, TripEntries } from '../components/DayGlance';
@@ -29,6 +31,7 @@ import { UpdateNotice } from './CloudParts';
 /** 01 每日行程（行程 Tab 的首页） */
 export default function ItineraryPage() {
   const nav = useNavigate();
+  const mobile = useBreakpoint() === 'mobile';
   const { tripId: paramId } = useParams();
   const currentId = useCurrentTripId();
   const tripId = paramId ?? currentId;
@@ -118,7 +121,7 @@ export default function ItineraryPage() {
       </details>
     </>
   );
-  const countdown = <FlightCountdown key={trip.id} td={td} dateRange={fmtDateRange(trip.startDate, trip.endDate)} offline={ready.allGreen} />;
+  const countdown = <FlightCountdown compactMobile key={trip.id} td={td} dateRange={fmtDateRange(trip.startDate, trip.endDate)} offline={ready.allGreen} />;
 
   return (
     <>
@@ -128,6 +131,16 @@ export default function ItineraryPage() {
       sidebarMobile={false}
       header={
         <ItineraryHeader
+          mobileActions={<TripTools
+            onShare={() => nav(`/trip/${trip.id}/settings#sync`)}
+            onToday={phase.day ? () => nav(`/trip/${trip.id}/today`) : undefined}
+            onStory={() => nav(`/trip/${trip.id}/story`)}
+            onOutfits={() => nav(`/trip/${trip.id}/outfits`)}
+            preparation={<>
+              <PhaseCard td={td} now={now} hideDepartureCountdown />
+              <Button variant="link" icon="Settings" onClick={() => nav(`/trip/${trip.id}/settings`)}>查看准备事项</Button>
+            </>}
+          />}
           title={trip.title}
           phase={phaseText}
           sync={syncState}
@@ -144,7 +157,7 @@ export default function ItineraryPage() {
       </>}
     >
       <UpdateNotice tripId={trip.id} role={trip.cloud?.role} />
-      {phase.mode === 'before' && countdown}
+      {(mobile || phase.mode === 'before') && countdown}
       <DayTiles days={td.days} selectedId={day?.id} onSelect={(id) => selectDay(trip.id, id)} />
       {day && <DayHeading title={dayTitle} sub={daySub} />}
       {day && (
@@ -237,7 +250,7 @@ export default function ItineraryPage() {
         onDocs={() => nav('/docs')}
         onMates={() => nav(`/trip/${trip.id}/settings#sync`)}
       />
-      {phase.mode !== 'before' && <div className={p.mt16}>{countdown}</div>}
+      {!mobile && phase.mode !== 'before' && <div className={p.mt16}>{countdown}</div>}
       <div style={{ marginTop: 'var(--space-6)' }}>
         <LedgerSummaryCard
           budget={ledger.budget}
@@ -247,7 +260,7 @@ export default function ItineraryPage() {
           onClick={() => nav(`/trip/${trip.id}/ledger`)}
         />
       </div>
-      <nav className={p.mobileTools} aria-label="旅程工具">
+      <nav className={`${p.mobileTools} ${p.tabletTools}`} aria-label="旅程工具">
         <p className={p.tripToolsTitle}>旅程工具</p>
         {tools}
       </nav>

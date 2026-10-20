@@ -34,6 +34,7 @@ interface OverlayEntry {
 const overlays: OverlayEntry[] = [];
 const originalInert = new Map<HTMLElement, boolean>();
 let originalOverflow = '';
+let originalRootOverflow = '';
 let bodyObserver: MutationObserver | undefined;
 
 function overlayLayer(panel: HTMLElement): number {
@@ -125,6 +126,9 @@ export function useOverlay(open: boolean, onClose: () => void) {
     entryRef.current = entry;
     if (!overlays.length) {
       originalOverflow = document.body.style.overflow;
+      originalRootOverflow = document.documentElement.style.overflow;
+      // overflow-x: clip on html/body makes body-only locking insufficient.
+      document.documentElement.style.overflow = 'hidden';
       document.body.style.overflow = 'hidden';
       document.addEventListener('keydown', onOverlayKeydown, true);
       document.addEventListener('focusin', onOverlayFocusin, true);
@@ -146,6 +150,7 @@ export function useOverlay(open: boolean, onClose: () => void) {
         document.removeEventListener('keydown', onOverlayKeydown, true);
         document.removeEventListener('focusin', onOverlayFocusin, true);
         document.body.style.overflow = originalOverflow;
+        document.documentElement.style.overflow = originalRootOverflow;
         for (const [element, inert] of originalInert) element.inert = inert;
         originalInert.clear();
       }

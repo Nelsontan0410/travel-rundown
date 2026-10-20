@@ -84,3 +84,26 @@
 .ticketBody .error { color: var(--color-warning-ink); white-space: pre-line; overflow-wrap: anywhere; }
 .ticketSources { padding-left: 18px; margin: 0; font-size: var(--fs-caption); color: var(--color-text-2); }
 .ticketSources li { margin: 6px 0; overflow-wrap: anywhere; }.ticketSources span { display: block; }
+
+/* Only the itinerary opts in; desktop and other countdown surfaces stay unchanged. */
+@media (max-width: 767px) {
+  .compactMobile .card { min-height: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); padding-bottom: var(--space-4); }
+  .compactMobile .information { grid-column: 1 / -1; min-height: 0; padding: var(--space-3) var(--space-3) var(--space-1); }
+  .compactMobile .tripTitle { margin: 0 var(--size-hit) var(--space-2); }
+  .compactMobile .heading { margin-bottom: var(--space-1); }
+  .compactMobile .emptyDate { margin: var(--space-1) 0 var(--space-2); }
+  .compactMobile .information > button { min-height: var(--size-hit); padding: var(--space-2) var(--space-3); font-size: var(--fs-small); }
+  .compactMobile .date { margin-bottom: var(--space-2); flex-direction: row; flex-wrap: wrap; gap: var(--space-1) var(--space-2); }
+  .compactMobile .date > span { white-space: normal; }
+  .compactMobile .numbers { max-width: none; width: 100%; gap: var(--space-2); }
+  .compactMobile .numbers strong { font-size: var(--fs-h1); }
+  .compactMobile .pin { position: relative; bottom: auto; left: auto; right: auto; min-height: var(--size-hit); min-width: 0; flex-direction: row; justify-content: center; flex-wrap: wrap; gap: var(--space-1); padding: var(--space-1); }
+  .compactMobile .pinIcon { height: var(--size-icon-sm); display: inline-flex; align-items: center; }
+  .compactMobile .pinIcon > svg { display: none; }
+  .compactMobile .pinIcon img { position: static; width: var(--size-icon); height: var(--size-icon-sm); border-radius: var(--border-w); }
+  .compactMobile .pin strong { display: none; }
+  .compactMobile .pin > span:last-child { font-size: var(--fs-small); }
+  .compactMobile .route { bottom: var(--space-2); left: var(--space-6); right: var(--space-6); }
+  .compactMobile .aircraft, .compactMobile .aircraft svg { height: var(--size-icon-sm); }
+  .compactMobile .aircraft svg { transform: translate(-50%, var(--space-1)) rotate(45deg); }
+}

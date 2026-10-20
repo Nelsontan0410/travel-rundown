@@ -1,0 +1,242 @@
+{
+  "360": {
+    "unset": {
+      "countdown": {
+        "top": 93,
+        "height": 234.5,
+        "bottom": 327.5
+      },
+      "dates": {
+        "top": 343.5,
+        "height": 80,
+        "bottom": 423.5
+      },
+      "day": {
+        "top": 443.5,
+        "height": 33,
+        "bottom": 476.5
+      },
+      "first": {
+        "top": 556.5,
+        "height": 95,
+        "bottom": 651.5
+      },
+      "overflow": false
+    },
+    "set": {
+      "countdown": {
+        "top": 93,
+        "height": 234.5,
+        "bottom": 327.5
+      },
+      "dates": {
+        "top": 343.5,
+        "height": 80,
+        "bottom": 423.5
+      },
+      "day": {
+        "top": 443.5,
+        "height": 33,
+        "bottom": 476.5
+      },
+      "first": {
+        "top": 556.5,
+        "height": 95,
+        "bottom": 651.5
+      },
+      "overflow": false
+    }
+  },
+  "390": {
+    "unset": {
+      "countdown": {
+        "top": 93,
+        "height": 234.5,
+        "bottom": 327.5
+      },
+      "dates": {
+        "top": 343.5,
+        "height": 80,
+        "bottom": 423.5
+      },
+      "day": {
+        "top": 443.5,
+        "height": 33,
+        "bottom": 476.5
+      },
+      "first": {
+        "top": 556.5,
+        "height": 95,
+        "bottom": 651.5
+      },
+      "overflow": false
+    },
+    "set": {
+      "countdown": {
+        "top": 93,
+        "height": 234.5,
+        "bottom": 327.5
+      },
+      "dates": {
+        "top": 343.5,
+        "height": 80,
+        "bottom": 423.5
+      },
+      "day": {
+        "top": 443.5,
+        "height": 33,
+        "bottom": 476.5
+      },
+      "first": {
+        "top": 556.5,
+        "height": 95,
+        "bottom": 651.5
+      },
+      "overflow": false
+    }
+  },
+  "430": {
+    "unset": {
+      "countdown": {
+        "top": 93,
+        "height": 234.5,
+        "bottom": 327.5
+      },
+      "dates": {
+        "top": 343.5,
+        "height": 80,
+        "bottom": 423.5
+      },
+      "day": {
+        "top": 443.5,
+        "height": 33,
+        "bottom": 476.5
+      },
+      "first": {
+        "top": 556.5,
+        "height": 71,
+        "bottom": 627.5
+      },
+      "overflow": false
+    },
+    "set": {
+      "countdown": {
+        "top": 93,
+        "height": 234.5,
+        "bottom": 327.5
+      },
+      "dates": {
+        "top": 343.5,
+        "height": 80,
+        "bottom": 423.5
+      },
+      "day": {
+        "top": 443.5,
+        "height": 33,
+        "bottom": 476.5
+      },
+      "first": {
+        "top": 556.5,
+        "height": 71,
+        "bottom": 627.5
+      },
+      "overflow": false
+    }
+  },
+  "768": {
+    "unset": {
+      "countdown": {
+        "top": 93,
+        "height": 174.5,
+        "bottom": 267.5
+      },
+      "dates": {
+        "top": 283.5,
+        "height": 80,
+        "bottom": 363.5
+      },
+      "day": {
+        "top": 383.5,
+        "height": 33,
+        "bottom": 416.5
+      },
+      "first": {
+        "top": 496.5,
+        "height": 71,
+        "bottom": 567.5
+      },
+      "overflow": false
+    },
+    "set": {
+      "countdown": {
+        "top": 93,
+        "height": 174.875,
+        "bottom": 267.875
+      },
+      "dates": {
+        "top": 283.875,
+        "height": 80,
+        "bottom": 363.875
+      },
+      "day": {
+        "top": 383.875,
+        "height": 33,
+        "bottom": 416.875
+      },
+      "first": {
+        "top": 496.875,
+        "height": 71,
+        "bottom": 567.875
+      },
+      "overflow": false
+    }
+  },
+  "1280": {
+    "unset": {
+      "countdown": {
+        "top": 117,
+        "height": 174.5,
+        "bottom": 291.5
+      },
+      "dates": {
+        "top": 307.5,
+        "height": 80,
+        "bottom": 387.5
+      },
+      "day": {
+        "top": 407.5,
+        "height": 33,
+        "bottom": 440.5
+      },
+      "first": {
+        "top": 520.5,
+        "height": 71,
+        "bottom": 591.5
+      },
+      "overflow": false
+    },
+    "set": {
+      "countdown": {
+        "top": 117,
+        "height": 174.875,
+        "bottom": 291.875
+      },
+      "dates": {
+        "top": 307.875,
+        "height": 80,
+        "bottom": 387.875
+      },
+      "day": {
+        "top": 407.875,
+        "height": 33,
+        "bottom": 440.875
+      },
+      "first": {
+        "top": 520.875,
+        "height": 71,
+        "bottom": 591.875
+      },
+      "overflow": false
+    }
+  }
+}
