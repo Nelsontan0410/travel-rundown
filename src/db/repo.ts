@@ -428,7 +428,8 @@ export async function deleteTrip(tripId: string): Promise<void> {
     {
       const hs = await db.highlights.where('tripId').equals(tripId).toArray();
       const gd = await db.guides.get(tripId);
-      await db.blobs.bulkDelete([...hs.flatMap((h) => (h.photoKey ? [h.photoKey] : [])), ...Object.values(gd?.days ?? {}).flatMap((d) => (d.photoKey ? [d.photoKey] : []))]);
+      const gk = [...hs.flatMap((h) => (h.photoKey ? [h.photoKey] : [])), ...Object.values(gd?.days ?? {}).flatMap((d) => (d.photoKey ? [d.photoKey] : []))];
+      await db.blobs.bulkDelete([...gk, ...gk.map((k) => `${k}#thumb`)]);
       await db.highlights.where('tripId').equals(tripId).delete();
       await db.guides.delete(tripId);
     }

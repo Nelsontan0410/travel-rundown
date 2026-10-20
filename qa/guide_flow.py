@@ -125,6 +125,29 @@ try:
         close_editor()
         ok('4 添加（行程关联 / 先选类型再手动 / 照片），添加后直接进入编辑')
 
+        # ———— 4b 照片：选图 → 取消（不变）→ 重选 → 换一张 → 1:1 裁切 → 保存；生成缩略图；刷新后比例保留；移除 ————
+        idb = lambda js: pg.evaluate("async () => { const db = await new Promise(r => { const q = indexedDB.open('travel-rundown'); q.onsuccess = () => r(q.result); }); " + js + " }")
+        open_editor(row_titles()[2])
+        pg.get_by_role('button', name=re.compile('^(添加照片|更换照片)$')).click()
+        pick(pg, lambda: pg.get_by_role('button', name='从相册选择').click(), PHOTOS[0])
+        pg.get_by_role('button', name='取消', exact=True).click(); pg.wait_for_timeout(300)
+        expect(pg.get_by_role('button', name='添加照片')).to_be_visible()  # 取消后照片没变
+        pg.get_by_role('button', name='添加照片').click()
+        pick(pg, lambda: pg.get_by_role('button', name='从相册选择').click(), PHOTOS[0])
+        pick(pg, lambda: pg.get_by_role('button', name='换一张').click(), PHOTOS[3])
+        pg.get_by_role('group', name='裁切比例').get_by_role('button', name='1:1').click()
+        bx = pg.locator('[class*=cropBox]').bounding_box(); assert abs(bx['width'] - bx['height']) < 3, bx
+        pg.get_by_role('button', name='确认', exact=True).click(); expect(pg.get_by_text('已保存')).to_be_visible()
+        n_thumbs = idb("return await new Promise(r => { const q = db.transaction('blobs').objectStore('blobs').getAllKeys(); q.onsuccess = () => r(q.result.filter(k => String(k).endsWith('#thumb')).length); });")
+        assert n_thumbs >= 1, n_thumbs
+        close_editor(); pg.get_by_role('button', name='完成').click(); pg.reload(); pg.wait_for_timeout(900)
+        sq = [c for c in pg.locator('[data-hl] [class*=spotPhoto]').all() if c.bounding_box() and abs(c.bounding_box()['width'] - c.bounding_box()['height']) < 3]
+        assert sq, '1:1 裁切刷新后没有保留'
+        pg.get_by_role('button', name='编辑', exact=True).click(); open_editor(row_titles()[2])
+        pg.get_by_role('button', name='更换照片').click(); pg.get_by_role('button', name='移除照片').click(); pg.wait_for_timeout(400)
+        expect(pg.get_by_role('button', name='添加照片')).to_be_visible(); close_editor()
+        ok('4b 选图 / 取消 / 重选 / 1:1 裁切 / 缩略图 / 刷新保留 / 移除')
+
         # ———— 5 改标题：超长中英文都限长，不能清空；没离开输入框就要离开时提醒 ————
         open_editor(row_titles()[1])
         t = pg.get_by_label('亮点标题'); t.fill('Super long highlight title ' * 6 + '超长的中文标题' * 10)
@@ -288,6 +311,13 @@ try:
                 p2.get_by_role('dialog').get_by_label('简短描述').focus(); p2.keyboard.press('Tab'); p2.wait_for_timeout(300)
                 p2.set_viewport_size({'width': w, 'height': h}); p2.wait_for_timeout(400)
                 expect(p2.get_by_label('简短描述')).to_have_value('切换屏宽也不会丢')
+                # 电脑：更换 / 裁切照片是居中的对话框（W06）
+                p2.get_by_role('complementary', name=re.compile('编辑亮点')).get_by_role('button', name=re.compile('添加照片|更换照片')).click()
+                dlg = p2.get_by_role('dialog', name='亮点照片'); expect(dlg).to_be_visible()
+                db_ = dlg.bounding_box(); assert abs((db_['x'] + db_['width'] / 2) - w / 2) < 30, db_
+                pick(p2, lambda: dlg.get_by_role('button', name='从相册选择').click(), PHOTOS[2])
+                expect(dlg.get_by_role('group', name='裁切比例')).to_be_visible()
+                dlg.get_by_role('button', name='16:9').click(); dlg.get_by_role('button', name='确认', exact=True).click(); expect(p2.get_by_text('已保存')).to_be_visible()
             no_overflow(p2, f'{name} 编辑'); p2.screenshot(path=f'{OUT}/05-{name}-edit.png')
             p2.get_by_role('button', name='完成').click(); no_overflow(p2, f'{name} 阅读'); p2.screenshot(path=f'{OUT}/06-{name}-read.png', full_page=True)
             for th in ['winter', 'spring', 'autumn']:

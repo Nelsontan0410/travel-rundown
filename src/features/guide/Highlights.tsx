@@ -40,7 +40,7 @@ export function ReadHighlights({ list, dayOf }: { list: Highlight[]; dayOf: (h: 
                 <li key={h.id} className={`${c === 'food' ? g.foodTile : g.spotRow} ${h.photoKey ? '' : g.noPhoto}`} data-hl={h.id}>
                   {h.photoKey && (
                     <div className={g.spotMedia}>
-                      <GuidePhoto photoKey={h.photoKey} focus={h.focus} alt={h.title} className={g.spotPhoto} fallback={<span>{CATEGORY_LABEL[h.category]}</span>} />
+                      <GuidePhoto ratio={c !== 'food'} thumb={c === 'food'} photoKey={h.photoKey} focus={h.focus} alt={h.title} className={g.spotPhoto} fallback={<span>{CATEGORY_LABEL[h.category]}</span>} />
                       <span className={g.spotNum} aria-hidden>
                         {pad(num.get(h.id) ?? 0)}
                       </span>

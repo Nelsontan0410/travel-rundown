@@ -1,5 +1,6 @@
 // 旅行亮点的存取。只读写 guides / highlights 两张表和 hl:<id> 照片；绝不碰行程项、每天、资料。
 import { db } from './schema';
+import { thumbKeyOf } from '../lib/photo';
 import { uuid } from './uuid';
 import { clamp, clampFocus, clean, LIMITS, moveTipIn, type Focus, type Guide, type GuideDay, type GuideTip, type Highlight, type HighlightCategory, type TipCategory } from '../domain/guide';
 
@@ -54,6 +55,7 @@ export interface NewHighlight {
   dayIndex?: number;
   itemId?: string;
   photo?: Blob;
+  thumb?: Blob;
 }
 
 export async function addHighlight(input: NewHighlight): Promise<string> {
@@ -77,6 +79,7 @@ export async function addHighlight(input: NewHighlight): Promise<string> {
     };
     if (input.photo) {
       await db.blobs.put({ key: photoKeyOf(id), blob: input.photo });
+      if (input.thumb) await db.blobs.put({ key: thumbKeyOf(photoKeyOf(id)), blob: input.thumb });
       hl.photoKey = photoKeyOf(id);
     }
     await db.highlights.put(hl);
@@ -101,16 +104,18 @@ export async function updateHighlight(
 }
 
 /** 换照片；blob 为 null 表示移除。自己上传的旧照片一并清掉 */
-export async function setHighlightPhoto(id: string, blob: Blob | null): Promise<void> {
+export async function setHighlightPhoto(id: string, blob: Blob | null, thumb?: Blob): Promise<void> {
   await db.transaction('rw', [db.highlights, db.blobs], async () => {
     const cur = await db.highlights.get(id);
     if (!cur) return;
     const next: Highlight = { ...cur, updatedAt: now(), focus: undefined };
     if (blob) {
       await db.blobs.put({ key: photoKeyOf(id), blob });
+      if (thumb) await db.blobs.put({ key: thumbKeyOf(photoKeyOf(id)), blob: thumb });
+      else await db.blobs.delete(thumbKeyOf(photoKeyOf(id)));
       next.photoKey = photoKeyOf(id);
     } else {
-      if (cur.photoKey?.startsWith('hl:')) await db.blobs.delete(cur.photoKey);
+      if (cur.photoKey?.startsWith('hl:')) await db.blobs.bulkDelete([cur.photoKey, thumbKeyOf(cur.photoKey)]);
       delete next.photoKey;
     }
     await db.highlights.put(next);
@@ -140,7 +145,7 @@ export async function deleteHighlight(id: string): Promise<void> {
   await db.transaction('rw', [db.highlights, db.blobs], async () => {
     const cur = await db.highlights.get(id);
     if (!cur) return;
-    if (cur.photoKey?.startsWith('hl:')) await db.blobs.delete(cur.photoKey);
+    if (cur.photoKey?.startsWith('hl:')) await db.blobs.bulkDelete([cur.photoKey, thumbKeyOf(cur.photoKey)]);
     await db.highlights.delete(id);
   });
 }
@@ -160,13 +165,16 @@ export const setDayTitle = (tripId: string, dayId: string, title: string) =>
 export const setDayHidden = (tripId: string, dayId: string, hidden: boolean) => patchDay(tripId, dayId, (d) => ({ ...d, hidden: hidden || undefined }));
 export const setDayFocus = (tripId: string, dayId: string, f: Focus) => patchDay(tripId, dayId, (d) => (d.photoKey ? { ...d, focus: clampFocus(f) } : d));
 /** 换这一天的代表照片；blob 为 null 表示移除（回到用当天亮点的照片） */
-export async function setDayPhoto(tripId: string, dayId: string, blob: Blob | null): Promise<void> {
+export async function setDayPhoto(tripId: string, dayId: string, blob: Blob | null, thumb?: Blob): Promise<void> {
   await db.transaction('rw', [db.guides, db.blobs], async () => {
     const key = dayPhotoKeyOf(dayId);
-    if (blob) await db.blobs.put({ key, blob });
-    else {
+    if (blob) {
+      await db.blobs.put({ key, blob });
+      if (thumb) await db.blobs.put({ key: thumbKeyOf(key), blob: thumb });
+      else await db.blobs.delete(thumbKeyOf(key));
+    } else {
       const cur = (await getGuide(tripId)).days?.[dayId]?.photoKey;
-      if (cur?.startsWith('gday:')) await db.blobs.delete(cur);
+      if (cur?.startsWith('gday:')) await db.blobs.bulkDelete([cur, thumbKeyOf(cur)]);
     }
     await patchDay(tripId, dayId, (d) => (blob ? { ...d, photoKey: key, focus: undefined } : { ...d, photoKey: undefined, focus: undefined }));
   });
@@ -180,7 +188,8 @@ export function guidePhotoKeys(g: Guide | undefined, hs: Highlight[]): string[] 
 /** 删除旅程时清掉它的全部旅行亮点和照片 */
 export async function clearGuide(tripId: string): Promise<void> {
   const hs = await db.highlights.where('tripId').equals(tripId).toArray();
-  await db.blobs.bulkDelete(guidePhotoKeys(await db.guides.get(tripId), hs));
+  const keys = guidePhotoKeys(await db.guides.get(tripId), hs);
+  await db.blobs.bulkDelete([...keys, ...keys.map(thumbKeyOf)]);
   await db.highlights.where('tripId').equals(tripId).delete();
   await db.guides.delete(tripId);
 }
