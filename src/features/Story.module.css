@@ -391,3 +391,6 @@
 .creditText { min-width: 0; overflow-wrap: anywhere; }
 .creditTitle { font-family: var(--font-serif); font-size: var(--fs-card); }
 .creditText a, .secLead a { color: var(--color-primary); text-decoration-color: var(--color-accent); text-underline-offset: 3px; }
+
+/* 2026-10-20：概览页只保留首屏和相册，收尾只留署名链接 */
+.landingFoot { display: flex; justify-content: center; padding: var(--space-6) var(--space-4) calc(var(--space-6) + var(--safe-bottom)); }
