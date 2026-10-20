@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import p from './Page.module.css';
 import { Screen, BackHeader } from '../components/Layout';
 import { Button, NoteBox } from '../components/Basics';
@@ -19,21 +20,24 @@ const NAV_OPTIONS: { value: NavApp; label: string }[] = [
 
 /** 导入模板页（设计稿没有，按「状态与文案」补） */
 export default function TemplatePage() {
+  const nav = useNavigate();
   const settings = useSettings() ?? DEFAULT_SETTINGS;
   const [sheet, setSheet] = useState<'china' | 'elsewhere' | null>(null);
   const prompt = buildPrompt(settings.navInChina, settings.navElsewhere);
 
   return (
     <Screen
-      tab="trips"
-      header={<BackHeader title="用 AI 整理行程（可选）" />}
+      header={<BackHeader title="示例与模板" />}
       bottom={
         <Button block icon="Copy" onClick={() => void copyWithToast(prompt)}>
           复制提示词
         </Button>
       }
     >
-      <p className={p.lead}>如果你的行程还是一段普通文字、表格或网页，可以把下面的提示词连同行程发给任意 AI（ChatGPT、Claude 等，用你自己的账号），让它整理成 App 能识别的格式，再回到「粘贴行程」贴进来。已经整理好的行程不需要这一步。</p>
+      <SettingsGroup title="示例">
+        <SettingsRow icon="FileText" label="打开示例行程" value="看看格式长什么样" onClick={() => nav('/import/paste?example=1')} />
+      </SettingsGroup>
+      <p className={p.lead}>AI 整理（可选）：如果你的行程还是一段普通文字、表格或网页，可以把下面的提示词连同行程发给任意 AI（ChatGPT、Claude 等，用你自己的账号），让它整理成 App 能识别的格式，再回到「粘贴行程」贴进来。已经整理好的行程不需要这一步。</p>
       <SettingsGroup title="导航偏好">
         <SettingsRow label="中国大陆" value={NAV_APP_NAME[settings.navInChina]} onClick={() => setSheet('china')} />
         <SettingsRow label="其他地区" value={NAV_APP_NAME[settings.navElsewhere]} onClick={() => setSheet('elsewhere')} />

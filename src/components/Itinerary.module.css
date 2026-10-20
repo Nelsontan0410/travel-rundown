@@ -33,6 +33,11 @@
 .tileOn { background-color: var(--color-leather); background-image: var(--tex-leather), var(--grad-btn-primary); border-color: var(--color-leather-edge); box-shadow: var(--shadow-btn-primary); }
 .tileOn .tileNum { color: var(--color-on-leather-hi); }
 .tileOn .tileMonth { color: var(--color-on-leather-2); }
+/* 2026-10-19：星期；选中格除了颜色还有加粗和底部小横线 */
+.tile { height: calc(var(--h-day) + 14px); position: relative; }
+.tileWeek { font-size: var(--fs-caption); color: var(--color-text-2); }
+.tileOn .tileWeek { color: var(--color-on-leather-2); font-weight: 700; }
+.tileOn::after { content: ''; position: absolute; bottom: 5px; width: 16px; height: 2px; border-radius: 1px; background: var(--color-on-leather-hi); }
 
 /* Day 标题 */
 .dayTitle { font-family: var(--font-serif); font-size: calc(var(--fs-title) + 2px); font-weight: var(--fw-title); margin-top: var(--space-5); }

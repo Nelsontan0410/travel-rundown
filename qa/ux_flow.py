@@ -30,12 +30,14 @@ try:
         # ———— 首次使用：首页只有两条路；资料页、每日行程页没有旅程时给下一步 ————
         nc, npg, nerr = ctx()
         npg.goto(BASE + '/trips'); npg.wait_for_timeout(500)
-        expect(npg.get_by_role('heading', name='创建旅程')).to_be_visible()
-        expect(npg.get_by_role('heading', name='加入旅程')).to_be_visible()
+        expect(npg.get_by_role('heading', name='下一段旅程，从这里开始')).to_be_visible()
+        # 390×844 首屏不用滚动就能看到：主按钮、次按钮、示例与模板、邀请码
+        for loc in (npg.get_by_role('button', name='粘贴行程文字'), npg.get_by_role('button', name='导入文件'), npg.get_by_role('button', name='查看示例与模板'), npg.get_by_label('收到同伴的邀请？')):
+            box = loc.bounding_box(); assert box and box['y'] + box['height'] <= 844 - 64, (loc, box)
         expect(npg.get_by_text('恢复备份')).to_have_count(0)
         npg.get_by_role('button', name='加入', exact=True).click()
         expect(npg.get_by_text('请填主用户给你的邀请码')).to_be_visible()
-        npg.get_by_label('邀请码').fill('a!'); npg.get_by_role('button', name='加入', exact=True).click()
+        npg.get_by_label('收到同伴的邀请？').fill('a!'); npg.get_by_role('button', name='加入', exact=True).click()
         expect(npg.get_by_text('邀请码格式不对')).to_be_visible()
         shot(npg, '390-01-home-empty.png')
         npg.get_by_role('button', name='更多').click(); expect(npg.get_by_text('恢复备份')).to_be_visible(); npg.keyboard.press('Escape')
@@ -46,7 +48,7 @@ try:
         npg.goto(BASE + '/itinerary'); expect(npg.get_by_text('创建或加入一份旅程后')).to_be_visible()
         npg.get_by_role('button', name='用邀请码加入').click(); npg.wait_for_url('**/trips#join')
         tabs = [t.inner_text().replace('\n', '') for t in npg.get_by_role('navigation', name='主导航').get_by_role('link').all()]
-        assert tabs == ['我的旅程', '每日行程', '预订资料'], tabs
+        assert tabs == ['旅程', '日程', '资料'], tabs
         print('ok first-run home / docs / itinerary empty states')
 
         # ———— 粘贴：空、示例、错误（原文保留）、部分识别（警告） ————
@@ -55,7 +57,7 @@ try:
         expect(npg.get_by_text('能识别的格式：')).to_be_visible()
         npg.get_by_role('button', name='解析并预览').click()
         expect(npg.get_by_text('还没有内容。')).to_be_visible()
-        npg.get_by_role('button', name='查看示例').click()
+        npg.get_by_role('button', name='查看格式示例').click()
         expect(ta).to_have_value(re.compile('示例：北海道 4 天'))
         shot(npg, '390-03-paste-sample.png')
         ta.fill('明天去小樽，下午看运河，晚上吃海鲜'); npg.get_by_role('button', name='解析并预览').click(); npg.wait_for_url('**/preview')
@@ -73,14 +75,14 @@ try:
         op.goto(BASE + '/import/paste'); op.get_by_label('行程内容').fill(md); op.get_by_role('button', name='解析并预览').click()
         op.get_by_role('button', name='确认导入').click(); op.wait_for_url('**/itinerary/**')
         trip = op.url.rsplit('/', 1)[1]
-        expect(op.get_by_role('navigation', name='当前旅程')).to_contain_text('北海道，日本')
+        expect(op.get_by_role('button', name=re.compile('当前旅程：北海道，日本'))).to_be_visible()
         op.goto(BASE + '/trips'); expect(op.get_by_text('我的旅程（1）')).to_be_visible()  # 有旅程：先看到自己的旅程
         first_heading = op.locator('main h2, main h3').first.inner_text()
         assert '我的旅程' in first_heading or '北海道' in op.locator('main').inner_text()[:200], first_heading
         shot(op, '1280-01-home-trips.png')
         op.goto(f'{BASE}/itinerary/{trip}'); expect(op.get_by_text('Day 1').first).to_be_visible()
         op.reload(); expect(op.get_by_text('Day 1').first).to_be_visible()
-        op.get_by_role('navigation', name='当前旅程').get_by_role('button', name='分享 / 邀请').click(); op.wait_for_url('**/settings#sync')
+        op.get_by_role('button', name='邀请同伴').click(); op.wait_for_url('**/settings#sync')
         op.go_back(); expect(op.get_by_text('Day 1').first).to_be_visible(); assert op.url.endswith(trip)
         op.go_forward(); op.wait_for_url('**/settings#sync')
         op.goto(f'{BASE}/docs'); expect(op.get_by_role('button', name='添加资料').first).to_be_visible()
@@ -113,7 +115,8 @@ try:
         npg.goto(f'{BASE}/itinerary/{trip}'); npg.get_by_label('邀请码').fill(code[:5] + '-' + code[5:])
         npg.get_by_role('button', name='用邀请码加入').click(); npg.wait_for_url('**/join/**')
         npg.get_by_role('button', name='加入并下载行程').click(); npg.wait_for_url(f'**/itinerary/{trip}')
-        expect(npg.get_by_role('navigation', name='当前旅程')).to_contain_text('北海道，日本')
+        expect(npg.get_by_role('button', name=re.compile('当前旅程：北海道，日本'))).to_be_visible()
+        expect(npg.get_by_text('同伴 · 已套用 v1')).to_be_visible()  # 真实同步状态
         shot(npg, '390-06-joined.png')
         print('ok no-access link → join → back to the trip')
 

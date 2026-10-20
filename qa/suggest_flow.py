@@ -47,7 +47,7 @@ try:
 
         # 「我的修改」：取消勾选海鲜丼，只提交运河
         mp.goto(f'{BASE}/itinerary/{trip}'); mp.wait_for_timeout(500)
-        mp.get_by_role('button', name='查看').click(); mp.wait_for_url('**/suggest')
+        mp.get_by_role('button', name='查看', exact=True).click(); mp.wait_for_url('**/suggest')
         expect(mp.get_by_text('Day 2 · 小樽运河')).to_be_visible()
         mp.get_by_label(re.compile('提交：修改 · Day 2 三角市场')).uncheck()
         mp.get_by_label('给主用户的说明（可选）').fill('下雪的话晚点出发')

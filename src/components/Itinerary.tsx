@@ -26,6 +26,14 @@ export function HeroCover({ coverUrl, dateRange, offline }: { coverUrl?: string;
   );
 }
 
+const WEEK = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+/** 2026-10-19：日期格加星期（按日期本身算，不受手机时区影响） */
+function weekdayOf(date: string): string {
+  const [y, m, d] = date.split('-').map(Number);
+  if (!y || !m || !d) return '';
+  return WEEK[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
+}
+
 export function DayTiles({
   days,
   selectedId,
@@ -50,6 +58,7 @@ export function DayTiles({
             className={`${s.tile} ${on ? s.tileOn : ''}`}
             onClick={() => onSelect(d.id)}
           >
+            <span className={s.tileWeek}>{weekdayOf(d.date)}</span>
             <span className={s.tileNum}>{dd || '—'}</span>
             <span className={s.tileMonth}>{MONTHS[m - 1] ?? ''}</span>
           </button>

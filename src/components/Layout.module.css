@@ -64,6 +64,8 @@
   padding: var(--space-2) var(--page-x); display: flex; gap: var(--space-2);
 }
 .actionBar > * { flex: 1; }
+/* 2026-10-19：没有底部导航时，操作栏避开手机底部安全区域 */
+.shellBottom.actionBar:not(.bottomWithTab) { padding-bottom: calc(var(--space-2) + var(--safe-bottom)); }
 .plainBottom { background-color: var(--color-page); background-image: var(--tex-paper); box-shadow: 0 -1px 0 var(--color-hairline); padding: var(--space-2) var(--page-x) calc(var(--space-2) + var(--safe-bottom)); display: flex; gap: var(--space-2); }
 .plainBottom > * { flex: 1; }
 

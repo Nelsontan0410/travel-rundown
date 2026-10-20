@@ -94,11 +94,12 @@
   --fs-title: 20px;    --fw-title: 700;    /* 旅程名、Day 标题、04 页头标题 */
   --fs-nav: 18px;      --fw-nav: 600;      /* 返回型页头的居中标题 */
   --fs-section: 16px;  --fw-section: 700;  /* 区块标题 */
-  --fs-card: 15px;     --fw-card: 600;     /* 卡片标题、大按钮文字 */
-  --fs-body: 14px;     --fw-body: 400;     /* 正文、副标题、筛选项 */
-  --fs-small: 13px;    --fw-small: 400;    /* 说明、时间、小按钮文字（600） */
-  --fs-caption: 12px;  --fw-caption: 500;  /* 芯片、Tab 标签、辅助提示 */
-  --lh: 1.4;
+  /* 2026-10-19 手机可读性：正文 16px、说明 14px，最小 12px 只留给芯片 / Tab 标签 */
+  --fs-card: 16px;     --fw-card: 600;     /* 卡片标题、大按钮文字 */
+  --fs-body: 16px;     --fw-body: 400;     /* 正文、副标题、筛选项 */
+  --fs-small: 14px;    --fw-small: 400;    /* 说明、时间、小按钮文字（600） */
+  --fs-caption: 12px;  --fw-caption: 500;  /* 芯片、Tab 标签 */
+  --lh: 1.5;
 
   /* 间距：4 的倍数 */
   --space-1: 4px;  --space-2: 8px;  --space-3: 12px;
@@ -113,7 +114,7 @@
   /* 尺寸 */
   --border-w: 1px;
   --h-header: 56px;    --h-tabbar: 64px;
-  --h-btn-lg: 44px;    --h-btn-sm: 32px;
+  --h-btn-lg: 48px;    --h-btn-sm: 36px;   /* 2026-10-19：主按钮 48px；小按钮另有 44px 触控区 */
   --h-chip: 24px;      --h-filter: 36px;
   --w-day: 64px;       --h-day: 56px;
   --h-hero: 120px;     --h-row: 44px;      --h-file-row: 40px;
@@ -171,6 +172,20 @@
   --hero-gradient: linear-gradient(to top, rgba(40, 26, 15, 0.6), rgba(40, 26, 15, 0) 60%);
   --scrim: rgba(40, 26, 15, 0.45);
   --shadow-overlay: inset 1px 1px 0 rgba(255, 252, 244, 0.8), 0 2px 0 rgba(90, 62, 38, 0.15), 0 18px 40px -8px rgba(46, 30, 18, 0.45);
+}
+
+/* ———————— 2026-10-19 夏季（默认）轻量化 ————————
+   保留米白纸张和深棕，去掉皮革纹理、缝线、凸起高光和重阴影，让主次更清楚。 */
+:root {
+  --tex-leather: none;
+  --color-stitch: transparent;
+  --shadow-card: 0 1px 2px rgba(70, 48, 28, 0.08), 0 6px 16px -10px rgba(70, 48, 28, 0.28);
+  --shadow-raised: 0 1px 2px rgba(70, 48, 28, 0.12);
+  --shadow-btn-primary: 0 1px 2px rgba(46, 30, 18, 0.35);
+  --shadow-inset: inset 0 1px 2px rgba(90, 62, 38, 0.12);
+  --shadow-emboss: none;
+  --shadow-overlay: 0 12px 32px -8px rgba(46, 30, 18, 0.35);
+  --text-press: 0 1px 0 rgba(255, 250, 238, 0.9);
 }
 
 /* ———————— 修订 2026-10：季节主题 ————————
