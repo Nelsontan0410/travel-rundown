@@ -1,5 +1,6 @@
 // 图标对照（设计参考「组件库 · 图标对照」）。全部是 lucide-react 线性图标；
 // 需要「实心」的几处（Tab 激活、勾圆、实心 AlertCircle）用同一套 lucide 几何画成填充版。
+import { BrandMark } from './Brand';
 import {
   AlertCircle,
   Bell,
@@ -186,13 +187,11 @@ export function TabIconFilled({ name }: { name: 'Home' | 'CalendarDays' | 'FileT
   );
 }
 
-/** Logo：两座连续山峰的折线加一条底线，自绘 SVG */
-export function Logo({ size = 'md', color = 'var(--color-primary)' }: { size?: 'md' | 'xl'; color?: string }) {
-  const s = SIZE_VAR[size];
+/** Logo：tongxing8 图形（两人＋折叠行程纸）。size 沿用图标尺寸档位，颜色默认跟随外层文字色 */
+export function Logo({ size = 'md', color = 'currentColor' }: { size?: 'md' | 'xl'; color?: string }) {
   return (
-    <svg viewBox="0 0 24 24" style={{ width: s, height: s, flexShrink: 0 }} aria-hidden fill="none" stroke={color} strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
-      <path d="M2.5 18 9 6.5l4.5 8 2.5-4 5.5 7.5" />
-      <path d="M2 18h20" />
-    </svg>
+    <span style={{ display: 'inline-flex', color, flexShrink: 0 }}>
+      <BrandMark height={SIZE_VAR[size]} />
+    </span>
   );
 }
