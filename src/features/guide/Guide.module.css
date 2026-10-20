@@ -173,16 +173,35 @@
 .dayLine { margin-top: var(--space-1); font-size: var(--fs-small); color: var(--color-text-2); line-height: 1.6; overflow-wrap: anywhere; }
 .dayActions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-top: var(--space-1); }
 
-/* 实用信息 */
-.tipGroup + .tipGroup { margin-top: var(--space-4); }
-.tipTitle { font-size: var(--fs-section); font-weight: var(--fw-section); margin-bottom: var(--space-2); }
+/* 第四页：实用信息与私人便签（手机 M04 纵向 / 电脑 W04 两栏） */
+.infoGrid { display: grid; gap: var(--space-4); }
+.infoCol { display: grid; gap: var(--space-4); align-content: start; min-width: 0; }
+.infoCard { padding: var(--space-4); background: var(--color-surface); border: 1px solid var(--color-hairline); border-radius: var(--radius-sm); min-width: 0; }
+.tipTitle { display: flex; align-items: center; gap: var(--space-2); font-family: var(--font-serif); font-size: var(--fs-section); font-weight: 700; margin-bottom: var(--space-2); }
+.tipTitle small { font-family: var(--font-serif); font-style: italic; font-weight: 400; font-size: var(--fs-small); color: var(--color-text-3); }
+.tipList { list-style: none; margin: 0; padding: 0; }
 .tip { padding: var(--space-2) 0; border-bottom: 1px solid var(--color-hairline); line-height: 1.6; overflow-wrap: anywhere; display: flex; align-items: flex-start; gap: var(--space-2); }
-.tip > :first-child { flex: 1; min-width: 0; }
+.tipList .tip:last-child { border-bottom: 0; }
+.tipText { flex: 1; min-width: 0; white-space: pre-wrap; }
+
+.tip > .editWrap { flex: 1; min-width: 0; }
+.tipDone .tipText { text-decoration: line-through; color: var(--color-text-3); }
+.tipCheck { flex: 0 0 auto; width: 22px; height: 22px; margin: 2px 0 0; accent-color: var(--color-primary); }
+.tipTools { display: inline-flex; gap: 2px; flex-shrink: 0; }
+/* 必吃清单阅读时是一排小标签 */
+.tipChips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.tipChips .tip { border: 1px solid var(--color-border); border-radius: var(--radius-full); padding: 4px var(--space-3); font-size: var(--fs-small); }
 .places { margin-top: var(--space-6); }
 .place { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-1) 0; border-bottom: 1px solid var(--color-hairline); }
+.place:last-child { border-bottom: 0; }
 .placeName { font-size: var(--fs-body); overflow-wrap: anywhere; min-width: 0; }
 .placeSub { display: block; font-size: var(--fs-small); color: var(--color-text-3); }
-.tipAdd { display: grid; gap: var(--space-2); margin-top: var(--space-4); }
+.stayList { list-style: none; margin: 0 0 var(--space-2); padding: 0; display: grid; gap: var(--space-2); }
+.stayRow { display: flex; align-items: flex-start; gap: var(--space-3); line-height: 1.5; }
+.stayRow > svg { margin-top: 3px; flex-shrink: 0; color: var(--color-text-2); }
+.stayRow strong { display: block; font-size: var(--fs-body); font-weight: 600; overflow-wrap: anywhere; }
+.stayRow small { display: block; font-size: var(--fs-small); color: var(--color-text-3); overflow-wrap: anywhere; }
+.tipAdd { display: grid; gap: var(--space-3); }
 
 /* 直接编辑 */
 .editWrap { position: relative; }
@@ -267,8 +286,7 @@
   .dayBadge small { font-family: var(--font-sans); font-size: 10px; letter-spacing: 0.12em; color: var(--color-text-3); font-weight: 600; }
   .dayMedia .photoEdit { transform: none; right: 8px; bottom: 8px; }
   .dayBody { order: 2; align-self: center; }
-  .tipsGrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-4) 40px; align-items: start; }
-  .tipGroup + .tipGroup { margin-top: 0; }
+  .infoGrid { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 24px; align-items: start; }
 }
 @media (prefers-reduced-motion: no-preference) {
   .hCard { transition: opacity var(--duration) var(--ease); }

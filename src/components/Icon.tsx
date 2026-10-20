@@ -49,6 +49,9 @@ import {
   X,
   Search,
   Check,
+  ShoppingBag,
+  ListChecks,
+  Lightbulb,
   type LucideIcon,
 } from 'lucide-react';
 import type { CSSProperties } from 'react';
@@ -101,6 +104,9 @@ export const ICONS = {
   X,
   Search,
   Check,
+  ShoppingBag,
+  ListChecks,
+  Lightbulb,
 } satisfies Record<string, LucideIcon>;
 
 export type IconKey = keyof typeof ICONS;

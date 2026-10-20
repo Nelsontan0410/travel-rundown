@@ -1,7 +1,7 @@
 // 旅行亮点的存取。只读写 guides / highlights 两张表和 hl:<id> 照片；绝不碰行程项、每天、资料。
 import { db } from './schema';
 import { uuid } from './uuid';
-import { clamp, clampFocus, clean, LIMITS, type Focus, type Guide, type GuideDay, type GuideTip, type Highlight, type HighlightCategory, type TipCategory } from '../domain/guide';
+import { clamp, clampFocus, clean, LIMITS, moveTipIn, type Focus, type Guide, type GuideDay, type GuideTip, type Highlight, type HighlightCategory, type TipCategory } from '../domain/guide';
 
 const now = () => new Date().toISOString();
 export const photoKeyOf = (id: string) => `hl:${id}`;
@@ -32,6 +32,14 @@ export async function updateTip(tripId: string, id: string, text: string): Promi
   const g = await getGuide(tripId);
   const t = clean(text, LIMITS.tip);
   await patchGuide(tripId, { tips: t ? g.tips.map((x) => (x.id === id ? { ...x, text: t } : x)) : g.tips.filter((x) => x.id !== id) });
+}
+export async function toggleTip(tripId: string, id: string, done: boolean): Promise<void> {
+  const g = await getGuide(tripId);
+  await patchGuide(tripId, { tips: g.tips.map((x) => (x.id === id ? { ...x, done: done || undefined } : x)) });
+}
+export async function moveTip(tripId: string, id: string, dir: -1 | 1): Promise<void> {
+  const g = await getGuide(tripId);
+  await patchGuide(tripId, { tips: moveTipIn(g.tips, id, dir) });
 }
 export async function removeTip(tripId: string, id: string): Promise<void> {
   const g = await getGuide(tripId);
