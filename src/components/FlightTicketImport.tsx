@@ -104,7 +104,7 @@ export default function FlightTicketImport({ documents, referenceYear, onDates, 
       </>}
       {message&&<p role="status">{message}</p>}
       {error&&<p className={s.error} role="alert">{error}</p>}
-      {error&&excerpt&&<details><summary><small>查看提取到的文字（前 600 字）</small></summary><pre style={{whiteSpace:'pre-wrap',fontSize:'0.75em'}}>{excerpt}</pre></details>}
+      {error&&excerpt&&<details><summary><small>查看提取到的文字（从航班信息起约 1200 字）</small></summary><pre style={{whiteSpace:'pre-wrap',fontSize:'0.75em'}}>{excerpt}</pre></details>}
       {candidates.length>0&&<>
         {(['departure','returning'] as const).map((side,i)=><label key={side}>{i?'选择回程起飞航段':'选择去程起飞航段'}<select value={selected[side]} disabled={loading} onChange={e=>choose(side,e.target.value)}><option value="">请选择航段</option>{candidates.map(c=><option key={c.id} value={c.id}>{c.local.replace('T',' ')} · {c.kind==='departure'?'起飞候选':'需核对是否起飞'}{c.ambiguousDate?' · 日/月顺序待核对':''}{c.inferredYear?' · 年份待核对':''} · {c.source.slice(0,130)}</option>)}</select></label>)}
         <ul className={s.ticketSources}>{candidates.filter(c=>Object.values(selected).includes(c.id)).map(c=><li key={c.id}><strong>{c.local.replace('T',' ')}</strong><span>{c.source}</span>{(c.ambiguousDate||c.inferredYear)&&<span>请对照机票核对完整日期，避免日/月或年份混淆。</span>}</li>)}</ul>
