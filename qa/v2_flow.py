@@ -111,7 +111,7 @@ try:
             # 6 行程页底部账本卡 + 设置页改出发日期
             page.goto(BASE + '/itinerary')
             expect(page.get_by_text('旅行账本')).to_be_visible()
-            page.get_by_label('旅程设置').click()
+            page.get_by_role('button', name='旅程设置').first.click()
             page.get_by_text('出发日期').click()
             page.locator('[role=dialog] input[type=date]').fill('2027-02-01')
             page.locator('[role=dialog]').get_by_text('保存', exact=True).click()

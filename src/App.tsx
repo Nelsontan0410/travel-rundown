@@ -22,7 +22,6 @@ import NotificationsPage from './features/NotificationsPage';
 import { MySuggestPage, ReviewSuggestionPage, SuggestionsPage } from './features/SuggestPages';
 import { initCloud } from './cloud/session';
 import GuidePage from './features/guide/GuidePage';
-import CreditsPage from './features/CreditsPage';
 import RestoreConfirm from './components/RestoreConfirm';
 import UpdateBanner from './components/UpdateBanner';
 import PageBoundary from './components/PageBoundary';
@@ -86,7 +85,6 @@ export default function App() {
         <Route path="/today" element={<TodayPage />} />
         <Route path="/trip/:tripId/today" element={<TodayPage />} />
         <Route path="/trip/:tripId/story" element={<GuidePage />} />
-        <Route path="/credits/photos" element={<CreditsPage />} />
         <Route path="/doc/:docId" element={<DocPage />} />
         <Route path="/import/template" element={<TemplatePage />} />
         <Route path="/import/paste" element={<PastePage />} />

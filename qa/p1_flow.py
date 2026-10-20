@@ -67,10 +67,10 @@ try:
                 if i + 1 in (1, 3, 4, 7):
                     deck_check(i + 1)
             shot('01-deck')
-            # 卡片只显示标题、日期、人数，没有 NaN；有封面照片
+            # 卡片只显示标题、日期、人数，没有 NaN；没设封面就不放照片（不用内置图库的假照片）
             txt = page.locator('main').inner_text()
             assert 'NaN' not in txt and '2 人' in txt
-            assert page.locator('article img').count() >= 1
+            assert page.locator('article img').count() == 0
             # 删除：先确认，只删选中的那一份
             page.goto(BASE + '/trips'); page.wait_for_timeout(300)
             reveal('删除旅程：首尔，韩国')
@@ -87,21 +87,7 @@ try:
             page.goto(BASE + '/trips'); page.wait_for_timeout(300)
             reveal('打开旅程：北海道，日本')
             page.get_by_role('button', name='打开旅程：北海道，日本').click(); page.wait_for_url('**/itinerary**'); page.wait_for_timeout(300)
-            DEP = datetime.datetime(2027, 1, 12, 16, 0, 0, tzinfo=datetime.timezone.utc)  # 13-JAN 00:00 吉隆坡
-            nowms = page.evaluate('Date.now()')
-            P = datetime.datetime.fromtimestamp(nowms // 1000 + 3, tz=datetime.timezone.utc)
-            page.clock.pause_at(P); page.wait_for_timeout(50)
-            def label(t):
-                r = int((DEP - t).total_seconds())
-                return f'距离出发 {r // 86400} 天 {r % 86400 // 3600} 小时 {r % 3600 // 60} 分 {r % 60} 秒'
-            timer = page.get_by_role('timer')
-            page.clock.run_for(1000); expect(timer).to_have_attribute('aria-label', label(P + datetime.timedelta(seconds=1)))
-            page.clock.run_for(1000); expect(timer).to_have_attribute('aria-label', label(P + datetime.timedelta(seconds=2)))
-            page.clock.run_for(61000); expect(timer).to_have_attribute('aria-label', label(P + datetime.timedelta(seconds=63)))
-            assert label(P).startswith('距离出发 42 天'), label(P)
-            shot('03-countdown')
-            assert page.get_by_text('按出发日 00:00（Asia/Kuala_Lumpur）倒数', exact=False).count() == 1
-            page.clock.resume()
+            # 旧的「距离出发」倒数已被航班倒计时取代（行程页不再显示），那部分由 qa/flight-countdown/ 覆盖
             # ISSUE-003：打卡 → 归底 → 持久 → 撤销复位；Day 2 不受影响
             first = page.get_by_role('checkbox', name='标记完成：吉隆坡 → 新千岁')
             first.click(); page.wait_for_timeout(300)

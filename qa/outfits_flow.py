@@ -37,7 +37,7 @@ try:
             page.on('pageerror', lambda e: errs.append(str(e)))
             page.goto(BASE + '/import/paste'); page.locator('textarea').fill(md); page.get_by_text('解析并预览').click()
             page.get_by_role('button', name='确认导入').click(); page.wait_for_url('**/itinerary/**')
-            page.get_by_role('button', name='穿搭与打包').click(); page.wait_for_url('**/outfits')
+            page.get_by_role('button', name='穿搭与行李').click(); page.wait_for_url('**/outfits')
             expect(page.get_by_text('先把要带的衣服加进衣橱')).to_be_visible()
 
             # Day 1：在穿搭弹层里当场新增 3 件，自动选上
