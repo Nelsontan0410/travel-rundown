@@ -61,7 +61,7 @@ try:
         expect(pg.get_by_text('还没有亮点')).to_be_visible()
         expect(pg.get_by_text(re.compile('还没有封面照片'))).to_be_visible()
         expect(pg.locator('header img')).to_have_count(0)  # 封面不放假照片
-        expect(pg.get_by_role('heading', name='每日精选')).to_be_visible()
+        expect(pg.get_by_role('heading', name=re.compile('天的故事'))).to_be_visible()
         no_overflow(pg, '空状态 390'); pg.screenshot(path=f'{OUT}/01-empty-read.png'); ok('1 空状态、无假照片')
 
         # ———— 2 封面：选图 → 预览 → 调整 → 保存；刷新后还在 ————
@@ -176,6 +176,38 @@ try:
         expect(pg.get_by_text('民族写真建议一早拍摄')).to_be_visible(); pg.get_by_role('button', name='完成').click()
         expect(pg.get_by_text('拍照建议')).to_be_visible()
         pg.get_by_role('button', name=re.compile('查看当天行程')).first.click(); pg.wait_for_url('**/itinerary/**'); ok('10 贴士、每日精选入口')
+
+        # ———— 10b 每日精选：改主题、当天照片、不显示某一天；刷新保留；行程不变 ————
+        pg.goto(f'{BASE}/trip/{trip}/highlights'); pg.wait_for_timeout(600)
+        assert pg.locator('[data-day-card]').count() == 4
+        pg.get_by_role('button', name='编辑', exact=True).click()
+        t1 = pg.get_by_label('Day 1 主题'); t1.click(); t1.fill('初见札幌'); pg.get_by_role('heading', name=re.compile('天的故事')).click(); pg.wait_for_timeout(250)
+        expect(pg.get_by_text('已保存')).to_be_visible()
+        pg.locator('[data-day-card]').nth(0).get_by_role('button', name=re.compile('^(照片|换照片)$')).click()
+        pick(pg, lambda: pg.get_by_role('button', name='从相册选择').click(), PHOTOS[1]); pg.get_by_role('button', name='确认').click(); expect(pg.get_by_text('已保存')).to_be_visible()
+        pg.locator('[data-day-card]').nth(1).get_by_role('button', name='不显示这一天').click(); pg.wait_for_timeout(300)
+        pg.get_by_role('button', name='完成').click(); pg.wait_for_timeout(300)
+        assert pg.locator('[data-day-card]').count() == 3
+        pg.reload(); pg.wait_for_timeout(800)
+        assert pg.locator('[data-day-card]').count() == 3
+        expect(pg.locator('[data-day-card]').nth(0)).to_contain_text('初见札幌')
+        assert pg.locator('[data-day-card]').nth(0).locator('img').count() == 1
+        assert item_titles(pg, trip) == before, '行程内容被改动了'
+        ok('10b 每日精选主题 / 照片 / 不显示某天，行程原样')
+
+        # ———— 10c 长短行程：10 天、1 天 ————
+        hk = open(os.path.join(HERE, 'fixtures', 'hokkaido.md'), encoding='utf-8').read()
+        one = md.split('## Day 2')[0]
+        for text, n in [(hk, None), (one, 1)]:
+            pg.goto(BASE + '/import/paste'); pg.get_by_label('行程内容').fill(text)
+            pg.get_by_role('button', name='解析并预览').click(); pg.wait_for_url('**/preview')
+            pg.get_by_role('button', name='确认导入').click(); pg.wait_for_url('**/itinerary/**')
+            tid = pg.url.rsplit('/', 1)[1]
+            pg.goto(f'{BASE}/trip/{tid}/highlights'); pg.wait_for_timeout(700)
+            cnt = pg.locator('[data-day-card]').count()
+            assert (cnt == n) if n else cnt >= 10, cnt
+            no_overflow(pg, f'{cnt} 天')
+        ok('10c 1 天 / 10 天行程')
 
         # ———— 11 其它屏幕 / 主题 ————
         for w, h, name in [(360, 740, 'm360'), (1280, 800, 'desk')]:

@@ -1,10 +1,11 @@
 // 旅行亮点的存取。只读写 guides / highlights 两张表和 hl:<id> 照片；绝不碰行程项、每天、资料。
 import { db } from './schema';
 import { uuid } from './uuid';
-import { clamp, clampFocus, clean, LIMITS, type Focus, type Guide, type GuideTip, type Highlight, type HighlightCategory, type TipCategory } from '../domain/guide';
+import { clamp, clampFocus, clean, LIMITS, type Focus, type Guide, type GuideDay, type GuideTip, type Highlight, type HighlightCategory, type TipCategory } from '../domain/guide';
 
 const now = () => new Date().toISOString();
 export const photoKeyOf = (id: string) => `hl:${id}`;
+export const dayPhotoKeyOf = (dayId: string) => `gday:${dayId}`;
 
 export async function getGuide(tripId: string): Promise<Guide> {
   return (await db.guides.get(tripId)) ?? { tripId, tips: [], updatedAt: now() };
@@ -136,10 +137,42 @@ export async function deleteHighlight(id: string): Promise<void> {
   });
 }
 
+// ———— 每日精选：某一天的主题、照片、是否显示（只存在旅行亮点里，不改行程） ————
+async function patchDay(tripId: string, dayId: string, fn: (d: GuideDay) => GuideDay): Promise<void> {
+  const g = await getGuide(tripId);
+  const days = { ...(g.days ?? {}) };
+  const next = fn({ ...(days[dayId] ?? {}) });
+  // 什么都没设的就不留空对象
+  if (!next.title && !next.photoKey && !next.hidden && !next.focus) delete days[dayId];
+  else days[dayId] = next;
+  await patchGuide(tripId, { days });
+}
+export const setDayTitle = (tripId: string, dayId: string, title: string) =>
+  patchDay(tripId, dayId, (d) => ({ ...d, title: clean(title, LIMITS.dayTitle) }));
+export const setDayHidden = (tripId: string, dayId: string, hidden: boolean) => patchDay(tripId, dayId, (d) => ({ ...d, hidden: hidden || undefined }));
+export const setDayFocus = (tripId: string, dayId: string, f: Focus) => patchDay(tripId, dayId, (d) => (d.photoKey ? { ...d, focus: clampFocus(f) } : d));
+/** 换这一天的代表照片；blob 为 null 表示移除（回到用当天亮点的照片） */
+export async function setDayPhoto(tripId: string, dayId: string, blob: Blob | null): Promise<void> {
+  await db.transaction('rw', [db.guides, db.blobs], async () => {
+    const key = dayPhotoKeyOf(dayId);
+    if (blob) await db.blobs.put({ key, blob });
+    else {
+      const cur = (await getGuide(tripId)).days?.[dayId]?.photoKey;
+      if (cur?.startsWith('gday:')) await db.blobs.delete(cur);
+    }
+    await patchDay(tripId, dayId, (d) => (blob ? { ...d, photoKey: key, focus: undefined } : { ...d, photoKey: undefined, focus: undefined }));
+  });
+}
+
+/** 这份旅程旅行亮点用到的所有照片键（亮点 + 每天） */
+export function guidePhotoKeys(g: Guide | undefined, hs: Highlight[]): string[] {
+  return [...hs.flatMap((h) => (h.photoKey ? [h.photoKey] : [])), ...Object.values(g?.days ?? {}).flatMap((d) => (d.photoKey ? [d.photoKey] : []))];
+}
+
 /** 删除旅程时清掉它的全部旅行亮点和照片 */
 export async function clearGuide(tripId: string): Promise<void> {
   const hs = await db.highlights.where('tripId').equals(tripId).toArray();
-  await db.blobs.bulkDelete(hs.flatMap((h) => (h.photoKey ? [h.photoKey] : [])));
+  await db.blobs.bulkDelete(guidePhotoKeys(await db.guides.get(tripId), hs));
   await db.highlights.where('tripId').equals(tripId).delete();
   await db.guides.delete(tripId);
 }

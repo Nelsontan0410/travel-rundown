@@ -23,10 +23,20 @@ export interface SnapshotHighlight {
   itemId?: string;
   hidden: boolean;
 }
+export interface SnapshotGuideDay {
+  dayId: string;
+  title?: string;
+  photoHash?: string;
+  photoMime?: string;
+  focus?: Focus;
+  hidden?: boolean;
+}
 export interface SnapshotGuide {
   intro?: string;
   coverFocus?: Focus;
   tips: GuideTip[];
+  /** 阶段 3：每天的展示设置（旧版本没有） */
+  days?: SnapshotGuideDay[];
   /** 已按显示顺序排好 */
   highlights: SnapshotHighlight[];
 }
@@ -114,7 +124,8 @@ export function buildGuide(
   fileHashOf: (blobKey: string) => string | undefined,
   mimeOf?: (blobKey: string) => string | undefined,
 ): SnapshotGuide | undefined {
-  if (!g?.intro && !g?.coverFocus && !g?.tips.length && !hs.length) return undefined;
+  const dayEntries = Object.entries(g?.days ?? {}).sort(([a], [b]) => a.localeCompare(b));
+  if (!g?.intro && !g?.coverFocus && !g?.tips.length && !hs.length && !dayEntries.length) return undefined;
   const highlights = sortHighlights(hs).map((h): SnapshotHighlight => {
     const photoHash = h.photoKey ? fileHashOf(h.photoKey) : undefined;
     return {
@@ -129,10 +140,21 @@ export function buildGuide(
       hidden: h.hidden,
     };
   });
+  const days = dayEntries.map(([dayId, d]): SnapshotGuideDay => {
+    const photoHash = d.photoKey ? fileHashOf(d.photoKey) : undefined;
+    return {
+      dayId,
+      ...(d.title ? { title: d.title } : {}),
+      ...(photoHash ? { photoHash, ...(mimeOf?.(d.photoKey!) ? { photoMime: mimeOf(d.photoKey!) } : {}) } : {}),
+      ...(photoHash && d.focus ? { focus: d.focus } : {}),
+      ...(d.hidden ? { hidden: true } : {}),
+    };
+  });
   return {
     ...(g?.intro ? { intro: g.intro } : {}),
     ...(g?.coverFocus ? { coverFocus: g.coverFocus } : {}),
     tips: g?.tips ?? [],
+    ...(days.length ? { days } : {}),
     highlights,
   };
 }
@@ -145,6 +167,7 @@ export function diffGuide(base: SnapshotGuide | undefined, next: SnapshotGuide |
   if ((a.intro ?? '') !== (b.intro ?? '')) out.push('旅行简介');
   if (stable(a.coverFocus) !== stable(b.coverFocus)) out.push('封面位置');
   if (stable(a.tips) !== stable(b.tips)) out.push('实用贴士');
+  if (stable(a.days ?? []) !== stable(b.days ?? [])) out.push('每日精选');
   const am = new Map(a.highlights.map((h) => [h.id, h]));
   const bm = new Map(b.highlights.map((h) => [h.id, h]));
   for (const h of b.highlights) {

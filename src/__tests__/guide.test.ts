@@ -5,7 +5,7 @@ import md from '../../qa/sample-v2.md?raw';
 import { parseMd } from '../importer/parseMd';
 import { db } from '../db/schema';
 import { deleteTrip, exportBackup, restoreBackup, saveImport } from '../db/repo';
-import { addHighlight, addTip, deleteHighlight, reorderHighlights, setCoverFocus, setHighlightPhoto, setIntro, updateHighlight } from '../db/guide';
+import { addHighlight, addTip, deleteHighlight, reorderHighlights, setCoverFocus, setDayFocus, setDayHidden, setDayPhoto, setDayTitle, setHighlightPhoto, setIntro, updateHighlight } from '../db/guide';
 import { candidatesFrom, clampFocus, dayPicks, focusStyle, linkState, moveId, moveTo, visibleHighlights } from '../domain/guide';
 import { checkPhotoFile, fitSize } from '../lib/photo';
 import { setBackend } from '../cloud/backend';
@@ -66,6 +66,59 @@ describe('纯函数', () => {
     expect(day.picks[0]).toMatchObject({ title: '我的最爱', fromHighlight: true });
     for (const p of day.picks.filter((x) => !x.fromHighlight)) expect(items.find((i) => i.id === p.id)?.dayId).toBe(d.id);
     expect(day.picks.length).toBeLessThanOrEqual(3);
+  });
+});
+
+describe('每日精选：每天的主题、照片、是否显示', () => {
+  it('主题默认用行程里的；改了只存在亮点里；限长；清空回到默认；行程的这一天不变', async () => {
+    const { id, days, items } = await trip();
+    const d = days[0];
+    const before = await db.days.get(d.id);
+    expect(dayPicks(days, items, [])[0]).toMatchObject({ title: d.title || d.city, custom: false, hidden: false });
+    await setDayTitle(id, d.id, '初见札幌' + '很长'.repeat(20));
+    const g = (await db.guides.get(id))!;
+    expect(Array.from(g.days![d.id].title!).length).toBe(24);
+    expect(dayPicks(days, items, [], g.days)[0]).toMatchObject({ custom: true });
+    await setDayTitle(id, d.id, '');
+    expect((await db.guides.get(id))!.days?.[d.id]).toBeUndefined(); // 什么都没设就不留空对象
+    expect(await db.days.get(d.id)).toEqual(before);
+  });
+  it('当天照片：没设时用当天第一个有照片的亮点；设了用自己的；移除回到亮点照片并清掉文件', async () => {
+    const { id, days, items } = await trip();
+    const spot = items.find((i) => i.type === 'spot')!;
+    const d = days.find((x) => x.id === spot.dayId)!;
+    await addHighlight({ tripId: id, title: spot.title, category: 'spot', itemId: spot.id, photo: img('H') });
+    const hs = await db.highlights.toArray();
+    expect(dayPicks(days, items, hs).find((p) => p.day.id === d.id)!.photoKey).toBe(hs[0].photoKey);
+    await setDayPhoto(id, d.id, img('DAY'));
+    await setDayFocus(id, d.id, { x: 0.2, y: 0.3, zoom: 1.4 });
+    let g = (await db.guides.get(id))!;
+    expect(g.days![d.id]).toMatchObject({ photoKey: `gday:${d.id}`, focus: { x: 0.2, y: 0.3, zoom: 1.4 } });
+    expect(dayPicks(days, items, hs, g.days).find((p) => p.day.id === d.id)!.photoKey).toBe(`gday:${d.id}`);
+    expect(await (await db.blobs.get(`gday:${d.id}`))!.blob.text()).toBe('DAY');
+    await setDayPhoto(id, d.id, null);
+    g = (await db.guides.get(id))!;
+    expect(await db.blobs.get(`gday:${d.id}`)).toBeUndefined();
+    expect(dayPicks(days, items, hs, g.days).find((p) => p.day.id === d.id)!.photoKey).toBe(hs[0].photoKey);
+  });
+  it('不显示某一天：只是标记，行程不变；删除旅程会清掉当天照片', async () => {
+    const { id, days, items } = await trip();
+    await setDayHidden(id, days[1].id, true);
+    await setDayPhoto(id, days[2].id, img());
+    const g = (await db.guides.get(id))!;
+    expect(dayPicks(days, items, [], g.days).filter((p) => p.hidden).map((p) => p.day.id)).toEqual([days[1].id]);
+    expect(await db.days.where('tripId').equals(id).count()).toBe(days.length);
+    await deleteTrip(id);
+    expect(await db.blobs.get(`gday:${days[2].id}`)).toBeUndefined();
+  });
+  it('重新导入：按第几天沿用 Day id，每天的主题和照片保留', async () => {
+    const { id, days } = await trip();
+    await setDayTitle(id, days[0].id, '我的第一天');
+    await setDayPhoto(id, days[0].id, img('KEEP'));
+    await saveImport(parseMd(md), md, id);
+    const after = await db.days.where('tripId').equals(id).toArray();
+    expect(after.some((d) => d.id === days[0].id)).toBe(true);
+    expect((await db.guides.get(id))!.days![days[0].id]).toMatchObject({ title: '我的第一天', photoKey: `gday:${days[0].id}` });
   });
 });
 
@@ -209,6 +262,9 @@ describe('随版本同步给同伴', () => {
     await setIntro(id, '一趟充满广西味道的旅行');
     await setCoverFocus(id, { x: 0.3, y: 0.6, zoom: 1.5 });
     await addTip(id, 'photo', '一早拍摄');
+    const d0 = (await db.days.where('tripId').equals(id).toArray()).sort((a, b) => a.index - b.index)[0];
+    await setDayTitle(id, d0.id, '初见札幌');
+    await setDayPhoto(id, d0.id, img('DAYP'));
     await enableSync(id, '阿权');
     const code = await cloud.createInvite(id, '小明');
 
@@ -222,6 +278,8 @@ describe('随版本同步给同伴', () => {
     expect(hs.map((h) => [h.id, h.title, h.hidden])).toEqual([[h1, '青秀山', false], [h2, '老友粉', true]]);
     expect(hs[0].itemId).toBe(it.id);
     expect(await (await db.blobs.get(hs[0].photoKey!))!.blob.text()).toBe('P1');
+    expect(g.days![d0.id].title).toBe('初见札幌');
+    expect(await (await db.blobs.get(g.days![d0.id].photoKey!))!.blob.text()).toBe('DAYP');
 
     await useDevice('owner');
     cloud.as('o');
@@ -229,7 +287,9 @@ describe('随版本同步给同伴', () => {
     await updateHighlight(h1, { desc: '俯瞰南宁' });
     await reorderHighlights(id, [h2, h1]);
     await deleteHighlight(h2);
+    await setDayHidden(id, d0.id, true);
     const d = await pendingChanges(id);
+    expect(d.guide).toContain('每日精选');
     expect(d.count).toBeGreaterThan(0);
     expect(d.guide.some((l) => l.includes('修改亮点 · 青秀山'))).toBe(true);
     expect(d.guide.some((l) => l.includes('删除亮点 · 老友粉'))).toBe(true);

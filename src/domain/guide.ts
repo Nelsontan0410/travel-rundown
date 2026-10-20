@@ -42,12 +42,25 @@ export interface GuideTip {
   text: string;
 }
 
+/** 每日精选里某一天的展示设置（按 Day 的稳定 id 存；只影响旅行亮点，不改行程里的这一天） */
+export interface GuideDay {
+  /** 用户写的当天主题；空着就用行程里的主题或城市 */
+  title?: string;
+  /** 当天代表照片：自己上传的 gday:<dayId>，同步来的 cloud:<hash> */
+  photoKey?: string;
+  focus?: Focus;
+  /** 不在每日精选里显示这一天（行程不受影响） */
+  hidden?: boolean;
+}
+
 /** 每个旅程一份。封面照片沿用旅程自己的封面（Trip.coverBlobKey），这里只记封面怎么摆 */
 export interface Guide {
   tripId: string;
   intro?: string;
   coverFocus?: Focus;
   tips: GuideTip[];
+  /** 2026-10-20 阶段 3：每天的展示设置，键是 Day.id */
+  days?: Record<string, GuideDay>;
   updatedAt: string;
 }
 
@@ -68,7 +81,7 @@ export interface Highlight {
   updatedAt: string;
 }
 
-export const LIMITS = { title: 40, desc: 140, intro: 120, tip: 120, tips: 30 } as const;
+export const LIMITS = { title: 40, desc: 140, intro: 120, tip: 120, tips: 30, dayTitle: 24 } as const;
 
 export const clamp = (s: string, n: number) => Array.from(s).slice(0, n).join('');
 export const clean = (s: string | undefined, n: number): string | undefined => {
@@ -164,16 +177,24 @@ export function moveTo(order: string[], id: string, target: number): string[] {
 
 export interface DayPick {
   day: Day;
+  /** 显示用的主题：用户写的 → 行程里的当天主题 → 城市 */
   title: string;
+  /** 用户自己写过主题 */
+  custom: boolean;
+  /** 当天代表照片：用户为这一天选的 → 当天第一个有照片的亮点 */
+  photoKey?: string;
+  focus?: Focus;
+  hidden: boolean;
   /** 当天的两至三个主要亮点：先用户精选的，不够再补当天的景点和餐厅（只用行程里真有的名字） */
   picks: { id: string; title: string; photoKey?: string; focus?: Focus; fromHighlight: boolean }[];
 }
 
 /** 每日精选：只读已有数据，不编文字 */
-export function dayPicks(days: Day[], items: Item[], highlights: Highlight[]): DayPick[] {
+export function dayPicks(days: Day[], items: Item[], highlights: Highlight[], guideDays: Record<string, GuideDay> = {}): DayPick[] {
   const vis = visibleHighlights(highlights);
+  const dayOfItem = new Map(items.map((i) => [i.id, i.dayId]));
   return days.map((day) => {
-    const mine = vis.filter((h) => h.dayIndex === day.index || (h.itemId && items.find((i) => i.id === h.itemId)?.dayId === day.id));
+    const mine = vis.filter((h) => (h.itemId && dayOfItem.get(h.itemId) === day.id) || (h.dayIndex === day.index && !(h.itemId && dayOfItem.has(h.itemId))));
     const uniq = [...new Map(mine.map((h) => [h.id, h])).values()];
     const picks: DayPick['picks'] = uniq.slice(0, 3).map((h) => ({ id: h.id, title: h.title, photoKey: h.photoKey, focus: h.focus, fromHighlight: true }));
     if (picks.length < 2) {
@@ -184,6 +205,16 @@ export function dayPicks(days: Day[], items: Item[], highlights: Highlight[]): D
         picks.push({ id: it.id, title: it.title, fromHighlight: false });
       }
     }
-    return { day, title: day.title || day.city, picks };
+    const gd = guideDays[day.id] ?? {};
+    const firstPhoto = uniq.find((h) => h.photoKey);
+    return {
+      day,
+      title: gd.title || day.title || day.city,
+      custom: !!gd.title,
+      photoKey: gd.photoKey ?? firstPhoto?.photoKey,
+      focus: gd.photoKey ? gd.focus : firstPhoto?.focus,
+      hidden: !!gd.hidden,
+      picks,
+    };
   });
 }

@@ -12,6 +12,7 @@ import { TripThemeScope } from '../../components/TripTheme';
 import { BrandLockup } from '../../components/Brand';
 import { db } from '../../db/schema';
 import { setCover } from '../../db/repo';
+import { setDayFocus, setDayHidden, setDayPhoto, setDayTitle } from '../../db/guide';
 import { addHighlight, addTip, deleteHighlight, removeTip, reorderHighlights, setCoverFocus, setHighlightPhoto, setIntro, updateHighlight, updateTip } from '../../db/guide';
 import { useBlobUrl, useSettings, useTripData } from '../../hooks/data';
 import {
@@ -28,12 +29,13 @@ import {
   type Highlight,
   type TipCategory,
 } from '../../domain/guide';
-import { fmtDateRange, fmtMonthDay } from '../../domain/format';
+import { fmtDateRange } from '../../domain/format';
 import { navLink } from '../../links/maps';
 import { openExternal } from '../../links/openLink';
 import { placeCopyText } from '../../domain/rules';
 import { useUI } from '../../store/ui';
 import { ReadHighlights } from './Highlights';
+import { DaysSection } from './Days';
 import { AddSheet, EditableText, GuidePhoto, PhotoSheet, SaveBadge, useSaver } from './parts';
 
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -74,7 +76,7 @@ export default function GuidePage() {
   const nDays = td.days.length;
   const place = trip.destination || trip.title;
   const itemById = new Map(td.items.map((i) => [i.id, i]));
-  const picks = dayPicks(td.days, td.items, all);
+  const picks = dayPicks(td.days, td.items, all, G.days);
   const hasCover = !!trip.coverBlobKey && !!coverUrl;
   const cities = [...new Set(td.days.map((d) => d.city).filter(Boolean))];
   const preview = all.filter((h) => !h.hidden).slice(0, 3);
@@ -111,7 +113,9 @@ export default function GuidePage() {
     nav(`/itinerary/${trip.id}`);
   };
 
-  const photoTarget = photoFor && photoFor !== 'cover' ? all.find((h) => h.id === photoFor) : undefined;
+  const photoTarget = photoFor && photoFor !== 'cover' && !photoFor.startsWith('day:') ? all.find((h) => h.id === photoFor) : undefined;
+  const photoDay = photoFor?.startsWith('day:') ? photoFor.slice(4) : undefined;
+  const photoDayOwn = photoDay ? G.days?.[photoDay] : undefined;
   const tipsBy = (c: TipCategory) => G.tips.filter((t) => t.category === c);
   const placeRows = all
     .filter((h) => !h.hidden && h.itemId)
@@ -366,40 +370,18 @@ export default function GuidePage() {
         {/* C 每日精选 */}
         <section className={g.section} aria-labelledby="g-days">
           <h2 id="g-days" className={g.h2}>
-            每日精选 <small>Day by day</small>
+            {nDays} 天的故事 <small>Daily picks</small>
           </h2>
           <div className={g.rule} />
-          <div className={g.days}>
-            {picks.map(({ day, title, picks: ps }) => (
-              <article key={day.id} className={g.day}>
-                <div className={g.dayHead}>
-                  <span className={g.dayStamp}>DAY {pad(day.index)}</span>
-                  <span className={g.dayDate}>{fmtMonthDay(day.date)}</span>
-                </div>
-                <h3 className={g.dayTitle}>{title}</h3>
-                {ps.length > 0 ? (
-                  <div className={g.picks}>
-                    {ps.map((p) =>
-                      p.photoKey ? (
-                        <div key={p.id} className={g.pick}>
-                          <GuidePhoto photoKey={p.photoKey} focus={p.focus} alt={p.title} className={g.pickPhoto} />
-                          <span className={g.pickName}>{p.title}</span>
-                        </div>
-                      ) : (
-                        <span key={p.id} className={g.pickText}>
-                          {p.title}
-                        </span>
-                      ),
-                    )}
-                  </div>
-                ) : null}
-                <button type="button" className={g.navLink} onClick={() => openDay(day.id)}>
-                  查看当天行程
-                  <Icon name="ChevronRight" size="sm" />
-                </button>
-              </article>
-            ))}
-          </div>
+          <DaysSection
+            picks={picks}
+            edit={edit}
+            customTitle={(id) => G.days?.[id]?.title ?? ''}
+            onOpenDay={openDay}
+            onTitle={(id, v) => run(() => setDayTitle(trip.id, id, v))}
+            onPhoto={(id) => setPhotoFor(`day:${id}`)}
+            onHidden={(id, v) => run(() => setDayHidden(trip.id, id, v))}
+          />
         </section>
 
         {/* D 实用信息与私人贴士 */}
@@ -491,9 +473,9 @@ export default function GuidePage() {
 
       <PhotoSheet
         open={photoFor !== null}
-        title={photoFor === 'cover' ? '封面照片' : '亮点照片'}
-        currentKey={photoFor === 'cover' ? (hasCover ? trip.coverBlobKey : undefined) : photoTarget?.photoKey}
-        currentFocus={photoFor === 'cover' ? G.coverFocus : photoTarget?.focus}
+        title={photoFor === 'cover' ? '封面照片' : photoDay ? '当天照片' : '亮点照片'}
+        currentKey={photoFor === 'cover' ? (hasCover ? trip.coverBlobKey : undefined) : photoDay ? photoDayOwn?.photoKey : photoTarget?.photoKey}
+        currentFocus={photoFor === 'cover' ? G.coverFocus : photoDay ? photoDayOwn?.focus : photoTarget?.focus}
         aspect={photoFor === 'cover' ? '4 / 5' : '4 / 3'}
         onClose={() => setPhotoFor(null)}
         onSave={(blob, focus) =>
@@ -501,13 +483,22 @@ export default function GuidePage() {
             if (photoFor === 'cover') {
               if (blob) await setCover(trip.id, blob);
               await setCoverFocus(trip.id, focus);
+            } else if (photoDay) {
+              if (blob) await setDayPhoto(trip.id, photoDay, blob);
+              await setDayFocus(trip.id, photoDay, focus);
             } else if (photoTarget) {
               if (blob) await setHighlightPhoto(photoTarget.id, blob);
               await updateHighlight(photoTarget.id, { focus });
             }
           })
         }
-        onRemove={photoTarget ? () => persist(() => setHighlightPhoto(photoTarget.id, null)) : undefined}
+        onRemove={
+          photoTarget
+            ? () => persist(() => setHighlightPhoto(photoTarget.id, null))
+            : photoDay && photoDayOwn?.photoKey
+              ? () => persist(() => setDayPhoto(trip.id, photoDay, null))
+              : undefined
+        }
       />
       <AddSheet
         open={adding}
