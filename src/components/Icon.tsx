@@ -42,13 +42,6 @@ import {
   Wallet,
   Pencil,
   ExternalLink,
-  ChevronUp,
-  ChevronDown,
-  GripVertical,
-  EyeOff,
-  X,
-  Search,
-  Check,
   type LucideIcon,
 } from 'lucide-react';
 import type { CSSProperties } from 'react';
@@ -94,13 +87,6 @@ export const ICONS = {
   Wallet,
   Pencil,
   ExternalLink,
-  ChevronUp,
-  ChevronDown,
-  GripVertical,
-  EyeOff,
-  X,
-  Search,
-  Check,
 } satisfies Record<string, LucideIcon>;
 
 export type IconKey = keyof typeof ICONS;

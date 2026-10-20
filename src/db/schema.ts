@@ -1,6 +1,5 @@
 import Dexie, { type Table } from 'dexie';
 import type { BlobRecord, Day, Doc, Expense, Garment, Item, ItemState, Outfit, PackCheck, PackItem, Settings, Trip } from '../domain/types';
-import type { Guide, Highlight } from '../domain/guide';
 import { migrateItemV2 } from '../domain/migrate';
 import type { TripSnapshot } from '../cloud/snapshot';
 
@@ -26,8 +25,6 @@ export class RundownDB extends Dexie {
   packItems!: Table<PackItem, string>;
   packChecks!: Table<PackCheck, [string, string]>;
   cloudBases!: Table<CloudBase, string>;
-  guides!: Table<Guide, string>;
-  highlights!: Table<Highlight, string>;
 
   constructor() {
     super('travel-rundown');
@@ -60,7 +57,7 @@ export class RundownDB extends Dexie {
     });
     // v4（2026-10-18）：同步用的基准版本
     this.version(4).stores({ cloudBases: 'tripId' });
-    // v5（2026-10-20）：旅行亮点（展示资料，和行程原始数据分开）
+    // 旅行亮点（已撤回）的表仍然声明，避免已升级过的手机打开时报版本错误；代码不再读写它们
     this.version(5).stores({ guides: 'tripId', highlights: 'id, tripId' });
   }
 }

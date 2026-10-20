@@ -48,26 +48,21 @@ const cloudBlobKey = (hash: string) => `cloud:${hash}`;
 async function loadLocal(tripId: string) {
   const trip = await db.trips.get(tripId);
   if (!trip) throw new Error('旅程不存在');
-  const [days, items, docs, guide, highlights] = await Promise.all([
+  const [days, items, docs] = await Promise.all([
     db.days.where('tripId').equals(tripId).toArray(),
     db.items.where('tripId').equals(tripId).toArray(),
     db.docs.where('tripId').equals(tripId).toArray(),
-    db.guides.get(tripId),
-    db.highlights.where('tripId').equals(tripId).toArray(),
   ]);
   days.sort((a, b) => a.index - b.index);
-  return { trip, days, items, docs, guide, highlights };
+  return { trip, days, items, docs };
 }
 
 /** 主用户：把本机这份旅程组成快照（共享资料 = 主用户自己的全部证明资料） */
 export async function currentSnapshot(tripId: string): Promise<{ snapshot: TripSnapshot; files: Map<string, string> }> {
-  const { trip, days, items, docs, guide, highlights } = await loadLocal(tripId);
-  const photoKeys = highlights.flatMap((h) => (h.photoKey ? [h.photoKey] : []));
-  const keys = [...docs.filter((d) => !isLinkDoc(d)).map((d) => d.blobKey), ...(trip.coverBlobKey ? [trip.coverBlobKey] : []), ...photoKeys];
+  const { trip, days, items, docs } = await loadLocal(tripId);
+  const keys = [...docs.filter((d) => !isLinkDoc(d)).map((d) => d.blobKey), ...(trip.coverBlobKey ? [trip.coverBlobKey] : [])];
   const files = await hashesFor(keys);
-  const photoMime = new Map<string, string>();
-  for (const r of photoKeys.length ? await db.blobs.bulkGet(photoKeys) : []) if (r) photoMime.set(r.key, r.blob.type);
-  const snapshot = buildSnapshot(trip, days, items, docs, (k) => files.get(k), { guide, highlights, mimeOf: (k) => photoMime.get(k) });
+  const snapshot = buildSnapshot(trip, days, items, docs, (k) => files.get(k));
   if (trip.coverBlobKey) {
     const b = await db.blobs.get(trip.coverBlobKey);
     if (b) snapshot.trip.coverMime = b.blob.type;
@@ -103,7 +98,6 @@ export function summarize(diff: SnapshotDiff): PublishSummary {
     ...diff.items.map((c) => `${label[c.kind]} · ${c.dayIndex ? `Day ${c.dayIndex} ` : ''}${c.title}`),
     ...diff.docs.map((d) => `${label[d.kind]}资料 · ${d.title}`),
     ...diff.days.map((d) => `Day ${d.index} · ${d.fields.join('、')}`),
-    ...diff.guide.map((g) => `旅行亮点 · ${g}`),
   ];
   return {
     added: n('added'),
@@ -185,19 +179,19 @@ export async function applyUpdate(
   const be = await backend();
   const inc = v.snapshot;
   // 1. 先把缺的共享文件下载好（下载失败就整个不套用，保持原样）
-  const hashes = [...new Set([...inc.docs.map((d) => d.fileHash), inc.trip.coverHash, ...(inc.guide?.highlights ?? []).map((h) => h.photoHash)].filter((h): h is string => !!h))];
+  const hashes = [...new Set([...inc.docs.map((d) => d.fileHash), inc.trip.coverHash].filter((h): h is string => !!h))];
   const have = new Set((await db.blobs.where('key').anyOf(hashes.map(cloudBlobKey)).primaryKeys()) as string[]);
   const fetched: { key: string; blob: Blob }[] = [];
   const need = hashes.filter((h) => !have.has(cloudBlobKey(h)));
   meta.onProgress?.(0, need.length);
   for (const h of need) {
     const blob = await be.download(filePath(tripId, h));
-    const mime = inc.docs.find((d) => d.fileHash === h)?.mime ?? (h === inc.trip.coverHash ? inc.trip.coverMime : undefined) ?? inc.guide?.highlights.find((x) => x.photoHash === h)?.photoMime;
+    const mime = inc.docs.find((d) => d.fileHash === h)?.mime ?? (h === inc.trip.coverHash ? inc.trip.coverMime : undefined);
     fetched.push({ key: cloudBlobKey(h), blob: mime && !blob.type ? new Blob([blob], { type: mime }) : blob });
     meta.onProgress?.(fetched.length, need.length);
   }
 
-  await db.transaction('rw', [db.trips, db.days, db.items, db.docs, db.blobs, db.itemStates, db.expenses, db.cloudBases, db.guides, db.highlights], async () => {
+  await db.transaction('rw', [db.trips, db.days, db.items, db.docs, db.blobs, db.itemStates, db.expenses, db.cloudBases], async () => {
     const ts = now();
     const existing = await db.trips.get(tripId);
     const base = await db.cloudBases.get(tripId);
@@ -273,25 +267,6 @@ export async function applyUpdate(
       fromCloud: true,
     }));
     await db.docs.bulkPut(docs);
-
-    // 旅行亮点：同伴这边只读，整份跟主用户（照片是 cloud:<hash>，已在上面下载好）
-    {
-      const oldHs = await db.highlights.where('tripId').equals(tripId).toArray();
-      await db.blobs.bulkDelete(oldHs.flatMap((h) => (h.photoKey?.startsWith('hl:') ? [h.photoKey] : [])));
-      await db.highlights.bulkDelete(oldHs.map((h) => h.id));
-      await db.guides.delete(tripId);
-      const g = inc.guide;
-      if (g) {
-        await db.guides.put({ tripId, intro: g.intro, coverFocus: g.coverFocus, tips: g.tips, updatedAt: ts });
-        await db.highlights.bulkPut(
-          g.highlights.map((h, i) => {
-            const { photoHash, photoMime: _m, ...rest } = h;
-            void _m;
-            return { ...rest, tripId, order: i, photoKey: photoHash ? cloudBlobKey(photoHash) : undefined, updatedAt: ts };
-          }),
-        );
-      }
-    }
 
     // 原文写回（含自己保留的修改），每项的原文行号跟着更新
     const { md, src } = tripToMd(trip, m.days, m.items);
