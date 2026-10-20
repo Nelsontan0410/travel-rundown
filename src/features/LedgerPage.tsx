@@ -218,7 +218,7 @@ export default function LedgerPage() {
   }, [td]);
 
   if (td === null) return <TripUnavailable tripId={tripId ?? ''} title="旅行账本" />;
-  if (!td) return <Screen tab="itinerary" header={<BackHeader title="旅行账本" />}>{null}</Screen>;
+  if (!td) return <Screen tab="ledger" header={<BackHeader title="旅行账本" />}>{null}</Screen>;
 
   const sum = ledgerSummary(td.trip.budget, td.expenses);
   const dayOf = new Map(td.days.map((d) => [d.date, d]));
@@ -233,7 +233,7 @@ export default function LedgerPage() {
     <>
     <TripThemeScope theme={td.trip.theme} />
     <Screen
-      tab="itinerary"
+      tab="ledger"
       header={<BackHeader title="旅行账本" right={{ icon: 'Pencil', label: '修改总预算', onClick: () => setSheet('budget') }} />}
       bottom={
         <Button block icon="Plus" onClick={openAdd}>

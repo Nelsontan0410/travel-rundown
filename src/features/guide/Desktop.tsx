@@ -1,10 +1,9 @@
-// 电脑版（≥ 1024px）旅行亮点总览：一屏看完。左侧导航、大封面、亮点三列卡片、右侧目的地与每日精选、底部一排实用信息。
+// 电脑版（≥ 1024px）旅行亮点总览：一屏看完。左侧是全站同一个侧栏导航（Screen），这里是大封面、亮点三列卡片、右侧目的地与每日精选、底部一排实用信息。
 // 和手机版用同一份数据、同一套编辑面板；这里只负责排版和入口。
 import type { MouseEvent, ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import g from './Guide.module.css';
 import { Icon, type IconKey } from '../../components/Icon';
-import { BrandLockup } from '../../components/Brand';
 import { Button } from '../../components/Basics';
 import { GuidePhoto, SaveBadge, type SaveState } from './parts';
 import { CATEGORY_LABEL, TIP_CATEGORIES, TIP_LABEL, type DayPick, type Focus, type GuideTip, type Highlight, type TipCategory } from '../../domain/guide';
@@ -68,46 +67,8 @@ export function DesktopOverview(p: DesktopProps) {
   const lastPhoto = [...days].reverse().find((d) => d.photoKey);
   const lastCity = p.picks[p.picks.length - 1]?.day.city || p.place;
   const tipGroups = TIP_CATEGORIES.map((c) => ({ c, list: p.tips.filter((t) => t.category === c) })).filter((x) => x.list.length > 0);
-  const navItems: { to: string; label: string; icon: IconKey; on?: boolean }[] = [
-    { to: '/trips', label: '我的旅程', icon: 'Home' },
-    { to: `/trip/${p.tripId}/story`, label: '旅程概览', icon: 'Image' },
-    { to: `/trip/${p.tripId}/highlights`, label: '旅行亮点', icon: 'Mountain', on: true },
-    { to: `/itinerary/${p.tripId}`, label: '每日行程', icon: 'CalendarDays' },
-    { to: '/docs', label: '预订资料', icon: 'FileText' },
-    { to: `/trip/${p.tripId}/ledger`, label: '记账', icon: 'Wallet' },
-    { to: `/trip/${p.tripId}/outfits`, label: '穿搭与行李', icon: 'StickyNote' },
-    { to: `/trip/${p.tripId}/settings`, label: '出发准备', icon: 'Settings' },
-  ];
   return (
     <div className={g.dShell}>
-      <aside className={g.dNav} aria-label="旅程导航">
-        <Link to="/trips" className={g.dBrand} aria-label="tongxing8 · 我的旅程" onClick={(e) => p.guard(e, '/trips')}>
-          <BrandLockup height={30} />
-        </Link>
-        <div className={g.dTrip}>
-          <GuidePhoto thumb photoKey={p.coverKey} focus={p.coverFocus} alt="" className={g.dTripThumb} fallback={<Icon name="Mountain" size="sm" />} />
-          <span>
-            <strong>{p.tripTitle}</strong>
-            <small>{p.dates}</small>
-          </span>
-        </div>
-        <nav className={g.dLinks}>
-          {navItems.map((n) => (
-            <Link key={n.label} to={n.to} className={`${g.dLink} ${n.on ? g.dLinkOn : ''}`} aria-current={n.on ? 'page' : undefined} onClick={(e) => !n.on && p.guard(e, n.to)}>
-              <Icon name={n.icon} size="sm" />
-              {n.label}
-            </Link>
-          ))}
-        </nav>
-        <p className={g.dScript} aria-hidden>
-          Good Food
-          <br />
-          Good Friends
-          <br />
-          Great Memories
-        </p>
-      </aside>
-
       <div className={g.dMain}>
         <header className={g.dTop}>
           <p className={g.dCrumb}>

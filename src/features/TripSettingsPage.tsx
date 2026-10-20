@@ -57,7 +57,7 @@ export default function TripSettingsPage() {
   }, [loaded]);
 
   if (td === null) return <TripUnavailable tripId={tripId ?? ''} title="旅程设置" />;
-  if (!td) return <Screen tab="trips" header={<BackHeader title="旅程设置" />}>{null}</Screen>;
+  if (!td) return <Screen tab="settings" header={<BackHeader title="旅程设置" />}>{null}</Screen>;
 
   const { trip } = td;
   const r = readiness(td, app);
@@ -113,7 +113,7 @@ export default function TripSettingsPage() {
   return (
     <>
     <TripThemeScope theme={td.trip.theme} />
-    <Screen tab="trips" header={<BackHeader title="旅程设置" />}>
+    <Screen tab="settings" header={<BackHeader title="旅程设置" />}>
       <div className={p.summary}>
         <button type="button" className={p.thumb} aria-label="更换封面" onClick={() => void pickCover()}>
           {cover ? <img src={cover} alt="" /> : <Icon name="Building2" />}

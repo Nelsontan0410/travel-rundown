@@ -7,7 +7,7 @@ import g from './Guide.module.css';
 import TripUnavailable from '../TripUnavailable';
 import { Icon } from '../../components/Icon';
 import { Button } from '../../components/Basics';
-import { Dialog } from '../../components/Layout';
+import { Dialog, Screen } from '../../components/Layout';
 import { TripThemeScope } from '../../components/TripTheme';
 import { BrandLockup } from '../../components/Brand';
 import { makeThumb } from '../../lib/photo';
@@ -156,6 +156,7 @@ export default function GuidePage() {
     <div className={`${g.page} ${edit ? g.pageEditing : ''} ${edit && sel && wide ? g.withPanel : ''}`}>
       <TripThemeScope theme={trip.theme} />
       {wide ? (
+        <Screen tab="highlights" full wideContent>
         <DesktopOverview
           tripId={trip.id}
           tripTitle={trip.title}
@@ -191,6 +192,7 @@ export default function GuidePage() {
           onEditTips={() => setSel({ kind: 'tips' })}
           onToggleTip={(id, done) => void saver.run(() => toggleTip(trip.id, id, done))}
         />
+        </Screen>
       ) : (
         <>
       <div className={g.bar}>

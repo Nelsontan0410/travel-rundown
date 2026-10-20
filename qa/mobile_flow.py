@@ -48,7 +48,8 @@ try:
         pg.get_by_role('checkbox', name='标记完成：小樽运河').click(); pg.wait_for_timeout(400)
         # 底部入口和长列表：最后一个元素可以滚到底部导航上方
         pg.evaluate('window.scrollTo(0, document.body.scrollHeight)'); pg.wait_for_timeout(300)
-        last = pg.get_by_role('navigation', name='旅程工具').last.bounding_box()
+        # 2026-10-20（#57 起）：手机上的旅程工具收进右上角「…」抽屉，长列表最后一项是「预订资料 / 邀请同伴」入口
+        last = pg.get_by_role('button', name='邀请同伴').bounding_box()
         tab = pg.get_by_role('navigation', name='主导航').bounding_box()
         assert last['y'] + last['height'] <= tab['y'] + 1, (last, tab)
         expect(pg.get_by_role('button', name='预订资料')).to_be_visible(); expect(pg.get_by_role('button', name='邀请同伴')).to_be_visible()

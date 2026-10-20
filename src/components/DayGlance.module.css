@@ -26,3 +26,6 @@
 
 .desktopSettings { display: none; }
 @media (min-width: 768px) { .desktopSettings { display: inline-grid; } }
+
+/* 2026-10-20：电脑上旅程名、设置、同步状态都在左侧导航和页面里，不再重复显示这条页头 */
+@media (min-width: 1024px) { .header { display: none; } }

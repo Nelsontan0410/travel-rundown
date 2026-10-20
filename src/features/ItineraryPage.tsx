@@ -24,7 +24,7 @@ import { currentItemId, defaultDay, docsForItem, itemIcon, itemSubtitle, ledgerS
 import { openExternal } from '../links/openLink';
 import { setLastTrip } from '../db/repo';
 import PhaseCard from '../components/PhaseCard';
-import FlightCountdown, { FlightTripHeader } from '../components/FlightCountdown';
+import FlightCountdown from '../components/FlightCountdown';
 import { pickToday } from '../domain/today';
 import { UpdateNotice } from './CloudParts';
 
@@ -121,6 +121,22 @@ export default function ItineraryPage() {
       </details>
     </>
   );
+  const sideTools = (
+    <>
+      {phase.day && (
+        <div>
+          <Button block variant="link" icon="CalendarDays" onClick={() => nav(`/trip/${trip.id}/today`)}>
+            今日行程
+          </Button>
+        </div>
+      )}
+      <details className={p.tripPreparation}>
+        <summary>出发准备</summary>
+        <PhaseCard td={td} now={now} hideDepartureCountdown />
+        <Button variant="link" icon="Settings" onClick={() => nav(`/trip/${trip.id}/settings`)}>查看准备事项</Button>
+      </details>
+    </>
+  );
   const countdown = <FlightCountdown compactMobile key={trip.id} td={td} dateRange={fmtDateRange(trip.startDate, trip.endDate)} offline={ready.allGreen} />;
 
   return (
@@ -148,19 +164,22 @@ export default function ItineraryPage() {
           onSettings={() => nav(`/trip/${trip.id}/settings`)}
         />
       }
-      sidebarHeader={<>
-        <FlightTripHeader title={trip.title} onSettings={() => nav(`/trip/${trip.id}/settings`)} />
+      sidebarHeader={
+        // 2026-10-20：旅程名、设置、旅程封面、穿搭已经在侧栏导航里；这里只留今天和出发准备
         <div className={p.tripShortcuts}>
-          <p className={p.tripToolsTitle}>旅程工具</p>
-          <nav aria-label="旅程工具">{tools}</nav>
+          <nav aria-label="旅程工具">{sideTools}</nav>
         </div>
-      </>}
+      }
     >
       <UpdateNotice tripId={trip.id} role={trip.cloud?.role} />
       {(mobile || phase.mode === 'before') && countdown}
       <DayTiles days={td.days} selectedId={day?.id} onSelect={(id) => selectDay(trip.id, id)} />
-      {day && <DayHeading title={dayTitle} sub={daySub} />}
       {day && (
+        // 2026-10-20：「添加一项」「编辑当天」和当天标题放在同一排（窄屏自动换行）
+        <div className={p.dayHeadRow}>
+          <div className={p.dayHeadText}>
+            <DayHeading title={dayTitle} sub={daySub} />
+          </div>
         <div className={p.dayTools}>
           <Button size="sm" variant="outline" icon="Plus" onClick={() => nav(`/trip/${trip.id}/add?day=${day.id}`)}>
             添加一项
@@ -168,6 +187,7 @@ export default function ItineraryPage() {
           <Button size="sm" variant="outline" icon="Pencil" onClick={() => setDayEdit({ title: day.title ?? '', city: day.city, note: day.note ?? '' })}>
             编辑当天
           </Button>
+        </div>
         </div>
       )}
       {day && (
