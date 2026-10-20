@@ -25,7 +25,7 @@ try:
             page.goto(BASE + '/import/paste'); page.locator('textarea').fill(md); page.get_by_text('解析并预览').click()
             page.get_by_role('button', name='确认导入').click(); page.wait_for_url('**/itinerary/**')
             # 行程页入口
-            page.get_by_role('button', name='今日行程').first.click(); page.wait_for_url('**/today')
+            page.get_by_role('button', name=re.compile('^今天 · Day 2')).click(); page.wait_for_url('**/today')
             expect(page.get_by_text('今天 · Day 2')).to_be_visible()
             nxt = page.get_by_role('region', name='下一项')
             # 10:30 了早餐还没点完成：仍是下一项，只提示晚了多久和原定现在
@@ -85,7 +85,7 @@ try:
         page = ctx.new_page(); page.clock.install(time=datetime.datetime(2026, 12, 20, 2, 0, tzinfo=datetime.timezone.utc))
         page.goto(BASE + '/import/paste'); page.locator('textarea').fill(md); page.get_by_text('解析并预览').click()
         page.get_by_role('button', name='确认导入').click(); page.wait_for_url('**/itinerary/**')
-        page.get_by_role('button', name='今日行程').first.click()
+        page.get_by_role('button', name='预览「今天」页（从 Day 1 开始）').click()
         expect(page.get_by_text('还没出发 · 先预览 Day 1')).to_be_visible()
         expect(page.get_by_role('region', name='下一项')).not_to_contain_text('已过')
         print('ok before-trip')

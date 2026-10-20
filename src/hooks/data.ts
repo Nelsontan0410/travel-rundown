@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/schema';
+import { buildLanding } from '../domain/landing';
 import { isLinkDoc } from '../domain/bookings';
 import { tripPackageInfo, type PackageInfo } from '../db/repo';
 import { DEFAULT_SETTINGS, type Day, type Doc, type Expense, type Garment, type Item, type ItemStatus, type Outfit, type PackItem, type Settings, type Trip } from '../domain/types';
@@ -70,7 +71,7 @@ export function useTripData(tripId: string | null | undefined): TripData | null 
   }, [tripId]);
 }
 
-/** 旅程卡片的封面：只用用户自己设的封面；没有就不放照片（卡片里显示占位图标） */
+/** 修订 2026-10：每份旅程卡片的封面 = 旅程介绍页首屏第一张照片（用户自己设过封面就用封面） */
 export function useTripCovers(): Map<string, { src: string; alt: string }> | undefined {
   return useLiveQuery(async () => {
     const trips = await db.trips.toArray();
@@ -83,6 +84,12 @@ export function useTripCovers(): Map<string, { src: string; alt: string }> | und
           continue;
         }
       }
+      const [days, items] = await Promise.all([db.days.where('tripId').equals(t.id).toArray(), db.items.where('tripId').equals(t.id).toArray()]);
+      days.sort((a, b) => a.index - b.index);
+      const order = new Map(days.map((d, i) => [d.id, i]));
+      items.sort((a, b) => (order.get(a.dayId) ?? 0) - (order.get(b.dayId) ?? 0) || a.order - b.order);
+      const m = buildLanding(t, days, items).montage[0];
+      if (m) out.set(t.id, { src: m.file, alt: m.alt });
     }
     return out;
   }, []);
