@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Doc } from '../domain/types';
 import type { TicketCandidate } from '../domain/flightTicket';
-import { PdfPasswordError, readFlightTicketPdf } from '../lib/flightTicketPdf';
+import { PdfPasswordError, readFlightTicketPdf, TicketParseError } from '../lib/flightTicketPdf';
+import type { ItineraryCandidate } from '../lib/flightItinerary';
 import { decryptBlob } from '../lib/crypto';
 import { db } from '../db/schema';
 import { Button } from './Basics';
@@ -10,7 +11,8 @@ import s from './FlightCountdown.module.css';
 interface Props {
   documents: Doc[];
   referenceYear: number;
-  onDates: (dates: { departure?: string; returning?: string }) => void;
+  // 2026-10-21：行程单认出出发机场时，顺带填入该侧时区（及受支持的国家）；仍需用户核对并保存
+  onDates: (dates: { departure?: string; returning?: string; departureTz?: string; returnTz?: string; origin?: string; destination?: string }) => void;
   onBusy: (busy: boolean) => void;
 }
 type Source = { name: string; read: () => Promise<Blob> };
@@ -20,7 +22,8 @@ type Source = { name: string; read: () => Promise<Blob> };
 //  · PDF 本身有打开密码 → 识别时出现「PDF 密码」，输入后重试
 export default function FlightTicketImport({ documents, referenceYear, onDates, onBusy }: Props) {
   const [loading,setLoading]=useState(false);
-  const [candidates,setCandidates]=useState<TicketCandidate[]>([]);
+  const [candidates,setCandidates]=useState<(TicketCandidate&Partial<ItineraryCandidate>)[]>([]);
+  const [excerpt,setExcerpt]=useState('');
   const [selected,setSelected]=useState({departure:'',returning:''});
   const [documentId,setDocumentId]=useState('');
   const [filePassword,setFilePassword]=useState('');
@@ -40,7 +43,7 @@ export default function FlightTicketImport({ documents, referenceYear, onDates, 
     lastSources.current=sources;
     operation.current?.abort();const controller=new AbortController();operation.current=controller;
     setLoading(true);onBusy(true);setError('');setMessage('正在本机读取 PDF…');
-    const found:TicketCandidate[]=[];const failures:string[]=[];let askPdfPw=false;
+    const found:TicketCandidate[]=[];const failures:string[]=[];let askPdfPw=false;const excerpts:string[]=[];
     try {
       for(const source of sources) {
         if(controller.signal.aborted) return;
@@ -51,6 +54,7 @@ export default function FlightTicketImport({ documents, referenceYear, onDates, 
         } catch(e) {
           if(controller.signal.aborted) return;
           if(e instanceof PdfPasswordError) askPdfPw=true;
+          if(e instanceof TicketParseError&&e.excerpt) excerpts.push(`${source.name}：\n${e.excerpt}`);
           failures.push(`${source.name}：${e instanceof Error?e.message:'读取失败，请手动填写。'}`);
         }
       }
@@ -58,7 +62,7 @@ export default function FlightTicketImport({ documents, referenceYear, onDates, 
       setNeedPdfPassword(askPdfPw);
       const all=[...candidates];
       for(const candidate of found) if(!all.some(c=>c.local===candidate.local&&c.kind===candidate.kind&&c.ambiguousDate===candidate.ambiguousDate)) all.push(candidate);
-      setCandidates(all.slice(0,80));setError(failures.join('\n'));
+      setCandidates(all.slice(0,80));setError(failures.join('\n'));setExcerpt(excerpts.join('\n\n'));
       setMessage(found.length?'已找到候选时间。请选择去程和回程航段，核对下方日期及时区后点击「保存航班时间」。':askPdfPw?'':'未填入时间，现有倒数保持不变。');
     } finally {
       if(!controller.signal.aborted) {setLoading(false);onBusy(false);}
@@ -80,7 +84,9 @@ export default function FlightTicketImport({ documents, referenceYear, onDates, 
     const candidate=candidates.find(c=>c.id===id);
     const other=candidates.find(c=>c.id===selected[side==='departure'?'returning':'departure']);
     if(candidate&&other&&candidate.eventId===other.eventId) {setError('同一个航段不能同时作为去程和回程，请选择另一航段。');return;}
-    setSelected({...selected,[side]:id});setError('');onDates({[side]:candidate?.local??''});
+    setSelected({...selected,[side]:id});setError('');
+    const zone=candidate?.tz?(side==='departure'?{departureTz:candidate.tz,...(candidate.country?{origin:candidate.country}:{})}:{returnTz:candidate.tz,...(candidate.country?{destination:candidate.country}:{})}):{};
+    onDates({[side]:candidate?.local??'',...zone});
   }
   return <details className={s.ticketImport}>
     <summary>从 PDF 机票填写时间</summary>
@@ -98,6 +104,7 @@ export default function FlightTicketImport({ documents, referenceYear, onDates, 
       </>}
       {message&&<p role="status">{message}</p>}
       {error&&<p className={s.error} role="alert">{error}</p>}
+      {error&&excerpt&&<details><summary><small>查看提取到的文字（前 600 字）</small></summary><pre style={{whiteSpace:'pre-wrap',fontSize:'0.75em'}}>{excerpt}</pre></details>}
       {candidates.length>0&&<>
         {(['departure','returning'] as const).map((side,i)=><label key={side}>{i?'选择回程起飞航段':'选择去程起飞航段'}<select value={selected[side]} disabled={loading} onChange={e=>choose(side,e.target.value)}><option value="">请选择航段</option>{candidates.map(c=><option key={c.id} value={c.id}>{c.local.replace('T',' ')} · {c.kind==='departure'?'起飞候选':'需核对是否起飞'}{c.ambiguousDate?' · 日/月顺序待核对':''}{c.inferredYear?' · 年份待核对':''} · {c.source.slice(0,130)}</option>)}</select></label>)}
         <ul className={s.ticketSources}>{candidates.filter(c=>Object.values(selected).includes(c.id)).map(c=><li key={c.id}><strong>{c.local.replace('T',' ')}</strong><span>{c.source}</span>{(c.ambiguousDate||c.inferredYear)&&<span>请对照机票核对完整日期，避免日/月或年份混淆。</span>}</li>)}</ul>
