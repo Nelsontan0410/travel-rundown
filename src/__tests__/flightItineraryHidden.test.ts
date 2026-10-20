@@ -34,3 +34,23 @@ describe('行程单夹带看不见的字符', () => {
     expect(excerptOf(['Flight Information x'])).not.toMatch(/看不见/);
   });
 });
+
+describe('行程单用长得像冒号的字符', () => {
+  it('比例号 ∶ (U+2236) 当作冒号（Trip.com 真机行程单）', () => {
+    const text = `Flight Information
+Kuala Lumpur - Nanning
+Departure 13∶05, November 26, 2026, Kuala Lumpur International Airport T2
+Arrival 16∶45, November 26, 2026, Nanning Wuxu International Airport T2
+Airline AirAsia Berhad (Malaysia) AK168
+Nanning - Kuala Lumpur
+1`;
+    const page2 = `Departure 17∶30, November 29, 2026, Nanning Wuxu International Airport T2
+Arrival 21∶20, November 29, 2026, Kuala Lumpur International Airport T2
+Airline AirAsia Berhad (Malaysia) AK169
+Baggage Allowance`;
+    expect(parseItinerary([text, page2]).map(x => [x.local, x.flight, x.role, x.tz])).toEqual([
+      ['2026-11-26T13:05', 'AK168', 'outbound', 'Asia/Kuala_Lumpur'],
+      ['2026-11-29T17:30', 'AK169', 'return', 'Asia/Shanghai'],
+    ]);
+  });
+});

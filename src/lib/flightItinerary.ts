@@ -35,7 +35,8 @@ export function cleanTicketText(text: string): string {
     .replace(/\p{Zs}/gu, ' ')
     .replace(/\p{Cf}/gu, '')
     .replace(/[^\P{Cc}\n\r\t]/gu, ' ')
-    .replace(/：/g, ':').replace(/，/g, ',')
+    // 2026-10-21：Trip.com 行程单的时间用的是比例号「∶」(U+2236)，外观与冒号相同；同类长得像冒号 / 逗号的字符一并统一
+    .replace(/[：∶꞉˸︓﹕׃]/g, ':').replace(/[，‚﹐、،]/g, ',')
     .replace(/\r\n?/g, '\n')
     .replace(/[ \t\f\v]+/g, ' ')
     .replace(/ ?\n ?/g, '\n')
