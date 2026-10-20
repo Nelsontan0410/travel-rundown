@@ -62,7 +62,7 @@ async function loadLocal(tripId: string) {
 /** 主用户：把本机这份旅程组成快照（共享资料 = 主用户自己的全部证明资料） */
 export async function currentSnapshot(tripId: string): Promise<{ snapshot: TripSnapshot; files: Map<string, string> }> {
   const { trip, days, items, docs, guide, highlights } = await loadLocal(tripId);
-  const photoKeys = highlights.flatMap((h) => (h.photoKey ? [h.photoKey] : []));
+  const photoKeys = [...highlights.flatMap((h) => (h.photoKey ? [h.photoKey] : [])), ...Object.values(guide?.days ?? {}).flatMap((d) => (d.photoKey ? [d.photoKey] : []))];
   const keys = [...docs.filter((d) => !isLinkDoc(d)).map((d) => d.blobKey), ...(trip.coverBlobKey ? [trip.coverBlobKey] : []), ...photoKeys];
   const files = await hashesFor(keys);
   const photoMime = new Map<string, string>();
@@ -185,14 +185,14 @@ export async function applyUpdate(
   const be = await backend();
   const inc = v.snapshot;
   // 1. 先把缺的共享文件下载好（下载失败就整个不套用，保持原样）
-  const hashes = [...new Set([...inc.docs.map((d) => d.fileHash), inc.trip.coverHash, ...(inc.guide?.highlights ?? []).map((h) => h.photoHash)].filter((h): h is string => !!h))];
+  const hashes = [...new Set([...inc.docs.map((d) => d.fileHash), inc.trip.coverHash, ...(inc.guide?.highlights ?? []).map((h) => h.photoHash), ...(inc.guide?.days ?? []).map((d) => d.photoHash)].filter((h): h is string => !!h))];
   const have = new Set((await db.blobs.where('key').anyOf(hashes.map(cloudBlobKey)).primaryKeys()) as string[]);
   const fetched: { key: string; blob: Blob }[] = [];
   const need = hashes.filter((h) => !have.has(cloudBlobKey(h)));
   meta.onProgress?.(0, need.length);
   for (const h of need) {
     const blob = await be.download(filePath(tripId, h));
-    const mime = inc.docs.find((d) => d.fileHash === h)?.mime ?? (h === inc.trip.coverHash ? inc.trip.coverMime : undefined) ?? inc.guide?.highlights.find((x) => x.photoHash === h)?.photoMime;
+    const mime = inc.docs.find((d) => d.fileHash === h)?.mime ?? (h === inc.trip.coverHash ? inc.trip.coverMime : undefined) ?? inc.guide?.highlights.find((x) => x.photoHash === h)?.photoMime ?? inc.guide?.days?.find((x) => x.photoHash === h)?.photoMime;
     fetched.push({ key: cloudBlobKey(h), blob: mime && !blob.type ? new Blob([blob], { type: mime }) : blob });
     meta.onProgress?.(fetched.length, need.length);
   }
@@ -277,12 +277,16 @@ export async function applyUpdate(
     // 旅行亮点：同伴这边只读，整份跟主用户（照片是 cloud:<hash>，已在上面下载好）
     {
       const oldHs = await db.highlights.where('tripId').equals(tripId).toArray();
-      await db.blobs.bulkDelete(oldHs.flatMap((h) => (h.photoKey?.startsWith('hl:') ? [h.photoKey] : [])));
+      const oldG = await db.guides.get(tripId);
+      await db.blobs.bulkDelete([...oldHs.flatMap((h) => (h.photoKey?.startsWith('hl:') ? [h.photoKey] : [])), ...Object.values(oldG?.days ?? {}).flatMap((d) => (d.photoKey?.startsWith('gday:') ? [d.photoKey] : []))]);
       await db.highlights.bulkDelete(oldHs.map((h) => h.id));
       await db.guides.delete(tripId);
       const g = inc.guide;
       if (g) {
-        await db.guides.put({ tripId, intro: g.intro, coverFocus: g.coverFocus, tips: g.tips, updatedAt: ts });
+        const days = Object.fromEntries(
+          (g.days ?? []).map((d) => [d.dayId, { title: d.title, hidden: d.hidden, focus: d.focus, photoKey: d.photoHash ? cloudBlobKey(d.photoHash) : undefined }]),
+        );
+        await db.guides.put({ tripId, intro: g.intro, coverFocus: g.coverFocus, tips: g.tips, ...(g.days?.length ? { days } : {}), updatedAt: ts });
         await db.highlights.bulkPut(
           g.highlights.map((h, i) => {
             const { photoHash, photoMime: _m, ...rest } = h;

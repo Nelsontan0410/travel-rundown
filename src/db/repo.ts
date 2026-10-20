@@ -427,7 +427,8 @@ export async function deleteTrip(tripId: string): Promise<void> {
     await db.packChecks.where('tripId').equals(tripId).delete();
     {
       const hs = await db.highlights.where('tripId').equals(tripId).toArray();
-      await db.blobs.bulkDelete(hs.flatMap((h) => (h.photoKey ? [h.photoKey] : [])));
+      const gd = await db.guides.get(tripId);
+      await db.blobs.bulkDelete([...hs.flatMap((h) => (h.photoKey ? [h.photoKey] : [])), ...Object.values(gd?.days ?? {}).flatMap((d) => (d.photoKey ? [d.photoKey] : []))]);
       await db.highlights.where('tripId').equals(tripId).delete();
       await db.guides.delete(tripId);
     }
@@ -542,6 +543,7 @@ async function tripBlobKeys(tripId: string): Promise<{ keys: string[]; missing: 
     ...(trip?.coverBlobKey ? [trip.coverBlobKey] : []),
     ...garments.flatMap((g) => (g.photoBlobKey ? [g.photoBlobKey] : [])),
     ...(await db.highlights.where('tripId').equals(tripId).toArray()).flatMap((h) => (h.photoKey ? [h.photoKey] : [])),
+    ...Object.values((await db.guides.get(tripId))?.days ?? {}).flatMap((d) => (d.photoKey ? [d.photoKey] : [])),
   ];
   const present = wanted.length ? ((await db.blobs.where('key').anyOf(wanted).primaryKeys()) as string[]) : [];
   return { keys: present, missing: wanted.length - present.length };
