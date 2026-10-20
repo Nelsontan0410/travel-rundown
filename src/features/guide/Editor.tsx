@@ -333,3 +333,48 @@ export function ManageList({
     </ol>
   );
 }
+
+/** 编辑某一天（电脑总览里点每日精选的铅笔） */
+export function DayEditor({
+  dayId,
+  label,
+  defaultTitle,
+  title,
+  photoKey,
+  focus,
+  hidden,
+  onTitle,
+  onPhoto,
+  onHidden,
+  onDirty,
+}: {
+  dayId: string;
+  label: string;
+  defaultTitle: string;
+  title: string;
+  photoKey?: string;
+  focus?: Highlight['focus'];
+  hidden: boolean;
+  onTitle: (v: string) => void;
+  onPhoto: () => void;
+  onHidden: (v: boolean) => void;
+  onDirty: (key: string, dirty: boolean) => void;
+}) {
+  return (
+    <div className={g.editor} data-day-editor={dayId}>
+      <div className={g.editorPhoto}>
+        <GuidePhoto photoKey={photoKey} focus={focus} alt={label} className={g.editorImg} fallback={<span>还没有当天照片，会用当天亮点的照片</span>} />
+        <button type="button" className={g.photoEdit} onClick={onPhoto}>
+          <Icon name="Camera" size="sm" />
+          {photoKey ? '更换照片' : '添加照片'}
+        </button>
+      </div>
+      <DraftField draftKey={`day:${dayId}:title`} label={`${label} 主题`} placeholder={defaultTitle} value={title} max={LIMITS.dayTitle} onCommit={onTitle} onDirty={onDirty} />
+      <button type="button" role="switch" aria-checked={!hidden} className={g.switchRow} onClick={() => onHidden(!hidden)}>
+        <span>在每日精选里显示这一天</span>
+        <span className={`${g.switch} ${hidden ? '' : g.switchOn}`} aria-hidden />
+      </button>
+      <p className={g.note}>主题和照片只影响旅行亮点；这一天的行程不会改变。主题清空就用行程里的主题。</p>
+    </div>
+  );
+}

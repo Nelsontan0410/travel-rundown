@@ -31,7 +31,8 @@ import { placeCopyText } from '../../domain/rules';
 import { useUI } from '../../store/ui';
 import { ReadHighlights } from './Highlights';
 import { DaysSection } from './Days';
-import { CoverEditor, EditPanel, HighlightEditor, ManageList, useWide } from './Editor';
+import { CoverEditor, DayEditor, EditPanel, HighlightEditor, ManageList, useWide } from './Editor';
+import { DesktopOverview } from './Desktop';
 import { InfoSection, type StayRow } from './Info';
 import { AddSheet, EditableText, GuidePhoto, PhotoSheet, SaveBadge, useSaver } from './parts';
 
@@ -51,7 +52,7 @@ export default function GuidePage() {
   const [photoFor, setPhotoFor] = useState<'cover' | string | null>(null);
   const [adding, setAdding] = useState(false);
   const [confirmDel, setConfirmDel] = useState<Highlight | null>(null);
-  const [sel, setSel] = useState<{ kind: 'cover' } | { kind: 'hl'; id: string } | null>(null);
+  const [sel, setSel] = useState<{ kind: 'cover' } | { kind: 'tips' } | { kind: 'manage' } | { kind: 'hl'; id: string } | { kind: 'day'; id: string } | null>(null);
   const [leaveTo, setLeaveTo] = useState<string | null>(null);
   // 编辑面板里还没离开输入框的文字（草稿），用来提醒离开前没保存
   const [dirtyKeys, setDirtyKeys] = useState<Set<string>>(() => new Set());
@@ -116,6 +117,19 @@ export default function GuidePage() {
     setLeaveTo(to);
   };
   const selHl = sel?.kind === 'hl' ? all.find((h) => h.id === sel.id) : undefined;
+  const selDay = sel?.kind === 'day' ? picks.find((p) => p.day.id === sel.id) : undefined;
+  const panelTitle = !sel ? '' : sel.kind === 'cover' ? '编辑封面' : sel.kind === 'tips' ? '编辑实用信息' : sel.kind === 'manage' ? '管理亮点' : sel.kind === 'day' ? `编辑 Day ${selDay?.day.index ?? ''}` : `编辑亮点：${selHl?.title ?? ''}`;
+  const panelOpen = edit && !!sel && (sel.kind === 'cover' || sel.kind === 'tips' || sel.kind === 'manage' || !!selHl || !!selDay);
+  const closePanel = () => {
+    (document.activeElement as HTMLElement | null)?.blur?.();
+    setSel(null);
+  };
+  const toggleEdit = () => {
+    // 先让正在输入的框失去焦点，草稿会立即保存
+    (document.activeElement as HTMLElement | null)?.blur?.();
+    setSel(null);
+    setEditing(!edit);
+  };
 
   const photoTarget = photoFor && photoFor !== 'cover' && !photoFor.startsWith('day:') ? all.find((h) => h.id === photoFor) : undefined;
   const photoDay = photoFor?.startsWith('day:') ? photoFor.slice(4) : undefined;
@@ -141,6 +155,44 @@ export default function GuidePage() {
   return (
     <div className={`${g.page} ${edit ? g.pageEditing : ''} ${edit && sel && wide ? g.withPanel : ''}`}>
       <TripThemeScope theme={trip.theme} />
+      {wide ? (
+        <DesktopOverview
+          tripId={trip.id}
+          tripTitle={trip.title}
+          place={place}
+          dates={fmtDateRange(trip.startDate, trip.endDate)}
+          nightsLabel={nDays > 1 ? `${nDays} 天 ${nDays - 1} 夜` : `${nDays} 天`}
+          cities={cities}
+          coverKey={hasCover ? trip.coverBlobKey : undefined}
+          coverFocus={G.coverFocus}
+          intro={G.intro}
+          highlights={all}
+          picks={picks}
+          tips={G.tips}
+          stay={stayRows}
+          places={placeRows.map(({ h, it, url, copy }) => ({ id: h.id, title: h.title, place: it.place?.name ?? '', onNav: () => openExternal(url, copy) }))}
+          canEdit={canEdit}
+          edit={edit}
+          ownerName={trip.cloud?.ownerName}
+          save={{ state: saver.state, msg: saver.msg, onRetry: saver.retry }}
+          dayOf={(h) => h.dayIndex ?? (h.itemId && itemById.get(h.itemId) ? td.dayById.get(itemById.get(h.itemId)!.dayId)?.index : undefined)}
+          guard={guardLeave}
+          onToggleEdit={toggleEdit}
+          onCoverPhoto={() => setPhotoFor('cover')}
+          onCoverEdit={() => setSel({ kind: 'cover' })}
+          onAdd={() => {
+            if (!edit) setEditing(true);
+            setAdding(true);
+          }}
+          onManage={() => setSel({ kind: 'manage' })}
+          onOpenHl={(id) => setSel({ kind: 'hl', id })}
+          onOpenDay={openDay}
+          onEditDay={(id) => setSel({ kind: 'day', id })}
+          onEditTips={() => setSel({ kind: 'tips' })}
+          onToggleTip={(id, done) => void saver.run(() => toggleTip(trip.id, id, done))}
+        />
+      ) : (
+        <>
       <div className={g.bar}>
         <div className={g.barRow}>
           <Link to={`/trip/${trip.id}/story`} className={g.iconBtn} aria-label="返回旅程概览" onClick={(e) => guardLeave(e, `/trip/${trip.id}/story`)}>
@@ -155,12 +207,7 @@ export default function GuidePage() {
             <button
               type="button"
               className={`${g.editBtn} ${edit ? g.editBtnOn : ''}`}
-              onClick={() => {
-                // 先让正在输入的框失去焦点，草稿会立即保存
-                (document.activeElement as HTMLElement | null)?.blur?.();
-                setSel(null);
-                setEditing(!edit);
-              }}
+              onClick={toggleEdit}
             >
               {edit ? '完成' : '编辑'}
             </button>
@@ -346,8 +393,10 @@ export default function GuidePage() {
           onToggle={(id, done) => saver.run(() => toggleTip(trip.id, id, done))}
         />
       </div>
+        </>
+      )}
 
-      <EditPanel open={edit && !!sel && (sel.kind === 'cover' || !!selHl)} wide={wide} title={sel?.kind === 'cover' ? '编辑封面' : `编辑亮点：${selHl?.title ?? ''}`} onClose={() => { (document.activeElement as HTMLElement | null)?.blur?.(); setSel(null); }}>
+      <EditPanel open={panelOpen} wide={wide} title={panelTitle} onClose={closePanel}>
         {sel?.kind === 'cover' ? (
           <CoverEditor
             photoKey={hasCover ? trip.coverBlobKey : undefined}
@@ -357,6 +406,45 @@ export default function GuidePage() {
             intro={G.intro ?? ''}
             onPhoto={() => setPhotoFor('cover')}
             onIntro={(v) => run(() => setIntro(trip.id, v))}
+            onDirty={onDirty}
+          />
+        ) : sel?.kind === 'tips' ? (
+          <InfoSection
+            compact
+            tips={G.tips}
+            edit
+            canEdit={canEdit}
+            stay={[]}
+            places={[]}
+            onAdd={(c, text) => persist(() => addTip(trip.id, c, text))}
+            onUpdate={(id, v) => run(() => updateTip(trip.id, id, v))}
+            onRemove={(id) => run(() => removeTip(trip.id, id))}
+            onMove={(id, dir) => run(() => moveTip(trip.id, id, dir))}
+            onToggle={(id, done) => saver.run(() => toggleTip(trip.id, id, done))}
+          />
+        ) : sel?.kind === 'manage' ? (
+          <>
+            <p className={g.hint}>点一条就能改照片和文字；按住 ⋮⋮ 拖动，或用上下箭头调整顺序。</p>
+            <ManageList list={all} onOpen={(id) => setSel({ kind: 'hl', id })} onReorder={reorder} onToggle={(h) => run(() => updateHighlight(h.id, { hidden: !h.hidden }))} />
+            <div className={g.addBtn}>
+              <Button variant="outline" icon="Plus" block onClick={() => setAdding(true)}>
+                添加亮点
+              </Button>
+            </div>
+          </>
+        ) : selDay ? (
+          <DayEditor
+            key={selDay.day.id}
+            dayId={selDay.day.id}
+            label={`Day ${selDay.day.index}`}
+            defaultTitle={selDay.day.title || selDay.day.city}
+            title={G.days?.[selDay.day.id]?.title ?? ''}
+            photoKey={selDay.photoKey}
+            focus={selDay.focus}
+            hidden={selDay.hidden}
+            onTitle={(v) => run(() => setDayTitle(trip.id, selDay.day.id, v))}
+            onPhoto={() => setPhotoFor(`day:${selDay.day.id}`)}
+            onHidden={(v) => run(() => setDayHidden(trip.id, selDay.day.id, v))}
             onDirty={onDirty}
           />
         ) : selHl ? (
