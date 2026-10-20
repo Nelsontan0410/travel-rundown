@@ -86,7 +86,17 @@ export function ticketCandidates(pages: string[], blocks: TicketTextBlock[], ref
 export function excerptOf(pages: string[]): string {
   const text=cleanTicketText(pages.join('\n'));
   const at=[/Flight\s*Information|航班信息|航班資訊/i,/Departure|起飞|起飛|出发|出發/i].map(re=>text.search(re)).find(i=>i>=0)??0;
-  return text.slice(at,at+1200);
+  return hiddenCharsNote(pages)+text.slice(at,at+1200);
+}
+/** 2026-10-21：原始文字里看不见的字符（显示时看不出来）——列出来方便判断识别失败的原因。 */
+export function hiddenCharsNote(pages: string[]): string {
+  const counts=new Map<string,number>();
+  for(const ch of pages.join('\n')) if(/[\p{Cf}\p{Co}\p{Cn}]|[^\P{Cc}\n\r\t]|[^\P{Zs} ]/u.test(ch)) {
+    const code='U+'+ch.codePointAt(0)!.toString(16).toUpperCase().padStart(4,'0');
+    counts.set(code,(counts.get(code)??0)+1);
+  }
+  if(!counts.size) return '';
+  return `〔原文含看不见的字符：${[...counts].map(([c,n])=>`${c}×${n}`).join('、')}〕\n`;
 }
 
 export async function readFlightTicketPdf(blob: Blob, referenceYear: number, signal?: AbortSignal, password?: string) {

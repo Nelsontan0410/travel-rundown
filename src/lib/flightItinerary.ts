@@ -29,7 +29,12 @@ const LABELS = 'Departure|Departs?|Arrival|Arrives?|Airline|Flight|Checked|Check
 export function cleanTicketText(text: string): string {
   return text.normalize('NFKC')
     .replace(/[  -​　]/g, ' ')
-    .replace(/﻿/g, '')
+    // 2026-10-21：真机 PDF 常夹带看不见的字符（方向标记 U+200E/U+202A–202E、软连字符 U+00AD、U+2060、
+    // 控制字符等），显示时看不出来，但会让 "Departure" "November" "13:05" 匹配失败。
+    // 其余空白统一成空格；格式类字符直接去掉；控制字符（换行、制表除外）当空格。
+    .replace(/\p{Zs}/gu, ' ')
+    .replace(/\p{Cf}/gu, '')
+    .replace(/[^\P{Cc}\n\r\t]/gu, ' ')
     .replace(/：/g, ':').replace(/，/g, ',')
     .replace(/\r\n?/g, '\n')
     .replace(/[ \t\f\v]+/g, ' ')
@@ -44,7 +49,7 @@ export function cleanTicketText(text: string): string {
     .replace(/\s+,/g, ',')
     .replace(/ +\.(?!\d)/g, '.')
     // 换页处页码粘在标签前：行首（或空白后）1–3 位数字紧贴标签
-    .replace(new RegExp(`(^|\\n|\\s)\\d{1,3}(?=(?:${LABELS})\\b)`, 'gi'), '$1')
+    .replace(new RegExp(`(^|\\n|\\s)\\d{1,3}(?=(?:${LABELS})(?![A-Za-z]))`, 'gi'), '$1')
     .trim();
 }
 
@@ -133,12 +138,12 @@ export function parseDateTime(text: string): { local: string; start: number; end
   }
 }
 
-const DEP = /^(?:Departure|Departs?|Depart(?:ing)?|Take[- ]?off|起飞|起飛|出发|出發)\b\s*[:：]?\s*/i;
-const ARR = /^(?:Arrival|Arrives?|Arriving|Landing|抵达|抵達|到达|到達)\b\s*[:：]?\s*/i;
+const DEP = /^(?:Departure|Departs?|Depart(?:ing)?|Take[- ]?off|起飞|起飛|出发|出發)(?![A-Za-z])\s*[:：]?\s*/i;
+const ARR = /^(?:Arrival|Arrives?|Arriving|Landing|抵达|抵達|到达|到達)(?![A-Za-z])\s*[:：]?\s*/i;
 const AIRLINE = /^(?:Airline|Flight(?:\s*(?:No\.?|Number))?|Carrier|航班号?|航空公司)\s*[:：]?\s*/i;
 const ROUTE = /^([A-Za-z一-鿿][A-Za-z一-鿿 .'()]{1,40}?)\s+(?:-|–|—|→|>|to)\s+([A-Za-z一-鿿][A-Za-z一-鿿 .'()]{1,40})$/;
 const FLIGHT_NO = /\b([A-Z][A-Z0-9]|[0-9][A-Z])\s?(\d{1,4})[A-Z]?\b/g;
-const LABEL_AT_START = new RegExp(`^(?:${LABELS})\\b`, 'i');
+const LABEL_AT_START = new RegExp(`^(?:${LABELS})(?![A-Za-z])`, 'i');
 
 const SECTION = /^(?:Flight\s*Information|Passenger|Booking|Baggage|Checked|Ticket|Important|Notes?|航班信息|乘客|行李)\b/i;
 /**
@@ -166,7 +171,7 @@ function placeOf(value: string, dt: { start: number; end: number }) {
 export function itinerarySegments(pages: string[]): ItinerarySegment[] {
   // 同一行挤着多个标签（如 "Kuala Lumpur - Nanning Departure 13:05, ..."）时，在标签前断行
   const lines = pages.flatMap((p, pi) => cleanTicketText(p)
-    .replace(/(\S) +(?=(?:Departure|Arrival|Airline)\b(?! *(?:Time|Date|Airport|City|Terminal)\b))/g, '$1\n')
+    .replace(/(\S) +(?=(?:Departure|Arrival|Airline)(?![A-Za-z])(?! *(?:Time|Date|Airport|City|Terminal)\b))/g, '$1\n')
     .split('\n').map(text => ({ text: text.trim(), page: pi + 1 }))).filter(l => l.text);
   const segments: ItinerarySegment[] = [];
   let current: ItinerarySegment | undefined;
