@@ -1,7 +1,8 @@
 import type { PDFDocumentLoadingTask, PDFDocumentProxy } from 'pdfjs-dist/types/src/display/api';
 import { MAX_BYTES } from './files';
 import { ARRIVAL_LABEL, DEPARTURE_LABEL, parseFlightTicketText, type TicketTextBlock } from '../domain/flightTicket';
-interface Atom { x: number; y: number; width: number; text: string }
+import { cleanTicketText, parseItinerary, type ItineraryCandidate } from './flightItinerary';
+export interface Atom { x: number; y: number; width: number; text: string }
 interface Row { y: number; atoms: Atom[] }
 function blocksFromAtoms(atoms: Atom[], page: number): TicketTextBlock[] {
   const rows: Row[]=[];
@@ -32,7 +33,8 @@ function blocksFromAtoms(atoms: Atom[], page: number): TicketTextBlock[] {
     }
     used.add(h.index);if(!ambiguousLayout)blocks.push({page,text:lines.join('\n'),departureColumn:true});
   });
-  const ordinary=rows.filter((_,i)=>!used.has(i)).map(r=>r.atoms.map(a=>a.text).join(' ')).join('\n');
+  // 清洗后再交给原解析器：去掉粘在 Departure 前的页码（"1Departure" 没有单词边界，原来认不出）
+  const ordinary=cleanTicketText(rows.filter((_,i)=>!used.has(i)).map(r=>r.atoms.map(a=>a.text).join(' ')).join('\n'));
   if(ordinary.trim()) blocks.push({page,text:ordinary});
   return blocks;
 }
@@ -44,6 +46,27 @@ export class PdfPasswordError extends Error {
     this.name = 'PdfPasswordError';
   }
 }
+
+/** 2026-10-21：识别失败时带上提取到的原始文字（前约 600 字），方便对照。 */
+export class TicketParseError extends Error {
+  constructor(message: string, public excerpt: string) { super(message); this.name = 'TicketParseError'; }
+}
+/** 一页的阅读顺序文字（按行，从上到下、从左到右）。 */
+export function pageText(atoms: Atom[]): string {
+  const rows: Row[]=[];
+  for(const atom of [...atoms].sort((a,b)=>b.y-a.y||a.x-b.x)) {
+    const last=rows.at(-1);
+    if(last&&Math.abs(last.y-atom.y)<3) last.atoms.push(atom);else rows.push({y:atom.y,atoms:[atom]});
+  }
+  return rows.map(r=>r.atoms.sort((a,b)=>a.x-b.x).map(a=>a.text).join(' ')).join('\n');
+}
+/** 纯文字 → 候选：先按行程单航段解析（带航班号、机场时区），认不出再用原有的通用解析。 */
+export function ticketCandidates(pages: string[], blocks: TicketTextBlock[], referenceYear: number): ItineraryCandidate[] {
+  const itinerary=parseItinerary(pages);
+  if(itinerary.length) return itinerary;
+  return parseFlightTicketText(blocks,referenceYear);
+}
+export const excerptOf=(pages: string[])=>cleanTicketText(pages.join('\n')).slice(0,600);
 
 export async function readFlightTicketPdf(blob: Blob, referenceYear: number, signal?: AbortSignal, password?: string) {
   if(blob.size>MAX_BYTES) throw new Error('PDF 超过 20 MB，请选择较小的机票文件。');
@@ -61,7 +84,7 @@ export async function readFlightTicketPdf(blob: Blob, referenceYear: number, sig
     const data=await blob.arrayBuffer();check();task=pdfjs.getDocument({data,isEvalSupported:false,...(password?{password}:{})});
     pdf=await task.promise;check();
     if(pdf.numPages>20) throw new Error('请选取不超过 20 页的机票 PDF。');
-    const blocks:TicketTextBlock[]=[];let chars=0;
+    const blocks:TicketTextBlock[]=[];const pages:string[]=[];let chars=0;
     for(let n=1;n<=pdf.numPages;n++) {
       check();const page=await pdf.getPage(n);const content=await page.getTextContent();check();
       const atoms:Atom[]=[];
@@ -70,11 +93,11 @@ export async function readFlightTicketPdf(blob: Blob, referenceYear: number, sig
         if(chars>200000||atoms.length>50000) throw new Error('PDF 文字过多，请只保留机票页面后重试。');
         atoms.push({text:item.str,x:item.transform[4],y:item.transform[5],width:item.width});
       }
-      blocks.push(...blocksFromAtoms(atoms,n));page.cleanup();
+      pages.push(pageText(atoms));blocks.push(...blocksFromAtoms(atoms,n));page.cleanup();
     }
     if(!chars) throw new Error('这份 PDF 没有可读取的文字，可能是扫描件。请使用文字型 PDF 或手动填写。');
-    const candidates=parseFlightTicketText(blocks,referenceYear);
-    if(!candidates.length) throw new Error('未找到可确认的起飞日期与时间，请手动填写；不会修改现有倒数。');
+    const candidates=ticketCandidates(pages,blocks,referenceYear);
+    if(!candidates.length) throw new TicketParseError('未找到可确认的起飞日期与时间，请手动填写；不会修改现有倒数。',excerptOf(pages));
     return candidates;
   } catch(e) {
     if(signal?.aborted) throw new DOMException('已取消','AbortError');
