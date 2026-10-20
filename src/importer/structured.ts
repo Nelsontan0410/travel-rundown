@@ -229,12 +229,30 @@ function findArray(o: Record<string, unknown>, keys: string[]): [string, unknown
   return undefined;
 }
 
+/** 报错用：这个值现在是什么 */
+const kindOf = (v: unknown) =>
+  v === null ? '空值（null）' : Array.isArray(v) ? '数组' : typeof v === 'number' ? '数字' : typeof v === 'string' ? '文字' : typeof v === 'boolean' ? '是 / 否' : '对象';
+const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
+
 export function parseJsonImport(text: string): ParsedImport {
   let data: unknown;
   try {
     data = JSON.parse(text.replace(/^﻿/, ''));
   } catch (e) {
     return failed('json', text, `JSON 格式有误，无法读取：${(e as Error).message}`);
+  }
+  // 审查修复 #7（2026-10-21）：结构不对时走正常的错误提示；万一还有没想到的写法，也不让异常冒出去
+  try {
+    return readJson(text, data);
+  } catch (e) {
+    return failed('json', text, `JSON 的结构无法识别：${(e as Error).message}`);
+  }
+}
+
+function readJson(text: string, data: unknown): ParsedImport {
+  // 审查修复 #7：days 必须是数组，每一天必须是对象
+  if (isObj(data)) for (const [k, v] of Object.entries(data)) {
+    if (normKey(k) === 'days' && v != null && !Array.isArray(v)) return failed('json', text, `${k} 应该是一个数组 [ … ]，现在是${kindOf(v)}`);
   }
   const warnings: string[] = [];
   const warn = (m: string) => warnings.push(m);
@@ -266,7 +284,10 @@ export function parseJsonImport(text: string): ParsedImport {
   if (official && trip.start.iso && !/^\d{4}-\d{2}-\d{2}$/.test(String(tObj.startDate ?? ''))) warn('trip.startDate 建议写成 YYYY-MM-DD');
 
   // 每天：标准写法是 days[].activities[]；也接受一整串带日期的活动
-  let dayList = findArray(root, DAY_KEYS)?.[1] ?? [];
+  const found = findArray(root, DAY_KEYS);
+  let dayList = found?.[1] ?? [];
+  const badDay = dayList.findIndex((d) => !isObj(d));
+  if (badDay >= 0) return failed('json', text, `${found![0]}[${badDay}] 应该是一个对象 { … }，现在是${kindOf(dayList[badDay])}`);
   const looksFlat = dayList.length > 0 && dayList.every((d) => d && typeof d === 'object' && !findArray(d as Record<string, unknown>, ACT_KEYS));
   if (looksFlat) {
     const groups = new Map<string, Record<string, unknown>[]>();
