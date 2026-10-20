@@ -257,25 +257,42 @@ language sql stable security definer set search_path = public as $$
 $$;
 
 -- 用邀请码加入：一个邀请码只能给一台手机用；返回旅程 id
+-- 2026-10-21 审查修复 #8：先原子领取邀请码再登记成员，并发领取时只有一台能成功（见 supabase/migrations/20261021_invite_claim_lock.sql）
 create or replace function public.join_with_code(p_code text, p_name text) returns uuid
 language plpgsql security definer set search_path = public as $$
-declare inv trip_invites; was boolean;
+declare inv trip_invites; claimed uuid; was boolean;
 begin
   if auth.uid() is null then raise exception '请先登录'; end if;
   select * into inv from trip_invites where code = upper(replace(replace(trim(p_code), '-', ''), ' ', ''));
   if inv.id is null then raise exception '邀请码不对，或者已被主用户撤回'; end if;
   if public.is_trip_owner(inv.trip_id) then raise exception '这是你自己的旅程'; end if;
-  if inv.accepted_by is not null and inv.accepted_by <> auth.uid() then
+  -- 原子领取：同时有两台手机领取时，后到的那台会等前一台提交，再按最新的 accepted_by 判断，领不到
+  update trip_invites set accepted_at = coalesce(accepted_at, now()), accepted_by = auth.uid()
+    where id = inv.id and (accepted_by is null or accepted_by = auth.uid())
+    returning id into claimed;
+  if claimed is null then
     raise exception '这个邀请码已经在别的手机上用过了，请主用户重新生成';
   end if;
   was := exists (select 1 from trip_members where trip_id = inv.trip_id and user_id = auth.uid());
   insert into trip_members (trip_id, user_id, name, role)
     values (inv.trip_id, auth.uid(), coalesce(nullif(trim(p_name), ''), inv.name), 'member')
     on conflict (trip_id, user_id) do update set name = excluded.name;
-  update trip_invites set accepted_at = coalesce(accepted_at, now()), accepted_by = auth.uid() where id = inv.id;
   if not was then perform public.log_trip_event(inv.trip_id, 'join', public.member_name(inv.trip_id) || ' 加入了旅程'); end if;
   return inv.trip_id;
 end $$;
+
+-- 数据库层约束：已绑定的邀请码不能改绑到另一个账号
+create or replace function public.trip_invites_keep_binding() returns trigger
+language plpgsql set search_path = public as $$
+begin
+  if old.accepted_by is not null and new.accepted_by is not null and new.accepted_by <> old.accepted_by then
+    raise exception '这个邀请码已经在别的手机上用过了，请主用户重新生成';
+  end if;
+  return new;
+end $$;
+drop trigger if exists trip_invites_keep_binding on public.trip_invites;
+create trigger trip_invites_keep_binding before update of accepted_by on public.trip_invites
+  for each row execute function public.trip_invites_keep_binding();
 
 -- 移除成员：同时作废他用过的邀请码
 create or replace function public.remove_member(p_trip uuid, p_user uuid) returns void

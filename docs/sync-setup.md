@@ -14,6 +14,7 @@
 
 - **2026-10-19 同伴建议**：重新运行一次 `supabase/schema.sql`（新增提交 / 处理建议的函数）。
 - **2026-10-19 通知**：重新运行一次 `supabase/schema.sql`（会新增 `trip_events` 表、发布 / 加入 / 退出时自动记通知，并打开实时推送）。不用改其他设置。
+- **2026-10-21 邀请码并发锁**：运行一次 `supabase/migrations/20261021_invite_claim_lock.sql`（或重新运行整份 `supabase/schema.sql`，内容相同）。两台手机同时用同一个邀请码时只有一台能加入。
 
 ## 怎么用
 
