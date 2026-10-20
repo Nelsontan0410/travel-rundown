@@ -371,8 +371,12 @@ export async function shiftTripStart(tripId: string, newStart: string): Promise<
       };
       return { ...it, key, ...(lodging ? { lodging } : {}) };
     });
-    await db.days.bulkPut(days.map((d) => ({ ...d, date: newDate.get(d.id)! })));
-    await db.items.bulkPut(nextItems);
+    const nextDays = days.map((d) => ({ ...d, date: newDate.get(d.id)! }));
+    const nextTrip: Trip = { ...trip, startDate: addDays(trip.startDate, delta), endDate: addDays(trip.endDate, delta), updatedAt: ts };
+    // 审查修复 #5：原文跟着改期重写（和编辑后一样），否则「重新导入」读到旧日期，确认后会把改期撤回
+    const { md, src } = tripToMd(nextTrip, nextDays, nextItems);
+    await db.days.bulkPut(nextDays);
+    await db.items.bulkPut(nextItems.map((it) => ({ ...it, src: src.get(it.id) ?? it.src })));
     const states = await db.itemStates.where('tripId').equals(tripId).toArray();
     await db.itemStates.bulkDelete(states.map((s) => [tripId, s.itemKey] as [string, string]));
     await db.itemStates.bulkPut(states.filter((s) => map[s.itemKey]).map((s) => ({ ...s, itemKey: map[s.itemKey], updatedAt: ts })));
@@ -382,7 +386,7 @@ export async function shiftTripStart(tripId: string, newStart: string): Promise<
     for (const e of await db.expenses.where('tripId').equals(tripId).toArray()) {
       if (e.itemKey) await db.expenses.update(e.id, { itemKey: map[e.itemKey], updatedAt: ts });
     }
-    await db.trips.update(tripId, { startDate: addDays(trip.startDate, delta), endDate: addDays(trip.endDate, delta), updatedAt: ts });
+    await db.trips.update(tripId, { startDate: nextTrip.startDate, endDate: nextTrip.endDate, sourceMd: md, updatedAt: ts });
   });
 }
 
