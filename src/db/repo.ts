@@ -10,6 +10,7 @@ import { addDays, daysBetween } from '../domain/format';
 import { makeItemKey } from '../domain/itemKey';
 import { migrateItemV2 } from '../domain/migrate';
 import type { Guide, Highlight } from '../domain/guide';
+import type { FoodMark, FoodSpot } from '../domain/food';
 import { isLinkDoc, LINK_MIME } from '../domain/bookings';
 import { tripToMd } from '../importer/serialize';
 import {
@@ -434,7 +435,7 @@ async function blobKeysUsedByOthers(tripId: string): Promise<Set<string>> {
 }
 
 export async function deleteTrip(tripId: string): Promise<void> {
-  await db.transaction('rw', [db.trips, db.days, db.items, db.docs, db.blobs, db.itemStates, db.settings, db.expenses, db.outfits, db.packItems, db.packChecks, db.cloudBases, db.guides, db.highlights], async () => {
+  await db.transaction('rw', [db.trips, db.days, db.items, db.docs, db.blobs, db.itemStates, db.settings, db.expenses, db.outfits, db.packItems, db.packChecks, db.cloudBases, db.guides, db.highlights, db.foods, db.foodMarks], async () => {
     const trip = await db.trips.get(tripId);
     const inUse = await blobKeysUsedByOthers(tripId);
     const dropBlobs = (keys: string[]) => db.blobs.bulkDelete(keys.filter((k) => !inUse.has(k)));
@@ -444,6 +445,9 @@ export async function deleteTrip(tripId: string): Promise<void> {
     await db.outfits.where('tripId').equals(tripId).delete();
     await db.packItems.where('tripId').equals(tripId).delete();
     await db.packChecks.where('tripId').equals(tripId).delete();
+    // 2026-10-21 美食专区
+    await db.foods.where('tripId').equals(tripId).delete();
+    await db.foodMarks.where('tripId').equals(tripId).delete();
     {
       const hs = await db.highlights.where('tripId').equals(tripId).toArray();
       const gd = await db.guides.get(tripId);
@@ -495,6 +499,9 @@ interface BackupJson {
   /** 2026-10-20 v5：旅行亮点（展示资料；照片在 blobs 里） */
   guides?: Guide[];
   highlights?: Highlight[];
+  /** 2026-10-21 v6：美食专区和个人标记 */
+  foods?: FoodSpot[];
+  foodMarks?: FoodMark[];
   trips: Trip[];
   days: Day[];
   items: Item[];
@@ -537,9 +544,9 @@ export async function exportBackup(): Promise<Blob> {
     db.packChecks.toArray(),
   ]);
   const cloudBases = await db.cloudBases.toArray();
-  const [guides, highlights] = await Promise.all([db.guides.toArray(), db.highlights.toArray()]);
+  const [guides, highlights, foods, foodMarks] = await Promise.all([db.guides.toArray(), db.highlights.toArray(), db.foods.toArray(), db.foodMarks.toArray()]);
   return zipBackup(
-    { scope: 'all', attachments: true, trips, days, items, docs, itemStates, settings, expenses, garments, outfits, packItems, packChecks, cloudBases, guides, highlights },
+    { scope: 'all', attachments: true, trips, days, items, docs, itemStates, settings, expenses, garments, outfits, packItems, packChecks, cloudBases, guides, highlights, foods, foodMarks },
     blobs,
   );
 }
@@ -618,6 +625,8 @@ export async function exportTripPackage(tripId: string, opts: { attachments: boo
       cloudBases: (await db.cloudBases.where('tripId').equals(tripId).toArray()),
       guides: await db.guides.where('tripId').equals(tripId).toArray(),
       highlights: await db.highlights.where('tripId').equals(tripId).toArray(),
+      foods: await db.foods.where('tripId').equals(tripId).toArray(),
+      foodMarks: await db.foodMarks.where('tripId').equals(tripId).toArray(),
     },
     blobs,
   );
@@ -637,8 +646,10 @@ export async function restoreBackupDetailed(file: Blob): Promise<RestoreResult> 
   if (!raw) throw new Error('不是有效的备份文件');
   const json = JSON.parse(strFromU8(raw)) as BackupJson;
   if (json.app !== 'travel-rundown') throw new Error('不是有效的备份文件');
-  await db.transaction('rw', [db.trips, db.days, db.items, db.docs, db.blobs, db.itemStates, db.settings, db.expenses, db.garments, db.outfits, db.packItems, db.packChecks, db.cloudBases, db.guides, db.highlights], async () => {
+  await db.transaction('rw', [db.trips, db.days, db.items, db.docs, db.blobs, db.itemStates, db.settings, db.expenses, db.garments, db.outfits, db.packItems, db.packChecks, db.cloudBases, db.guides, db.highlights, db.foods, db.foodMarks], async () => {
     await db.trips.bulkPut(json.trips);
+    if (json.foods?.length) await db.foods.bulkPut(json.foods);
+    if (json.foodMarks?.length) await db.foodMarks.bulkPut(json.foodMarks);
     if (json.guides?.length) await db.guides.bulkPut(json.guides);
     if (json.highlights?.length) await db.highlights.bulkPut(json.highlights);
     if (json.cloudBases?.length) await db.cloudBases.bulkPut(json.cloudBases);

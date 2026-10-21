@@ -1,6 +1,7 @@
 import Dexie, { type Table } from 'dexie';
 import type { BlobRecord, Day, Doc, Expense, Garment, Item, ItemState, Outfit, PackCheck, PackItem, Settings, Trip } from '../domain/types';
 import type { Guide, Highlight } from '../domain/guide';
+import type { FoodMark, FoodSpot } from '../domain/food';
 import { migrateItemV2 } from '../domain/migrate';
 import type { TripSnapshot } from '../cloud/snapshot';
 
@@ -28,6 +29,8 @@ export class RundownDB extends Dexie {
   cloudBases!: Table<CloudBase, string>;
   guides!: Table<Guide, string>;
   highlights!: Table<Highlight, string>;
+  foods!: Table<FoodSpot, string>;
+  foodMarks!: Table<FoodMark, [string, string]>;
 
   constructor() {
     super('travel-rundown');
@@ -62,6 +65,8 @@ export class RundownDB extends Dexie {
     this.version(4).stores({ cloudBases: 'tripId' });
     // v5（2026-10-20）：旅行亮点（展示资料，和行程原始数据分开；同伴端只读）
     this.version(5).stores({ guides: 'tripId', highlights: 'id, tripId' });
+    // v6（2026-10-21）：美食专区（备选店铺）和个人标记（吃过 / 收藏）
+    this.version(6).stores({ foods: 'id, tripId', foodMarks: '[tripId+foodId], tripId' });
   }
 }
 
