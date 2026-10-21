@@ -52,6 +52,7 @@ import {
   ShoppingBag,
   ListChecks,
   Lightbulb,
+  Star,
   type LucideIcon,
 } from 'lucide-react';
 import type { CSSProperties } from 'react';
@@ -107,6 +108,7 @@ export const ICONS = {
   ShoppingBag,
   ListChecks,
   Lightbulb,
+  Star,
 } satisfies Record<string, LucideIcon>;
 
 export type IconKey = keyof typeof ICONS;

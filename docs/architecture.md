@@ -76,5 +76,12 @@ flowchart LR
 - 为了让 id 稳定，`saveImport` 重新导入时同 key（或确认改名）的项沿用原 id、同一天沿用原 day id。
 - 不上云：完成勾选、实际记账、穿搭打包、主题。权限在数据库行级权限里强制（`supabase/schema.sql`）。
 
+## 美食专区（2026-10-21）
+- Dexie v6：`foods`（`FoodSpot`，按旅程，备选店铺）、`foodMarks [tripId+foodId]`（个人标记：吃过 / 收藏，只存本机）。类型和纯函数在 `domain/food.ts`，存取在 `db/food.ts`，读取 hook `hooks/food.ts`。
+- 和行程原始数据分开：美食专区从不改写行程项。唯一例外是用户点「改去这家」→ `swapMealTo` 走 `updateItem`：那一餐换成新店的店名、地点、必吃；原计划（含订单号）写进 `alt`，并收进美食专区（`source='itinerary'`）；原 AI 导航链接、订单号、预订状态清掉；完成状态、证明、账本按 key 规则迁移。
+- 备选推荐 `foodAlternatives`：排除吃过的和原定那家；同城（城市名互相包含）或「打算哪天去」含这一天 = 附近；再按适合这一餐、收藏、原顺序排。
+- 导入 `importer/food.ts`：和行程同样写法的 Markdown（`## 城市` / `### [类型] 店名 | 当地店名` / `- 字段: 值`）或 JSON 数组；`foodPrompt` 是给外部 AI 的提示词。按「店名 + 城市」合并，保留 id、顺序、标记；清单里没有的店不删。
+- 第几天 = `Day.index`（和 `Day N` 一样从 1 开始）。备份、旅行包、恢复、删除旅程都包含美食。暂不同步给同伴（每台手机各自一份）。
+
 ## 显示格式
 日期 `13-JAN-2027`（`fmtDate`），短格式 `13-JAN`；金额 `RM 1,234.50`（`fmtMoney`）。

@@ -163,6 +163,7 @@ export default function TripSettingsPage() {
           }}
         />
         <SettingsRow icon="Image" label="穿搭与打包" value="每日穿搭、衣橱、打包清单" onClick={() => nav(`/trip/${trip.id}/outfits`)} />
+        <SettingsRow icon="Utensils" label="美食专区" value="备选美食，吃不成原计划时用" onClick={() => nav(`/trip/${trip.id}/food`)} />
         <SettingsRow
           icon="Wallet"
           label="旅行账本"

@@ -1,0 +1,27 @@
+/* 2026-10-21 美食专区（A 线基础样式，B 线可自由重做） */
+.card { padding: var(--space-3); display: flex; flex-direction: column; gap: var(--space-2); }
+.head { display: flex; align-items: flex-start; gap: var(--space-2); }
+.headText { flex: 1; min-width: 0; }
+.name { font-family: var(--font-serif); font-size: var(--fs-card); font-weight: var(--fw-card); overflow-wrap: anywhere; }
+.local { font-size: var(--fs-small); color: var(--color-text-2); overflow-wrap: anywhere; }
+.ate { opacity: 0.6; }
+.tags { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+.tag { display: inline-flex; align-items: center; height: 22px; padding: 0 var(--space-2); border-radius: var(--radius-full); font-size: var(--fs-caption); background: var(--color-neutral-soft); color: var(--color-text-2); white-space: nowrap; }
+.reason { background: var(--color-accent-soft); color: var(--color-accent-text); font-weight: 600; }
+.line { font-size: var(--fs-small); color: var(--color-text-2); overflow-wrap: anywhere; }
+.line strong { color: var(--color-text); font-weight: 600; }
+.actions { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+.markOn { color: var(--color-accent-text); }
+.planned { display: flex; align-items: center; gap: var(--space-2); width: 100%; min-height: 44px; text-align: left; padding: var(--space-2) 0; border-bottom: var(--border-w) solid var(--color-border); }
+.planned:last-child { border-bottom: 0; }
+.plannedText { flex: 1; min-width: 0; }
+.plannedTitle { font-size: var(--fs-body); overflow-wrap: anywhere; }
+.plannedSub { font-size: var(--fs-caption); color: var(--color-text-2); }
+.count { font-size: var(--fs-caption); color: var(--color-accent-text); white-space: nowrap; }
+.search { margin-bottom: var(--space-2); }
+.filters { display: flex; flex-direction: column; gap: var(--space-2); }
+.toggles { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.textarea { width: 100%; min-height: 160px; padding: var(--space-3); border: var(--border-w) solid var(--color-border); border-radius: var(--radius-sm); background: var(--grad-inset); box-shadow: var(--shadow-inset); font-size: var(--fs-small); color: var(--color-text); font-family: inherit; resize: vertical; }
+.check { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.list { display: flex; flex-direction: column; gap: var(--space-3); }
+.banner { padding: var(--space-3); }

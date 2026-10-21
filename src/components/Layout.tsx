@@ -12,7 +12,7 @@ import { useOverlay } from '../hooks/layout';
 import { unreadOf, useCloud } from '../store/cloud';
 
 /** 手机底栏只有 trips / itinerary / docs / notify；电脑侧栏还有这趟旅程的各个页面 */
-export type TabKey = 'trips' | 'itinerary' | 'docs' | 'notify' | 'story' | 'highlights' | 'ledger' | 'outfits' | 'settings';
+export type TabKey = 'trips' | 'itinerary' | 'docs' | 'notify' | 'story' | 'highlights' | 'ledger' | 'outfits' | 'food' | 'settings';
 
 interface ScreenProps {
   header?: ReactNode;
@@ -131,7 +131,7 @@ const TABS: { key: MainKey; label: string; to: string; icon: 'Home' | 'CalendarD
 /** 电脑侧栏里不在底栏上的页面，手机上高亮它们所属的底栏项 */
 const MOBILE_OF: Record<TabKey, MainKey> = {
   trips: 'trips', itinerary: 'itinerary', docs: 'docs', notify: 'notify',
-  story: 'itinerary', highlights: 'itinerary', ledger: 'itinerary', outfits: 'itinerary', settings: 'trips',
+  story: 'itinerary', highlights: 'itinerary', ledger: 'itinerary', outfits: 'itinerary', food: 'itinerary', settings: 'trips',
 };
 
 /** 2026-10-20：电脑侧栏的完整导航（和旅程页同一个侧栏、同一种样式），标题写清楚每页是做什么的 */
@@ -147,6 +147,7 @@ function deskItems(tripId: string | null | undefined): { key: TabKey; label: str
           { key: 'docs', label: '预订凭证', to: '/docs', icon: 'FileText', group: 'trip' },
           { key: 'ledger', label: '旅行账本', to: t('ledger'), icon: 'Wallet', group: 'trip' },
           { key: 'outfits', label: '穿搭打包', to: t('outfits'), icon: 'StickyNote', group: 'trip' },
+          { key: 'food', label: '美食专区', to: t('food'), icon: 'Utensils', group: 'trip' },
           { key: 'settings', label: '旅程设置', to: t('settings'), icon: 'Settings', group: 'trip' },
         ] as const)
       : ([
