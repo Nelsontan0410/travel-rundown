@@ -1,5 +1,6 @@
 import type { MouseEvent } from 'react';
 import s from './Itinerary.module.css';
+import MobileHoldCard from './MobileHoldCard';
 import { Button, StatusChip } from './Basics';
 import { Icon } from './Icon';
 import type { RightSlot } from '../domain/rules';
@@ -88,6 +89,7 @@ interface RowProps {
   icon: IconName;
   title: string;
   subtitle: string;
+  note?: string;
   slot: RightSlot;
   current: boolean;
   actions?: { proof?: () => void; nav?: () => void };
@@ -104,7 +106,7 @@ export function TimelineDivider({ label }: { label: string }) {
 }
 
 /** TimelineRow + ItemCard（01） */
-export function TimelineRow({ first, time, dot, icon, title, subtitle, slot, current, actions, onOpen, onNav, checked, onCheck }: RowProps) {
+export function TimelineRow({ first, time, dot, icon, title, subtitle, note, slot, current, actions, onOpen, onNav, checked, onCheck }: RowProps) {
   const stop = (fn: () => void) => (e: MouseEvent) => {
     e.stopPropagation();
     fn();
@@ -117,7 +119,7 @@ export function TimelineRow({ first, time, dot, icon, title, subtitle, slot, cur
         <span className={`${s.line} ${first ? s.firstLine : ''}`} />
         <span className={`${s.dot} ${dot === 'done' ? s.dotDone : dot === 'current' ? s.dotCurrent : ''}`} />
       </div>
-      <div className={`${s.card} ${current ? s.current : ''} ${checked ? s.cardDone : ''}`} role="button" tabIndex={0} onClick={onOpen} onKeyDown={(e) => e.key === 'Enter' && onOpen()}>
+      <MobileHoldCard className={`${s.card} ${current ? s.current : ''} ${checked ? s.cardDone : ''}`} onOpen={onOpen} checked={checked} onCheck={onCheck}>
         <div className={s.cardMain}>
           {onCheck && (
             <button
@@ -138,16 +140,17 @@ export function TimelineRow({ first, time, dot, icon, title, subtitle, slot, cur
           <div className={s.cardText}>
             <p className={s.cardTitle}>{title}</p>
             {subtitle && <p className={s.cardSub}>{subtitle}</p>}
+            {note && !subtitle.includes(note) && <p className={s.mobileNote}>{note}</p>}
           </div>
           <div className={s.slot}>
             {slot.kind === 'nav' ? (
-              <Button variant="outline" size="sm" icon="Navigation" onClick={stop(onNav)}>
-                导航
+              <Button variant="outline" size="sm" icon="Navigation" className={s.navButton} aria-label="导航" onClick={stop(onNav)}>
+                <span className={s.navLabel}>导航</span>
               </Button>
             ) : (
               <StatusChip variant={slot.variant}>{slot.label}</StatusChip>
             )}
-            <Icon name="ChevronRight" size="sm" />
+            <span data-no-hold><Icon name="ChevronRight" size="sm" /></span>
           </div>
         </div>
         {current && actions && (actions.proof || actions.nav) && (
@@ -158,13 +161,13 @@ export function TimelineRow({ first, time, dot, icon, title, subtitle, slot, cur
               </Button>
             )}
             {actions.nav && (
-              <Button variant="outline" size="sm" icon="Navigation" onClick={stop(actions.nav)}>
-                导航
+              <Button variant="outline" size="sm" icon="Navigation" className={s.navButton} aria-label="导航" onClick={stop(actions.nav)}>
+                <span className={s.navLabel}>导航</span>
               </Button>
             )}
           </div>
         )}
-      </div>
+      </MobileHoldCard>
     </div>
   );
 }

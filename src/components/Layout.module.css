@@ -199,3 +199,12 @@
   .sidebarHeader { flex-shrink: 0; }
   .tab { flex-shrink: 0; }
 }
+
+/* New mobile navigation only; 769px+ keeps the existing shell and sidebar. */
+@media (max-width: 768px) {
+  .tabbar { display: none; }
+  .main { padding-bottom: calc(var(--h-tabbar) + var(--safe-bottom) + var(--space-6)); }
+  .withBottom, .withTabBottom { padding-bottom: calc(var(--h-tabbar) + var(--safe-bottom) + var(--h-btn-lg) + var(--space-4) + var(--space-6)); }
+  .shellBottom { bottom: calc(var(--h-tabbar) + var(--safe-bottom)); }
+  .shellBottom.actionBar:not(.bottomWithTab) { padding-bottom: var(--space-2); }
+}

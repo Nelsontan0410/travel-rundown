@@ -102,3 +102,28 @@
   font-size: var(--fs-small); color: var(--color-text-2); font-weight: 600;
 }
 .divider::after { content: ''; flex: 1; height: 1px; background: var(--color-hairline); }
+
+/* This feature is deliberately inclusive of 768px; existing desktop rules stay intact. */
+.mobileNote, .holdProgress { display: none; }
+.slot > [data-no-hold] { display: contents; }
+@media (max-width: 768px) {
+  .check { display: none; }
+  .card { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: pan-y; }
+  .cardMain { gap: var(--space-2); align-items: flex-start; }
+  .cardIcon { display: none; }
+  .cardTitle, .cardSub, .mobileNote { display: block; -webkit-line-clamp: unset; white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }
+  .mobileNote { margin-top: var(--space-1); color: var(--color-text-2); font-size: var(--fs-small); }
+  .navLabel { display: none; }
+  .navButton { width: var(--size-hit); min-width: var(--size-hit); height: var(--size-hit); padding: var(--space-1); flex: 0 0 var(--size-hit); }
+  .navButton svg { width: var(--size-icon-sm); height: var(--size-icon-sm); }
+  .slot { flex-direction: column; }
+  .slot > [data-no-hold] { display: flex; align-items: center; justify-content: center; min-width: var(--size-hit); min-height: var(--size-hit); }
+  .cardDone { opacity: 1; background: var(--color-primary-soft); border-color: var(--color-primary); box-shadow: var(--shadow-inset); }
+  .cardDone .cardTitle { color: var(--color-text-2); }
+  .holdProgress { display: block; position: absolute; left: 0; bottom: 0; height: var(--space-1); width: 100%; background: var(--color-accent-text); transform: scaleX(0); transform-origin: left; pointer-events: none; }
+  .holding .holdProgress { animation: holdFill 2s linear forwards; }
+  .tiles { position: sticky; top: 0; z-index: 16; background: var(--color-page); margin-top: 0; padding-top: calc(var(--space-2) + var(--safe-top)); border-bottom: var(--border-w) solid var(--color-hairline); }
+  .tile { height: var(--h-day); box-shadow: none; }
+  .tileMonth { display: none; }
+}
+@keyframes holdFill { from { transform: scaleX(0); } to { transform: scaleX(1); } }
