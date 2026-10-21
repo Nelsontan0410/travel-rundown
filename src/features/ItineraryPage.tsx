@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import p from './Page.module.css';
-import { useBreakpoint } from '../hooks/layout';
+import { useMobileNavigation } from '../components/MobileNavigation';
 import TripTools from '../components/TripTools';
 import TripUnavailable from './TripUnavailable';
 import { NoTripState } from './FirstRun';
@@ -31,7 +31,7 @@ import { UpdateNotice } from './CloudParts';
 /** 01 每日行程（行程 Tab 的首页） */
 export default function ItineraryPage() {
   const nav = useNavigate();
-  const mobile = useBreakpoint() === 'mobile';
+  const mobile = useMobileNavigation();
   const { tripId: paramId } = useParams();
   const currentId = useCurrentTripId();
   const tripId = paramId ?? currentId;
@@ -137,7 +137,7 @@ export default function ItineraryPage() {
       </details>
     </>
   );
-  const countdown = <FlightCountdown compactMobile key={trip.id} td={td} dateRange={fmtDateRange(trip.startDate, trip.endDate)} offline={ready.allGreen} />;
+  const countdown = <FlightCountdown key={trip.id} td={td} dateRange={fmtDateRange(trip.startDate, trip.endDate)} offline={ready.allGreen} />;
 
   return (
     <>
@@ -172,7 +172,7 @@ export default function ItineraryPage() {
       }
     >
       <UpdateNotice tripId={trip.id} role={trip.cloud?.role} />
-      <div className={p.mobileItineraryHidden}>{(mobile || phase.mode === 'before') && countdown}</div>
+      {(mobile || phase.mode === 'before') && countdown}
       <DayTiles days={td.days} selectedId={day?.id} onSelect={(id) => selectDay(trip.id, id)} />
       {day && (
         // 2026-10-20：「添加一项」「编辑当天」和当天标题放在同一排（窄屏自动换行）
@@ -271,7 +271,7 @@ export default function ItineraryPage() {
         onDocs={() => nav('/docs')}
         onMates={() => nav(`/trip/${trip.id}/settings#sync`)}
       />
-      {!mobile && phase.mode !== 'before' && <div className={`${p.mt16} ${p.mobileItineraryHidden}`}>{countdown}</div>}
+      {!mobile && phase.mode !== 'before' && <div className={p.mt16}>{countdown}</div>}
       <div className={p.mobileItineraryHidden} style={{ marginTop: 'var(--space-6)' }}>
         <LedgerSummaryCard
           budget={ledger.budget}
