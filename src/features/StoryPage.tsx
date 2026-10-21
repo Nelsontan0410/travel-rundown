@@ -1,3 +1,4 @@
+import { MobileOverviewCountdown } from '../components/MobileNavigation';
 import TripUnavailable from './TripUnavailable';
 // 旅程概览（Landing）：首屏照片环 + 旅程标题，从这里进入「旅行亮点」或回到行程。相册放照片环放不下的照片。
 import { useMemo } from 'react';
@@ -131,6 +132,8 @@ export default function StoryPage() {
           </button>
         )}
       </header>
+
+      <MobileOverviewCountdown tripId={trip.id} />
 
       {/* 旅程相册：照片环放不下的照片都在这里，减少动态效果时也能逐张看 */}
       {plan.needsAlbum && (

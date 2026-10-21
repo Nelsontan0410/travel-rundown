@@ -1,3 +1,4 @@
+import MobileNavigation from './components/MobileNavigation';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { useEffect } from 'react';
 import { Toast } from './components/Layout';
@@ -95,6 +96,7 @@ export default function App() {
         <Route path="/import/preview" element={<PreviewPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      <MobileNavigation />
       </PageBoundary>
       <Toast />
     </>

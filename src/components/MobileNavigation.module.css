@@ -1,0 +1,20 @@
+.nav, .dismiss, .countdown { display: none; }
+@media (max-width: 768px) {
+  .nav { position: fixed; inset: auto 0 0; z-index: 35; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); padding: 0 env(safe-area-inset-right, 0px) var(--safe-bottom) env(safe-area-inset-left, 0px); background: var(--color-page); border-top: var(--border-w) solid var(--color-border); box-shadow: var(--shadow-overlay); }
+  .group { position: relative; min-width: 0; }
+  .parent { width: 100%; height: var(--h-tabbar); display: flex; align-items: center; justify-content: center; flex-direction: column; gap: var(--space-1); color: var(--color-text-2); font-size: var(--fs-caption); }
+  .parentIcon { height: var(--size-icon); display: grid; place-items: center; }
+  .active { color: var(--color-primary); font-weight: 700; background: var(--color-primary-soft); }
+  .central { background: none; }
+  .central .parentIcon { margin-top: calc(-1 * var(--space-5)); width: var(--h-btn-lg); height: var(--h-btn-lg); border-radius: var(--radius-full); background: var(--color-primary); color: var(--color-on-leather); box-shadow: var(--shadow-raised); border: var(--space-1) solid var(--color-page); }
+  .central.active .parentIcon { outline: var(--border-w) solid var(--color-primary); }
+  .dismiss { display: block; position: fixed; inset: 0; z-index: 34; background: var(--scrim); }
+  .flyout { position: absolute; bottom: calc(100% + var(--space-4)); left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: var(--space-3); width: max-content; max-width: 20vw; animation: reveal var(--duration) var(--ease); }
+  .shortcut { display: flex; flex-direction: column; align-items: center; gap: var(--space-1); color: var(--color-text); font-size: var(--fs-caption); font-weight: 600; min-width: var(--size-hit); }
+  .shortcut > span:last-child { border-radius: var(--radius-sm); padding: var(--space-1); background: var(--color-page); max-width: 20vw; overflow-wrap: anywhere; }
+  .circle { display: grid; place-items: center; width: var(--h-btn-lg); height: var(--h-btn-lg); border-radius: var(--radius-full); background: var(--color-surface); color: var(--color-primary); border: var(--border-w) solid var(--color-border); box-shadow: var(--shadow-raised); }
+  .panel { display: flex; flex-direction: column; gap: var(--space-3); }
+  .countdown { display: block; max-width: var(--content-max); margin: var(--space-6) auto; padding: 0 var(--page-x); }
+}
+@keyframes reveal { from { opacity: 0; transform: translate(-50%, var(--space-3)); } to { opacity: 1; transform: translate(-50%, 0); } }
+@media (prefers-reduced-motion: reduce) { .flyout { animation: none; } }

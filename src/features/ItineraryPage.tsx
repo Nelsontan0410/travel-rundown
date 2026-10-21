@@ -172,7 +172,7 @@ export default function ItineraryPage() {
       }
     >
       <UpdateNotice tripId={trip.id} role={trip.cloud?.role} />
-      {(mobile || phase.mode === 'before') && countdown}
+      <div className={p.mobileItineraryHidden}>{(mobile || phase.mode === 'before') && countdown}</div>
       <DayTiles days={td.days} selectedId={day?.id} onSelect={(id) => selectDay(trip.id, id)} />
       {day && (
         // 2026-10-20：「添加一项」「编辑当天」和当天标题放在同一排（窄屏自动换行）
@@ -241,6 +241,7 @@ export default function ItineraryPage() {
                 icon={itemIcon(it)}
                 title={it.title}
                 subtitle={itemSubtitle(it)}
+                note={it.note}
                 slot={slot}
                 current={isCur}
                 actions={{
@@ -270,8 +271,8 @@ export default function ItineraryPage() {
         onDocs={() => nav('/docs')}
         onMates={() => nav(`/trip/${trip.id}/settings#sync`)}
       />
-      {!mobile && phase.mode !== 'before' && <div className={p.mt16}>{countdown}</div>}
-      <div style={{ marginTop: 'var(--space-6)' }}>
+      {!mobile && phase.mode !== 'before' && <div className={`${p.mt16} ${p.mobileItineraryHidden}`}>{countdown}</div>}
+      <div className={p.mobileItineraryHidden} style={{ marginTop: 'var(--space-6)' }}>
         <LedgerSummaryCard
           budget={ledger.budget}
           spent={ledger.spent}
@@ -280,7 +281,7 @@ export default function ItineraryPage() {
           onClick={() => nav(`/trip/${trip.id}/ledger`)}
         />
       </div>
-      <nav className={`${p.mobileTools} ${p.tabletTools}`} aria-label="旅程工具">
+      <nav className={`${p.mobileTools} ${p.tabletTools} ${p.mobileItineraryHidden}`} aria-label="旅程工具">
         <p className={p.tripToolsTitle}>旅程工具</p>
         {tools}
       </nav>

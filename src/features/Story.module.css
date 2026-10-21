@@ -394,3 +394,7 @@
 
 /* 2026-10-20：概览页只保留首屏和相册，收尾只留署名链接 */
 .landingFoot { display: flex; justify-content: center; padding: var(--space-6) var(--space-4) calc(var(--space-6) + var(--safe-bottom)); }
+
+@media (max-width: 768px) {
+  .page { padding-bottom: calc(var(--h-tabbar) + var(--safe-bottom) + var(--space-6)); }
+}
