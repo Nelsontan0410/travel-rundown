@@ -225,6 +225,43 @@ function itemFields(a: Item, b: Item): string[] {
   return out;
 }
 
+/**
+ * 审查修复 #4（2026-10-21）：哪几天（第几天）的项目顺序被调整过。
+ * 只比较两边都在、而且还在同一天的那些项的 id 先后，所以别的项插进来或删掉导致的重新编号不算。
+ */
+export function reorderedDays(
+  base: { days: Day[]; items: Item[] } | undefined,
+  next: { days: Day[]; items: Item[] },
+): Set<number> {
+  const out = new Set<number>();
+  if (!base) return out;
+  const seqs = (s: { days: Day[]; items: Item[] }) => {
+    const idx = new Map(s.days.map((d) => [d.id, d.index]));
+    const byDay = new Map<number, Item[]>();
+    for (const it of s.items) {
+      const i = idx.get(it.dayId);
+      if (i === undefined) continue;
+      byDay.set(i, [...(byDay.get(i) ?? []), it]);
+    }
+    const dayOf = new Map<string, number>();
+    const seq = new Map<number, string[]>();
+    for (const [i, its] of byDay) {
+      seq.set(i, [...its].sort((a, b) => a.order - b.order).map((it) => it.id));
+      for (const it of its) dayOf.set(it.id, i);
+    }
+    return { seq, dayOf };
+  };
+  const a = seqs(base);
+  const b = seqs(next);
+  for (const [i, ids] of b.seq) {
+    const both = (id: string) => a.dayOf.get(id) === i && b.dayOf.get(id) === i;
+    const x = (a.seq.get(i) ?? []).filter(both);
+    const y = ids.filter(both);
+    if (x.join('\n') !== y.join('\n')) out.add(i);
+  }
+  return out;
+}
+
 export function diffSnapshots(base: TripSnapshot | undefined, next: TripSnapshot): SnapshotDiff {
   const trip: string[] = [];
   if (base) {
@@ -249,6 +286,12 @@ export function diffSnapshots(base: TripSnapshot | undefined, next: TripSnapshot
     }
   }
   for (const d of base?.days ?? []) if (!next.days.some((x) => x.index === d.index)) days.push({ index: d.index, fields: ['删除这一天'] });
+  // 只调整了顺序也是一次改动（主用户才能发布、同伴预览看得到）
+  for (const index of reorderedDays(base, next)) {
+    const e = days.find((d) => d.index === index);
+    if (e) e.fields.push('项目顺序');
+    else days.push({ index, fields: ['项目顺序'] });
+  }
 
   const items: ItemChange[] = [];
   const bItems = new Map((base?.items ?? []).map((i) => [i.id, i]));

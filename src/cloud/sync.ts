@@ -14,29 +14,21 @@ const now = () => new Date().toISOString();
 
 // ———————— 文件指纹 ————————
 
-const hashCache = new Map<string, { size: number; type: string; hash: string }>();
-
 export async function sha256(blob: Blob): Promise<string> {
   const buf = await blob.arrayBuffer();
   const d = await crypto.subtle.digest('SHA-256', buf);
   return [...new Uint8Array(d)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-/** 本机这些文件的 sha256（按 blobKey）；没有文件的跳过 */
+/**
+ * 本机这些文件的 sha256（按 blobKey）；没有文件的跳过。
+ * 审查修复 #3（2026-10-21）：每次都按文件内容重算，不再按「大小 + 类型」沿用旧指纹——
+ * 换成同样大小、同样类型的文件时旧指纹会让同伴继续拿到旧文件。文件都不大，重算很快。
+ */
 async function hashesFor(keys: string[]): Promise<Map<string, string>> {
   const out = new Map<string, string>();
   const recs = keys.length ? await db.blobs.bulkGet(keys) : [];
-  for (const r of recs) {
-    if (!r) continue;
-    const c = hashCache.get(r.key);
-    if (c && c.size === r.blob.size && c.type === r.blob.type) {
-      out.set(r.key, c.hash);
-      continue;
-    }
-    const hash = await sha256(r.blob);
-    hashCache.set(r.key, { size: r.blob.size, type: r.blob.type, hash });
-    out.set(r.key, hash);
-  }
+  for (const r of recs) if (r) out.set(r.key, await sha256(r.blob));
   return out;
 }
 

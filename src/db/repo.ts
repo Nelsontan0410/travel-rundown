@@ -4,7 +4,7 @@ import { db, type CloudBase } from './schema';
 import { uuid } from './uuid';
 import type { TripTheme } from '../domain/types';
 import type { ParseResult } from '../importer/parseMd';
-import type { DiffOldItem } from '../importer/diff';
+import { importContent, type DiffOldItem } from '../importer/diff';
 import { encryptBlob, decryptBlob } from '../lib/crypto';
 import { addDays, daysBetween } from '../domain/format';
 import { makeItemKey } from '../domain/itemKey';
@@ -142,7 +142,8 @@ export async function saveImport(
       for (const doc of docs) {
         const mapped = doc.itemKeys.map((k) => renames[k] ?? k);
         const kept = Array.from(new Set(mapped.filter((k) => keys.has(k))));
-        if (kept.length !== doc.itemKeys.length) await db.docs.update(doc.id, { itemKeys: kept, updatedAt: ts });
+        // 审查修复 #2：比较实际的 key，不是只比数量（改名后数量不变，旧 key 会留下）
+        if (JSON.stringify(kept) !== JSON.stringify(doc.itemKeys)) await db.docs.update(doc.id, { itemKeys: kept, updatedAt: ts });
       }
     }
     await updateSettings({ lastTripId: tripId });
@@ -161,15 +162,9 @@ export async function loadDiffOld(tripId: string): Promise<DiffOldItem[]> {
   const dateOf = new Map(days.map((d) => [d.id, d.date]));
   const withState = new Set(states.filter((s) => s.status !== 'todo').map((s) => s.itemKey));
   const withDoc = new Set(docs.flatMap((d) => d.itemKeys));
+  // 审查修复 #6：带上导入会覆盖的全部内容字段（和 flattenParsed 同一份），预览才不会漏报
   return items.map((i) => ({
-    key: i.key,
-    type: i.type,
-    title: i.title,
-    start: i.start,
-    end: i.end,
-    navUrl: i.navUrl,
-    note: i.note,
-    bookingRef: i.bookingRef,
+    ...importContent(i),
     placeName: i.place?.name,
     date: dateOf.get(i.dayId) ?? '',
     hasUserData: withState.has(i.key) || withDoc.has(i.key),
@@ -370,8 +365,12 @@ export async function shiftTripStart(tripId: string, newStart: string): Promise<
       };
       return { ...it, key, ...(lodging ? { lodging } : {}) };
     });
-    await db.days.bulkPut(days.map((d) => ({ ...d, date: newDate.get(d.id)! })));
-    await db.items.bulkPut(nextItems);
+    const nextDays = days.map((d) => ({ ...d, date: newDate.get(d.id)! }));
+    const nextTrip: Trip = { ...trip, startDate: addDays(trip.startDate, delta), endDate: addDays(trip.endDate, delta), updatedAt: ts };
+    // 审查修复 #5：原文跟着改期重写（和编辑后一样），否则「重新导入」读到旧日期，确认后会把改期撤回
+    const { md, src } = tripToMd(nextTrip, nextDays, nextItems);
+    await db.days.bulkPut(nextDays);
+    await db.items.bulkPut(nextItems.map((it) => ({ ...it, src: src.get(it.id) ?? it.src })));
     const states = await db.itemStates.where('tripId').equals(tripId).toArray();
     await db.itemStates.bulkDelete(states.map((s) => [tripId, s.itemKey] as [string, string]));
     await db.itemStates.bulkPut(states.filter((s) => map[s.itemKey]).map((s) => ({ ...s, itemKey: map[s.itemKey], updatedAt: ts })));
@@ -381,7 +380,7 @@ export async function shiftTripStart(tripId: string, newStart: string): Promise<
     for (const e of await db.expenses.where('tripId').equals(tripId).toArray()) {
       if (e.itemKey) await db.expenses.update(e.id, { itemKey: map[e.itemKey], updatedAt: ts });
     }
-    await db.trips.update(tripId, { startDate: addDays(trip.startDate, delta), endDate: addDays(trip.endDate, delta), updatedAt: ts });
+    await db.trips.update(tripId, { startDate: nextTrip.startDate, endDate: nextTrip.endDate, sourceMd: md, updatedAt: ts });
   });
 }
 
@@ -416,9 +415,29 @@ export async function setTripTheme(tripId: string, theme: TripTheme): Promise<vo
   await db.trips.update(tripId, { theme, updatedAt: now() });
 }
 
+/**
+ * 审查修复 #1（2026-10-21）：别的旅程还在用的文件 key（证明、封面、亮点照片、每日照片，含缩略图）。
+ * 同步来的文件按内容存成 cloud:<sha256>，两份旅程可能共用同一个；删旅程时只删没人再用的。
+ */
+async function blobKeysUsedByOthers(tripId: string): Promise<Set<string>> {
+  const used = new Set<string>();
+  const add = (k?: string) => {
+    if (!k) return;
+    used.add(k);
+    used.add(`${k}#thumb`);
+  };
+  for (const t of await db.trips.toArray()) if (t.id !== tripId) add(t.coverBlobKey);
+  for (const d of await db.docs.toArray()) if (d.tripId !== tripId) add(d.blobKey);
+  for (const h of await db.highlights.toArray()) if (h.tripId !== tripId) add(h.photoKey);
+  for (const g of await db.guides.toArray()) if (g.tripId !== tripId) for (const d of Object.values(g.days ?? {})) add(d.photoKey);
+  return used;
+}
+
 export async function deleteTrip(tripId: string): Promise<void> {
   await db.transaction('rw', [db.trips, db.days, db.items, db.docs, db.blobs, db.itemStates, db.settings, db.expenses, db.outfits, db.packItems, db.packChecks, db.cloudBases, db.guides, db.highlights], async () => {
     const trip = await db.trips.get(tripId);
+    const inUse = await blobKeysUsedByOthers(tripId);
+    const dropBlobs = (keys: string[]) => db.blobs.bulkDelete(keys.filter((k) => !inUse.has(k)));
     await db.cloudBases.delete(tripId);
     await db.expenses.where('tripId').equals(tripId).delete();
     // 穿搭、打包清单跟着旅程删；衣橱是所有旅程共用的，保留
@@ -429,12 +448,12 @@ export async function deleteTrip(tripId: string): Promise<void> {
       const hs = await db.highlights.where('tripId').equals(tripId).toArray();
       const gd = await db.guides.get(tripId);
       const gk = [...hs.flatMap((h) => (h.photoKey ? [h.photoKey] : [])), ...Object.values(gd?.days ?? {}).flatMap((d) => (d.photoKey ? [d.photoKey] : []))];
-      await db.blobs.bulkDelete([...gk, ...gk.map((k) => `${k}#thumb`)]);
+      await dropBlobs([...gk, ...gk.map((k) => `${k}#thumb`)]);
       await db.highlights.where('tripId').equals(tripId).delete();
       await db.guides.delete(tripId);
     }
     const docs = await db.docs.where('tripId').equals(tripId).toArray();
-    await db.blobs.bulkDelete([...docs.map((d) => d.blobKey), ...(trip?.coverBlobKey ? [trip.coverBlobKey] : []), flightBackgroundKey(tripId, 'origin'), flightBackgroundKey(tripId, 'destination')]);
+    await dropBlobs([...docs.map((d) => d.blobKey), ...(trip?.coverBlobKey ? [trip.coverBlobKey] : []), flightBackgroundKey(tripId, 'origin'), flightBackgroundKey(tripId, 'destination')]);
     await db.docs.bulkDelete(docs.map((d) => d.id));
     await db.days.where('tripId').equals(tripId).delete();
     await db.items.where('tripId').equals(tripId).delete();
