@@ -3,6 +3,7 @@
 // 完成勾选、实际记账、穿搭打包、主题都是各自的，不进快照。
 import type { Day, Doc, Item, Trip } from '../domain/types';
 import { sortHighlights, type Focus, type Guide, type GuideTip, type Highlight, type HighlightCategory } from '../domain/guide';
+import { sortFoods, type FoodEntry } from '../domain/food';
 
 export interface SnapshotDoc extends Omit<Doc, 'blobKey' | 'fromCloud'> {
   /** 文件内容的 sha256（链接资料没有） */
@@ -41,6 +42,13 @@ export interface SnapshotGuide {
   highlights: SnapshotHighlight[];
 }
 
+/** 2026-10-23：美食册（每个旅程一本）跟着版本发布。照片和缩略图按内容哈希放云端 */
+export interface SnapshotFood extends Omit<FoodEntry, 'photoKey' | 'tripId' | 'updatedAt'> {
+  photoHash?: string;
+  photoMime?: string;
+  thumbHash?: string;
+}
+
 export interface TripSnapshot {
   schema: 1;
   trip: Pick<Trip, 'title' | 'startDate' | 'endDate' | 'homeTz' | 'destination' | 'budget' | 'participants' | 'departTime' | 'translate'> & {
@@ -52,6 +60,8 @@ export interface TripSnapshot {
   docs: SnapshotDoc[];
   /** 旧版本（2026-10-20 之前）没有这一项；没写任何亮点内容时也不带 */
   guide?: SnapshotGuide;
+  /** 2026-10-23 之前的版本没有这一项 */
+  food?: SnapshotFood[];
 }
 
 /** 比较内容时忽略：原文行号、显示顺序（别的项插进来会重新编号）、key（按规则从内容算出）、所属旅程 */
@@ -89,9 +99,11 @@ export function buildSnapshot(
   docs: Doc[],
   fileHashOf: (blobKey: string) => string | undefined,
   guideData?: { guide?: Guide; highlights: Highlight[]; mimeOf?: (blobKey: string) => string | undefined },
+  food?: FoodEntry[],
 ): TripSnapshot {
   const coverHash = trip.coverBlobKey ? fileHashOf(trip.coverBlobKey) : undefined;
   const guide = guideData ? buildGuide(guideData.guide, guideData.highlights, fileHashOf, guideData.mimeOf) : undefined;
+  const foods = food?.length ? buildFood(food, fileHashOf, guideData?.mimeOf) : undefined;
   return {
     schema: 1,
     trip: {
@@ -114,7 +126,46 @@ export function buildSnapshot(
       return { ...d, tripId: trip.id, ...(fileHash ? { fileHash } : {}) };
     }),
     ...(guide ? { guide } : {}),
+    ...(foods ? { food: foods } : {}),
   };
+}
+
+/** 本机美食 → 快照里的样子（按显示顺序） */
+export function buildFood(list: FoodEntry[], fileHashOf: (blobKey: string) => string | undefined, mimeOf?: (blobKey: string) => string | undefined): SnapshotFood[] {
+  return sortFoods(list).map((f) => {
+    const { photoKey, tripId: _t, updatedAt: _u, ...rest } = f;
+    void _t;
+    void _u;
+    const photoHash = photoKey ? fileHashOf(photoKey) : undefined;
+    const thumbHash = photoKey && photoHash ? fileHashOf(`${photoKey}#thumb`) : undefined;
+    const mime = photoKey ? mimeOf?.(photoKey) : undefined;
+    const out: SnapshotFood = { ...rest };
+    if (!photoHash) delete out.photoFocus;
+    return { ...out, ...(photoHash ? { photoHash, ...(mime ? { photoMime: mime } : {}), ...(thumbHash ? { thumbHash } : {}) } : {}) };
+  });
+}
+
+/** 比较美食内容时忽略：顺序、缩略图、照片类型（同一张照片哈希一样） */
+export function foodCore(f: SnapshotFood): unknown {
+  const { order: _o, thumbHash: _t, photoMime: _m, ...rest } = f;
+  void _o;
+  void _t;
+  void _m;
+  return rest;
+}
+
+/** 美食册这一块相对上次版本改了什么（一条一句话） */
+export function diffFood(base: SnapshotFood[] | undefined, next: SnapshotFood[] | undefined): string[] {
+  const a = new Map((base ?? []).map((f) => [f.id, f]));
+  const b = new Map((next ?? []).map((f) => [f.id, f]));
+  const out: string[] = [];
+  for (const f of next ?? []) {
+    const o = a.get(f.id);
+    if (!o) out.push(`新增美食 · ${f.name}`);
+    else if (stable(foodCore(o)) !== stable(foodCore(f))) out.push(`修改美食 · ${f.name}`);
+  }
+  for (const f of base ?? []) if (!b.has(f.id)) out.push(`删除美食 · ${f.name}`);
+  return out;
 }
 
 /** 本机的亮点资料 → 快照里的样子；什么内容都没有就返回 undefined */
@@ -211,6 +262,8 @@ export interface SnapshotDiff {
   docs: { id: string; kind: 'added' | 'removed' | 'changed'; title: string }[];
   /** 旅行亮点的改动，一条一句话 */
   guide: string[];
+  /** 2026-10-23 美食册的改动，一条一句话 */
+  food: string[];
   /** 改动总数（给「有 N 处改动」用） */
   count: number;
 }
@@ -320,5 +373,6 @@ export function diffSnapshots(base: TripSnapshot | undefined, next: TripSnapshot
   }
   items.sort((a, b) => (a.dayIndex ?? 0) - (b.dayIndex ?? 0));
   const guide = base ? diffGuide(base.guide, next.guide) : [];
-  return { trip, days, items, docs, guide, count: trip.length + days.length + items.length + docs.length + guide.length };
+  const food = base ? diffFood(base.food, next.food) : [];
+  return { trip, days, items, docs, guide, food, count: trip.length + days.length + items.length + docs.length + guide.length + food.length };
 }

@@ -84,7 +84,9 @@ export default function GuidePage() {
   if (!td || hs === undefined || guide === undefined) return <div className={g.page} />;
 
   const { trip } = td;
-  const canEdit = trip.cloud?.role !== 'member';
+  // 2026-10-23 共同制作：同伴也能编辑；改动先留在自己手机上，提交给主用户接受后大家才看到
+  const canEdit = true;
+  const isMate = trip.cloud?.role === 'member';
   const edit = editing && canEdit;
   const G: Guide = guide ?? { tripId: trip.id, tips: [], updatedAt: '' };
   const shown = edit ? all : all.filter((h) => !h.hidden);
@@ -216,7 +218,7 @@ export default function GuidePage() {
           )}
         </div>
       </div>
-      {!canEdit && <p className={g.notice}>这是{trip.cloud?.ownerName ? `「${trip.cloud.ownerName}」` : '主用户'}整理的旅行亮点，更新后会随行程一起同步。</p>}
+      {isMate && <p className={g.notice}>你改的亮点先留在你手机上，到「我的修改」提交给{trip.cloud?.ownerName ? `「${trip.cloud.ownerName}」` : '主用户'}，接受并发布后大家都会看到。</p>}
 
       {/* 第一页：封面（手机 M01 / 电脑 W01） */}
       <div className={g.coverGrid}>

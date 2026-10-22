@@ -12,8 +12,9 @@ import { Field, TextInput } from '../components/Form';
 import { useTripData } from '../hooks/data';
 import { toast } from '../store/ui';
 import { backend, cloudErrorText, type CloudSuggestion, type SuggestionChange } from '../cloud/backend';
-import { changeLine, decide, myLocalChanges, revertLocal, reviewRows, submitSuggestion, type ReviewRow } from '../cloud/suggest';
+import { changeLine, changeText, decide, isEntity, myLocalChanges, revertLocal, reviewRows, submitSuggestion, type ReviewRow } from '../cloud/suggest';
 import { publishUpdate } from '../cloud/sync';
+import { KIND_LABEL } from '../cloud/shared';
 import { refreshCloud } from '../cloud/session';
 import { fmtTimeRange } from '../domain/format';
 import type { Item } from '../domain/types';
@@ -44,7 +45,8 @@ function ChangeHead({ c }: { c: SuggestionChange }) {
     <div className={p.notifyHead}>
       <StatusChip variant={OP[c.op].v}>{OP[c.op].label}</StatusChip>
       <span className={p.inviteTitle} style={{ flex: 1, minWidth: 0 }}>
-        {c.dayIndex ? `Day ${c.dayIndex} · ` : ''}
+        {isEntity(c) && c.kind !== 'day' ? `${KIND_LABEL[c.kind]} · ` : ''}
+        {c.dayIndex && !(isEntity(c) && c.kind === 'day') ? `Day ${c.dayIndex} · ` : ''}
         {c.title}
       </span>
     </div>
@@ -74,9 +76,9 @@ export function MySuggestPage() {
   useEffect(() => {
     void loadMine();
   }, [tripId]); // eslint-disable-line react-hooks/exhaustive-deps
-  // 默认全选；新出现的修改也默认选上
+  // 默认全选；自己新加的证明资料可能是私人的，默认不选
   useEffect(() => {
-    if (changes && picked === null) setPicked(new Set(changes.map((c) => c.itemId)));
+    if (changes && picked === null) setPicked(new Set(changes.filter((c) => !(c.kind === 'doc' && c.op === 'add')).map((c) => c.itemId)));
   }, [changes, picked]);
 
   if (!tripId || td === null) return <Screen header={<BackHeader title="我的修改" />}>{null}</Screen>;
@@ -128,7 +130,7 @@ export function MySuggestPage() {
           {changes === undefined ? (
             <p className={p.lockNote}>正在读取…</p>
           ) : changes.length === 0 ? (
-            <EmptyState title="没有本机修改" text="你在行程里新增、修改或删除的项目会出现在这里。" compact />
+            <EmptyState title="没有本机修改" text="你在行程、资料、旅行亮点、美食册、旅程资料里新增、修改或删除的内容会出现在这里。" compact />
           ) : (
             <>
               <ul className={p.notifyList}>
@@ -139,7 +141,7 @@ export function MySuggestPage() {
                       <span className={p.suggestText}>
                         <ChangeHead c={c} />
                         {c.op === 'change' && c.fields?.length ? <span className={p.lockNote}>改了：{c.fields.join('、')}</span> : null}
-                        {c.op !== 'remove' && <span className={p.notifyBody}>{brief(c.item)}</span>}
+                        {c.op !== 'remove' && <span className={p.notifyBody}>{isEntity(c) ? changeText(c) : brief(c.item)}</span>}
                         {pendingIds.has(c.itemId) && <span className={p.lockNote}>已经在一条等待中的建议里</span>}
                         <button type="button" className={p.linkBtn} onClick={(e) => (e.preventDefault(), setReverting(c))}>
                           恢复成主用户版本
@@ -270,7 +272,7 @@ export function SuggestionsPage() {
         {list === null ? (
           <p className={p.lockNote}>正在读取…</p>
         ) : list.length === 0 ? (
-          <EmptyState title="还没有建议" text="同伴在自己手机上改了行程、并选择提交后，会出现在这里。" compact />
+          <EmptyState title="还没有建议" text="同伴在自己手机上改了行程、资料、亮点或美食，并选择提交后，会出现在这里。" compact />
         ) : (
           <div className={p.stack}>
             {pending.length > 0 && (
@@ -401,16 +403,16 @@ export function ReviewSuggestionPage() {
                   <div className={p.conflictCols}>
                     <div>
                       <p className={p.groupLabel}>现在</p>
-                      <p className={p.diffText}>{c.op === 'add' && !r.current ? '（没有这一项）' : brief(r.current)}</p>
+                      <p className={p.diffText}>{isEntity(c) ? r.currentText ?? '（没有这一项）' : c.op === 'add' && !r.current ? '（没有这一项）' : brief(r.current)}</p>
                     </div>
                     <div>
                       <p className={p.groupLabel}>{sg.authorName || '同伴'} 的建议</p>
-                      <p className={p.diffText}>{c.op === 'remove' ? '（删除这一项）' : brief(c.item)}</p>
+                      <p className={p.diffText}>{c.op === 'remove' ? '（删除这一项）' : isEntity(c) ? changeText(c) : brief(c.item)}</p>
                     </div>
                   </div>
                   {r.ownerChanged && pending && (
                     <InfoBanner variant="warning">
-                      {c.op === 'add' ? '这一项你那边已经有了，接受会换成同伴的版本。' : r.current ? '同伴提交之后你又改过这一项，接受会换成同伴的版本。' : '这一项你已经删掉了，接受会按同伴的版本加回来。'}
+                      {c.op === 'add' ? '这一项你那边已经有了，接受会换成同伴的版本。' : (isEntity(c) ? r.currentText !== undefined : r.current) ? '同伴提交之后你又改过这一项，接受会换成同伴的版本。' : '这一项你已经删掉了，接受会按同伴的版本加回来。'}
                     </InfoBanner>
                   )}
                   {r.noDay && pending && <InfoBanner variant="warning">你的行程里没有 Day {c.dayIndex}，接受后会放到最后一天。</InfoBanner>}
