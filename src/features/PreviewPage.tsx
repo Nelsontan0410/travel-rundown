@@ -18,7 +18,7 @@ import { buildPrompt } from '../importer/promptTemplate';
 import { copyWithToast } from '../links/openLink';
 import { Field, TextInput } from '../components/Form';
 import { DraftDay, TypeCounts } from '../components/DraftReview';
-import { itemIcon, itemSubtitle, TYPE_LABEL } from '../domain/rules';
+import { itemIcon, itemSubtitle, plannedTotal, TYPE_LABEL } from '../domain/rules';
 import type { Item, ItemType } from '../domain/types';
 import { useTrips } from '../hooks/data';
 import { DroppedList, FixList, MappingSummaryCard, UnmappedList, type FixRow, type UnmappedRow } from '../components/MappingReview';
@@ -86,6 +86,7 @@ export default function PreviewPage() {
   const repairPrompt = buildPrompt().replace('（把你的行程粘贴在这里）', draft.md);
 
   const all = result.days.flatMap((d) => d.items);
+  const itemSum = plannedTotal(all);
   const counts = TYPE_ORDER.map((t) => ({ icon: TYPE_ICON[t], label: TYPE_LABEL[t], n: all.filter((i) => i.type === t).length })).filter((c) => c.n > 0);
   const changeStart = (v: string) => {
     if (!v || v === result.trip.startDate) return;
@@ -256,7 +257,8 @@ export default function PreviewPage() {
                 ['日期范围', result.trip.startDate ? fmtDateRange(result.trip.startDate, result.trip.endDate) : '—'],
                 ['天数', result.trip.startDate ? `${tripDays(result.trip.startDate, result.trip.endDate)}天` : `${result.days.length}天`],
                 ['行程项数', String(result.itemCount)],
-                ['总预算', result.trip.budget !== undefined ? fmtMoney(result.trip.budget) : '未写（可以之后在账本里设置）'],
+                ['总预算', result.trip.budget !== undefined ? fmtMoney(result.trip.budget) : itemSum !== undefined ? `${fmtMoney(itemSum)}（按各项预算合计）` : '未写（可以之后在账本里设置）'],
+                ...(itemSum !== undefined && result.trip.budget !== undefined ? ([['各项预算合计', fmtMoney(itemSum)]] as [string, string][]) : []),
               ]}
             />
           </div>

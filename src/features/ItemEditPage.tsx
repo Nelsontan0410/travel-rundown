@@ -11,7 +11,7 @@ import { Field, SwitchRow, TextInput } from '../components/Form';
 import { db } from '../db/schema';
 import { addItem, deleteItem, moveItem, updateItem, type ItemPatch } from '../db/repo';
 import { useTripData } from '../hooks/data';
-import { fmtMonthDay, SEP } from '../domain/format';
+import { fmtMonthDay, parseMoney, SEP } from '../domain/format';
 import { MEAL_LABEL, TYPE_LABEL } from '../domain/rules';
 import { toast } from '../store/ui';
 import type { BookingStatus, Item, ItemType, MealKind } from '../domain/types';
@@ -51,6 +51,7 @@ interface Form {
   meal: MealKind | '';
   mustDo: string;
   bookingRef: string;
+  budget: string;
   status: 'none' | BookingStatus;
   alt: string;
   note: string;
@@ -86,6 +87,7 @@ function toForm(it: Partial<Item>, dayId: string): Form {
     meal: it.meal ?? '',
     mustDo: (it.mustDo ?? []).join('\n'),
     bookingRef: it.bookingRef ?? '',
+    budget: it.budget !== undefined ? (it.budget / 100).toFixed(2).replace(/\.00$/, '') : '',
     status: it.bookingStatus ?? 'none',
     alt: it.alt ?? '',
     note: it.note ?? '',
@@ -113,6 +115,7 @@ function toPatch(f: Form): ItemPatch & { type: ItemType; title: string } {
     meal: f.meal || undefined,
     mustDo: f.mustDo.split(/\n|；|;/).map((s) => s.trim()).filter(Boolean),
     bookingRef: u(f.bookingRef),
+    budget: f.budget.trim() ? (parseMoney(f.budget) ?? undefined) : undefined,
     bookingStatus: f.status === 'none' ? undefined : f.status,
     alt: u(f.alt),
     note: u(f.note),
@@ -153,6 +156,7 @@ export default function ItemEditPage() {
   const save = async () => {
     if (!f.title.trim()) return setErr('标题不能空着');
     if (f.end && !f.start) return setErr('有结束时间时也要填开始时间');
+    if (f.budget.trim() && parseMoney(f.budget) === null) return setErr('预算只能写数字（单位 MYR），例如 120');
     const patch = toPatch(f);
     if (isNew) {
       const id = await addItem(td.trip.id, f.dayId, patch);
@@ -270,6 +274,7 @@ export default function ItemEditPage() {
 
           <SectionTitle>预订</SectionTitle>
           {text('bookingRef', '预订编号')}
+          {text('budget', '预算（MYR）', { placeholder: '例如 120', hint: '这一项全部同行人合计的预估花费，免费写 0，留空表示没有' })}
           <Field label="预订状态">
             <FilterChips options={STATUS} value={f.status} onChange={(v) => set('status', v)} />
           </Field>

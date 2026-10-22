@@ -12,7 +12,7 @@ import { setItemChecked, setItemStatus } from '../db/repo';
 import { statusOf, useSettings, useTripData } from '../hooks/data';
 import { navLink } from '../links/maps';
 import MustDoList from '../components/MustDoList';
-import { fmtMonthDay, fmtTimeRange, SEP, utcOffsetLabel } from '../domain/format';
+import { fmtMoney, fmtMonthDay, fmtTimeRange, SEP, utcOffsetLabel } from '../domain/format';
 import {
   bookingChip,
   bookingIcon,
@@ -194,6 +194,18 @@ export default function ItemPage() {
         <>
           <SectionTitle>{info.title}</SectionTitle>
           <KeyValueCard rows={info.rows} />
+        </>
+      )}
+
+      {item.budget !== undefined && (
+        <>
+          <SectionTitle>预算</SectionTitle>
+          <KeyValueCard
+            rows={[
+              ['预算', fmtMoney(item.budget)],
+              ['已花', fmtMoney(td.expenses.filter((x) => x.itemKey === item.key).reduce((a, x) => a + x.amount, 0))],
+            ]}
+          />
         </>
       )}
 
