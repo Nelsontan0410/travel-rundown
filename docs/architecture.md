@@ -31,9 +31,10 @@ erDiagram
 ```
 
 ### Trip
-`title` 就是目的地（城市级以上，如「北海道，日本」）；`startDate/endDate`；`budget`（分，MYR，只有它从导入来）。
+`title` 就是目的地（城市级以上，如「北海道，日本」）；`startDate/endDate`；`budget`（分，MYR，只有它从导入来；导入没写总预算时用各项预算合计）。
 
 ### Item（六种类型，公共字段 + 专属字段）
+公共字段里的 `budget`（2026-10-22，分，MYR，全部同行人合计，0 = 免费）是这一项的预估花费：来自导入的「预算」行，或账本页「AI 生成分项预算」按编号写入（`importer/budgetPlan.ts`、`repo.applyItemBudgets`）；重新导入没写预算的项沿用原值。已花 = `Expense.itemKey` 对应这一项的明细合计（`rules.itemBudgetRows`）。
 | 类型 | 中文 | 专属字段 |
 |---|---|---|
 | flight | 机票 | `flight { number, airline, terminal, seat }`，`place`=出发机场，`toPlace`=到达机场 |
