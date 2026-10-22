@@ -56,3 +56,49 @@ export function navLink(item: Pick<Item, 'type' | 'title' | 'place' | 'toPlace' 
 export function placeLink(p: Place, tz: string, settings?: Settings): string {
   return searchUrl(appFor(tz, settings), placeQuery(p));
 }
+
+export type MobileOs = 'android' | 'ios' | 'other';
+
+export function mobileOs(ua: string, touchPoints = 0): MobileOs {
+  if (/Android/i.test(ua)) return 'android';
+  if (/iPhone|iPad|iPod/i.test(ua) || (/Macintosh/i.test(ua) && touchPoints > 1)) return 'ios';
+  return 'other';
+}
+
+const AMAP_SRC = 'tongxing8';
+
+/**
+ * 把高德网页链接（uri.amap.com 的 search / marker）换成直接打开高德 App 的链接。
+ * - Android：intent:// 链接，装了高德直接开 App；没装由浏览器自动打开网页版（browser_fallback_url）。
+ * - iOS：iosamap:// 链接；没装的情况由调用方在超时后改开网页版。
+ * - 其他（电脑）或不是高德链接：返回 undefined，照常开网页。
+ */
+export function amapAppUrl(webUrl: string, os: MobileOs): string | undefined {
+  if (os === 'other') return undefined;
+  let u: URL;
+  try {
+    u = new URL(webUrl);
+  } catch {
+    return undefined;
+  }
+  if (!u.hostname.endsWith('amap.com')) return undefined;
+  const enc = encodeURIComponent;
+  let path: string;
+  if (u.pathname.startsWith('/search')) {
+    const kw = u.searchParams.get('keyword') ?? '';
+    if (!kw) return undefined;
+    path = os === 'android'
+      ? `poi?sourceApplication=${AMAP_SRC}&keywords=${enc(kw)}&dev=0`
+      : `poi?sourceApplication=${AMAP_SRC}&name=${enc(kw)}`;
+  } else if (u.pathname.startsWith('/marker')) {
+    const [lon, lat] = (u.searchParams.get('position') ?? '').split(',');
+    if (!lon || !lat) return undefined;
+    const name = u.searchParams.get('name') ?? '';
+    const dev = u.searchParams.get('coordinate') === 'wgs84' ? 1 : 0;
+    path = `viewMap?sourceApplication=${AMAP_SRC}&poiname=${enc(name)}&lat=${lat}&lon=${lon}&dev=${dev}`;
+  } else {
+    return undefined;
+  }
+  if (os === 'ios') return `iosamap://${path}`;
+  return `intent://${path}#Intent;scheme=androidamap;package=com.autonavi.minimap;S.browser_fallback_url=${enc(webUrl)};end`;
+}

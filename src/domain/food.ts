@@ -176,7 +176,7 @@ export function foodInMainland(f: Pick<FoodEntry, 'restaurantName' | 'address' |
 
 /**
  * 导航链接：按「店在哪里」选地图（中国大陆用设置里的中国导航，默认高德；其他地方用另一项），与用户人在哪、当前哪个行程无关。
- * 高德一律按「店名 + 地址」搜索（避免 WGS-84 / GCJ-02 坐标偏移），callnative=1 有 App 就拉起 App。
+ * 高德一律只用「地址」搜索（加店名会让高德搜不准；也避免 WGS-84 / GCJ-02 坐标偏移）。手机上由 openExternal 直接拉起高德 App。
  * Google 有有效坐标用坐标，否则用「店名 + 地址」。地址和坐标都没有就返回 undefined，界面据此禁用导航。
  */
 export function foodNavUrl(f: Pick<FoodEntry, 'restaurantName' | 'address' | 'lat' | 'lng'>, settings?: Settings): string | undefined {
@@ -186,7 +186,7 @@ export function foodNavUrl(f: Pick<FoodEntry, 'restaurantName' | 'address' | 'la
   const addr = f.address?.trim();
   const q = [f.restaurantName?.trim(), addr].filter(Boolean).join(' ');
   if (app === 'amap') {
-    if (addr) return searchUrl('amap', q);
+    if (addr) return searchUrl('amap', addr);
     if (okCoord) return `https://uri.amap.com/marker?position=${f.lng},${f.lat}&name=${encodeURIComponent(f.restaurantName?.trim() || '')}&coordinate=wgs84&callnative=1`;
     return undefined;
   }
