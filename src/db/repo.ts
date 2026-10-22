@@ -8,6 +8,7 @@ import { importContent, type DiffOldItem } from '../importer/diff';
 import { encryptBlob, decryptBlob } from '../lib/crypto';
 import { addDays, daysBetween } from '../domain/format';
 import { makeItemKey } from '../domain/itemKey';
+import { plannedTotal } from '../domain/rules';
 import { migrateItemV2 } from '../domain/migrate';
 import type { Guide, Highlight } from '../domain/guide';
 import type { FoodMark, FoodSpot } from '../domain/food';
@@ -72,7 +73,8 @@ export async function saveImport(
       homeTz: result.trip.homeTz,
       destination: result.trip.destination,
       coverBlobKey: existing?.coverBlobKey,
-      budget: result.trip.budget ?? existing?.budget,
+      // 2026-10-22：没写总预算、本机也没有时，用各项预算合计（导入的行程每项都带预算时，账本直接有总预算）
+      budget: result.trip.budget ?? existing?.budget ?? plannedTotal(result.days.flatMap((d) => d.items)),
       translate: existing?.translate ?? DEFAULT_TRANSLATE,
       // 修订 2026-10：人数以导入为准，没写就保留；主题和出发时刻是用户设置，重新导入不覆盖
       participants: result.trip.participants ?? existing?.participants,
@@ -319,6 +321,41 @@ export async function unlockDoc(docId: string, password: string): Promise<void> 
 
 export async function setBudget(tripId: string, sen: number | undefined): Promise<void> {
   await db.trips.update(tripId, { budget: sen, updatedAt: now() });
+}
+
+/**
+ * 2026-10-22 分项预算：把 AI 估好的预算按项写进去（按 Item.key 对应）。
+ * - 只改 budget，不动行程其他内容；写回 sourceMd，重新导入、同步都带着
+ * - setTotal = true：同时把旅程总预算设成「所有项预算合计」（包括这次没动的项）
+ */
+export async function applyItemBudgets(
+  tripId: string,
+  rows: { key: string; amount: number }[],
+  opts: { setTotal?: boolean } = {},
+): Promise<{ updated: number; unchanged: number; total: number }> {
+  let updated = 0;
+  let unchanged = 0;
+  let total = 0;
+  await db.transaction('rw', EDIT_TABLES(), async () => {
+    const items = await db.items.where('tripId').equals(tripId).toArray();
+    const byKey = new Map(items.map((i) => [i.key, i]));
+    for (const r of rows) {
+      const it = byKey.get(r.key);
+      if (!it || !Number.isFinite(r.amount) || r.amount < 0) continue;
+      const amount = Math.round(r.amount);
+      if (it.budget === amount) {
+        unchanged++;
+        continue;
+      }
+      it.budget = amount;
+      await db.items.put(it);
+      updated++;
+    }
+    total = items.reduce((a, i) => a + (i.budget ?? 0), 0);
+    if (updated) await afterEdit(tripId);
+    if (opts.setTotal) await db.trips.update(tripId, { budget: total, updatedAt: now() });
+  });
+  return { updated, unchanged, total };
 }
 
 export async function addExpense(input: {

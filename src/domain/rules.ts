@@ -205,6 +205,39 @@ export function ledgerSummary(budget: number | undefined, expenses: { amount: nu
   return { budget, spent, left: budget === undefined ? undefined : budget - spent, byCategory };
 }
 
+/** 2026-10-22 分项预算：每一项的预算和已花（已花 = 账本里关联到这一项的明细合计） */
+export interface ItemBudgetRow {
+  item: Item;
+  budget: number;
+  spent: number;
+  /** 已花超过预算的部分（没超为 0） */
+  over: number;
+}
+
+export function itemBudgetRows(items: Item[], expenses: { itemKey?: string; amount: number }[]): ItemBudgetRow[] {
+  const spentBy = new Map<string, number>();
+  for (const e of expenses) if (e.itemKey) spentBy.set(e.itemKey, (spentBy.get(e.itemKey) ?? 0) + e.amount);
+  return items
+    .filter((i) => i.budget !== undefined)
+    .map((item) => {
+      const budget = item.budget!;
+      const spent = spentBy.get(item.key) ?? 0;
+      return { item, budget, spent, over: Math.max(0, spent - budget) };
+    });
+}
+
+/** 各项预算合计（分）；没有任何一项写预算返回 undefined */
+export function plannedTotal(items: Pick<Item, 'budget'>[]): number | undefined {
+  let any = false;
+  let sum = 0;
+  for (const i of items) {
+    if (i.budget === undefined) continue;
+    any = true;
+    sum += i.budget;
+  }
+  return any ? sum : undefined;
+}
+
 /** 02 详情页「航班 / 住宿 / 交通 / 餐饮信息」表格 */
 export function typeInfo(item: Item): { title: string; rows: [string, string][] } | null {
   const rows: [string, string][] = [];
