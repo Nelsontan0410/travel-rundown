@@ -9,7 +9,7 @@ import { BackHeader, Dialog } from '../../components/Layout';
 import { Button, InfoBanner } from '../../components/Basics';
 import { Field, TextInput } from '../../components/Form';
 import { Icon } from '../../components/Icon';
-import { useFoodEntry } from '../../hooks/food';
+import { useFoodEntry, useFoodTrip } from '../../hooks/food';
 import { addFoodEntry, updateFoodEntry, type PhotoChange } from '../../db/food';
 import { FOOD_CATEGORIES, FOOD_CURRENCIES, FOOD_LIMITS, validateFood, type FoodCategory, type FoodDraft, type FoodEntry } from '../../domain/food';
 import { clampFocus, DEFAULT_FOCUS, focusStyle, type Focus } from '../../domain/guide';
@@ -95,6 +95,7 @@ function toDraft(v: FormState, focus: Focus | undefined): Partial<FoodDraft> {
 type NewPhoto = { blob: Blob; thumb?: Blob; url: string };
 
 function FoodForm({ initial }: { initial?: FoodEntry }) {
+  const foodTrip = useFoodTrip();
   const nav = useNavigate();
   const [v, setV] = useState<FormState>(() => fromEntry(initial));
   const [focus, setFocus] = useState<Focus | undefined>(initial?.photoFocus);
@@ -192,7 +193,7 @@ function FoodForm({ initial }: { initial?: FoodEntry }) {
     const change: PhotoChange = photo ? { blob: photo.blob, thumb: photo.thumb } : removed ? null : undefined;
     try {
       if (initial) await updateFoodEntry(initial.id, draft, change);
-      else await addFoodEntry(draft, change);
+      else await addFoodEntry(foodTrip?.id ?? '', draft, change);
       toast(initial ? '已保存' : `已新增「${draft.name?.trim()}」`);
       leave();
     } catch (err) {

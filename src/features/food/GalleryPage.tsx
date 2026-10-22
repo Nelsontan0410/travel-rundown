@@ -9,7 +9,7 @@ import { FoodShell, leaveFood } from './FoodShell';
 import { cachedThumb, decodedFull, useThumb, watchVisible } from './photos';
 import { boxOf, EASE, flipTiles, heroPose, HERO_REST, INFO_IN, liftBox, measureTiles, reduceMotion, T, Timeline, TYPE_IN, TYPE_OUT, visibleIn, type Box } from './motion';
 import { Icon } from '../../components/Icon';
-import { useFoodEntries } from '../../hooks/food';
+import { useFoodEntries, useFoodTrip } from '../../hooks/food';
 import { useSettings } from '../../hooks/data';
 import { filterFoods, FOOD_CATEGORIES, FOOD_CATEGORY_LABEL, foodNavUrl, type FoodCategory, type FoodEntry } from '../../domain/food';
 import { focusStyle } from '../../domain/guide';
@@ -24,6 +24,8 @@ const memo: { cat: Cat; scroll: number } = { cat: 'all', scroll: 0 };
 export default function GalleryPage() {
   const nav = useNavigate();
   const foods = useFoodEntries();
+  // 2026-10-23 美食册按旅程：标题上方写是哪一份旅程的
+  const foodTrip = useFoodTrip();
   const settings = useSettings();
   const [cat, setCat] = useState<Cat>(memo.cat);
   const [q, setQ] = useState('');
@@ -376,7 +378,7 @@ export default function GalleryPage() {
                 <Icon name="ChevronLeft" />
               </button>
               <div className={g.titleText}>
-                <span className={g.brandLine}>Tongxing8</span>
+                <span className={g.brandLine}>{foodTrip?.title || 'Tongxing8'}</span>
                 <h1 className={g.title}>美食专区</h1>
               </div>
               <button type="button" className={g.roundBtn} aria-label="搜索美食" onClick={() => setSearching(true)} disabled={!foods?.length}>
