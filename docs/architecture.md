@@ -77,12 +77,12 @@ flowchart LR
 - 为了让 id 稳定，`saveImport` 重新导入时同 key（或确认改名）的项沿用原 id、同一天沿用原 day id。
 - 不上云：完成勾选、实际记账、穿搭打包、主题。权限在数据库行级权限里强制（`supabase/schema.sql`）。
 
-## 美食专区（2026-10-21）
-- Dexie v6：`foods`（`FoodSpot`，按旅程，备选店铺）、`foodMarks [tripId+foodId]`（个人标记：吃过 / 收藏，只存本机）。类型和纯函数在 `domain/food.ts`，存取在 `db/food.ts`，读取 hook `hooks/food.ts`。
-- 和行程原始数据分开：美食专区从不改写行程项。唯一例外是用户点「改去这家」→ `swapMealTo` 走 `updateItem`：那一餐换成新店的店名、地点、必吃；原计划（含订单号）写进 `alt`，并收进美食专区（`source='itinerary'`）；原 AI 导航链接、订单号、预订状态清掉；完成状态、证明、账本按 key 规则迁移。
-- 备选推荐 `foodAlternatives`：排除吃过的和原定那家；同城（城市名互相包含）或「打算哪天去」含这一天 = 附近；再按适合这一餐、收藏、原顺序排。
-- 导入 `importer/food.ts`：和行程同样写法的 Markdown（`## 城市` / `### [类型] 店名 | 当地店名` / `- 字段: 值`）或 JSON 数组；`foodPrompt` 是给外部 AI 的提示词。按「店名 + 城市」合并，保留 id、顺序、标记；清单里没有的店不删。
-- 第几天 = `Day.index`（和 `Day N` 一样从 1 开始）。备份、旅行包、恢复、删除旅程都包含美食。暂不同步给同伴（每台手机各自一份）。
+## 美食专区（2026-10-23 全新版，取代 10-21 版）
+- 全站共用一本美食册，不属于任何旅程。路由：`/food`（Gallery，只看）、`/food/database`（资料库）、`/food/database/new`、`/food/database/:foodId`（新增 / 编辑同一个表单）。旧的 `/trip/:id/food` 转到 `/food`。手机和平板不显示底栏（`MobileNavigation` 在 `/food*` 返回 null），电脑保留侧栏（`FoodShell`）。
+- Dexie v7：新表 `foodEntries`（`FoodEntry`，索引 `id, category`）；旧版 `foods`、`foodMarks` 两张表连资料一起删除。类型、分类配置（Gallery 和资料库共用）、校验、搜索、Google 地图导航链接在 `domain/food.ts`；存取在 `db/food.ts`；读取 hook `hooks/food.ts`。
+- 照片：表单里经 `processPhoto`（≤1600px JPEG）+ `makeThumb`（480px）后存 `blobs`，键 `food:<id>:<随机>`，缩略图 `键#thumb`；每次换照片换新键，删旧图。记录里只存键和 `photoFocus`（正方形里的焦点 / 缩放，原图不裁）。删除美食连照片一起删。全部备份（`exportBackup`）带美食和照片；旅行包不带（美食不属于旅程）。旧备份里的 `foods / foodMarks` 恢复时忽略。
+- 预算：`{ currency, min?, max? }`，每家店自己的币种；电话存字符串；坐标可选，有就优先用于导航，否则用「店名 + 地址」。
+- Gallery 动画（`features/food/motion.ts` + `GalleryPage.tsx`）：原生 Web Animations API，无依赖。状态 `gallery → opening → expanded ⇄ switching → closing`，动画中点击忽略。主图是同一个元素：布局在最终位置，用 `heroPose`（等比缩放 + clip-path 裁成正方形）伪装回格子再动回来；其余照片用 FLIP（`flipTiles`，只动可见范围）。3D 文字用 perspective / rotateY / translateZ / blur。`prefers-reduced-motion` 时改为短淡入淡出。
 
 ## 显示格式
 日期 `13-JAN-2027`（`fmtDate`），短格式 `13-JAN`；金额 `RM 1,234.50`（`fmtMoney`）。

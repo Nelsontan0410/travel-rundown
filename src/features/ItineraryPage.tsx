@@ -113,9 +113,6 @@ export default function ItineraryPage() {
         <Button variant="link" icon="StickyNote" onClick={() => nav(`/trip/${trip.id}/outfits`)}>
           穿搭与行李
         </Button>
-        <Button variant="link" icon="Utensils" onClick={() => nav(`/trip/${trip.id}/food`)}>
-          美食专区
-        </Button>
       </div>
       <details className={p.tripPreparation}>
         <summary>出发准备</summary>

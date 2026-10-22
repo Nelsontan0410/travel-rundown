@@ -43,7 +43,7 @@ function Navigation() {
   const menu = useRef<HTMLDivElement | null>(null);
   const path = (tail: string) => tripId ? `/trip/${tripId}/${tail}` : '/trips';
   const active: Group = pathname.startsWith('/import') || pathname === '/trips' || pathname === '/docs' || pathname.startsWith('/join') ? 'import'
-    : /\/(ledger|outfits|food)$/.test(pathname) ? 'prepare'
+    : /\/(ledger|outfits)$/.test(pathname) ? 'prepare'
     : /\/(story|today)$/.test(pathname) || pathname === '/today' ? 'overview'
     : /\/(settings|highlights)$/.test(pathname) || pathname === '/notifications' || /\/suggest/.test(pathname) ? 'settings' : 'itinerary';
   useEffect(() => { setOpen(null); setPanel(null); }, [pathname, hash]);
@@ -67,7 +67,7 @@ function Navigation() {
     prepare: [
       { label: '预算', icon: 'Wallet', run: () => go(path('ledger')) },
       { label: '行李·准备', icon: 'ShoppingBag', run: () => showPanel('prepare') },
-      { label: '美食', icon: 'Utensils', run: () => go(path('food')) },
+      { label: '美食', icon: 'Utensils', run: () => go('/food') },
     ],
     overview: [
       { label: '今日行程', icon: 'CalendarDays', run: () => go(path('today')) },
@@ -78,7 +78,8 @@ function Navigation() {
       { label: '通知', icon: 'Bell', run: () => go('/notifications') },
     ],
   };
-  if (pathname.startsWith('/doc/')) return null;
+  // 美食专区全屏显示，不要底栏
+  if (pathname.startsWith('/doc/') || pathname === '/food' || pathname.startsWith('/food/')) return null;
   return <>
     {open && <div className={s.dismiss} data-mobile-nav-dismiss onClick={() => { setOpen(null); trigger.current?.focus(); }} />}
     <nav className={s.nav} aria-label="手机版主导航">
