@@ -1,6 +1,8 @@
 // 2026-10-23 全新美食专区：全站共用的一本「美食册」，不属于任何旅程。
 // Gallery（只看）和美食资料库（管理）共用这里的分类、字段规则和纯函数。
 import type { Focus } from './guide';
+import { DEFAULT_SETTINGS, type Settings } from './types';
+import { directionsUrl, searchUrl } from '../links/maps';
 
 export type FoodCategory = 'main' | 'snack' | 'drink' | 'supper';
 
@@ -140,15 +142,58 @@ export function filterFoods(list: FoodEntry[], category: FoodCategory | 'all', q
 /** 新加的在前；同一顺序按建立时间 */
 export const sortFoods = (list: FoodEntry[]) => [...list].sort((a, b) => b.order - a.order || b.createdAt.localeCompare(a.createdAt));
 
+const NOT_MAINLAND = /香港|澳門|澳门|台湾|台灣|臺灣|Hong\s?Kong|Macau|Macao|Taiwan/i;
+const MAINLAND = new RegExp([
+  '中国', '中國', 'China', 'PRC',
+  '北京', '天津', '上海', '重庆', '河北', '山西', '辽宁', '吉林', '黑龙江', '江苏', '浙江', '安徽', '福建', '江西', '山东', '河南', '湖北', '湖南',
+  '广东', '海南', '四川', '贵州', '云南', '陕西', '甘肃', '青海', '内蒙古', '广西', '西藏', '宁夏', '新疆',
+  '南宁', '桂林', '柳州', '北海', '广州', '深圳', '珠海', '佛山', '东莞', '汕头', '潮州', '厦门', '福州', '泉州', '杭州', '苏州', '南京', '无锡',
+  '宁波', '成都', '昆明', '大理', '丽江', '贵阳', '长沙', '武汉', '西安', '郑州', '济南', '青岛', '沈阳', '大连', '哈尔滨', '长春', '石家庄',
+  '太原', '呼和浩特', '兰州', '西宁', '银川', '乌鲁木齐', '拉萨', '海口', '三亚', '南昌', '合肥', '湛江', '顺德',
+].join('|'));
+
+const validCoord = (lat?: number, lng?: number) =>
+  num(lat) !== undefined && num(lng) !== undefined && Math.abs(lat!) <= 90 && Math.abs(lng!) <= 180 && !(lat === 0 && lng === 0);
+
+/** 坐标粗判是否在中国大陆（排除港澳台、朝韩、日本、越老缅边境以南） */
+function coordInMainland(lat: number, lng: number): boolean {
+  if (lat < 20.5 || lat > 53.6 || lng < 97 || lng > 123.5) return lng >= 123.5 && lng <= 135 && lat >= 40.5 && lat <= 53.6 && !(lat < 42.5 && lng > 126.5);
+  if (lat >= 22.1 && lat <= 22.6 && lng >= 113.5 && lng <= 114.45) return false; // 港澳
+  if (lat >= 21.8 && lat <= 25.4 && lng >= 119.3 && lng <= 122.1) return false; // 台湾
+  if (lat < 22.4 && lng < 108) return false; // 越南、老挝北部
+  if (lat < 27 && lng < 98.7) return false; // 缅甸北部
+  if (lat > 42.6 && lng < 119.5) return false; // 蒙古
+  return true;
+}
+
+/** 这家店在不在中国大陆：先看地址文字，再看坐标 */
+export function foodInMainland(f: Pick<FoodEntry, 'restaurantName' | 'address' | 'lat' | 'lng'>): boolean {
+  const text = `${f.address ?? ''} ${f.restaurantName ?? ''}`;
+  if (NOT_MAINLAND.test(text)) return false;
+  if (MAINLAND.test(text)) return true;
+  return validCoord(f.lat, f.lng) ? coordInMainland(f.lat!, f.lng!) : false;
+}
+
 /**
- * Google 地图导航链接：有有效坐标用坐标，否则用「店名 + 地址」。
- * 都没有（地址空着）就返回 undefined，界面据此禁用导航并说明原因。
+ * 导航链接：按「店在哪里」选地图（中国大陆用设置里的中国导航，默认高德；其他地方用另一项），与用户人在哪、当前哪个行程无关。
+ * 高德一律按「店名 + 地址」搜索（避免 WGS-84 / GCJ-02 坐标偏移），callnative=1 有 App 就拉起 App。
+ * Google 有有效坐标用坐标，否则用「店名 + 地址」。地址和坐标都没有就返回 undefined，界面据此禁用导航。
  */
-export function foodNavUrl(f: Pick<FoodEntry, 'restaurantName' | 'address' | 'lat' | 'lng'>): string | undefined {
-  const okCoord = num(f.lat) !== undefined && num(f.lng) !== undefined && Math.abs(f.lat!) <= 90 && Math.abs(f.lng!) <= 180 && !(f.lat === 0 && f.lng === 0);
-  if (okCoord) return `https://www.google.com/maps/dir/?api=1&destination=${f.lat},${f.lng}`;
+export function foodNavUrl(f: Pick<FoodEntry, 'restaurantName' | 'address' | 'lat' | 'lng'>, settings?: Settings): string | undefined {
+  const s = settings ?? DEFAULT_SETTINGS;
+  const app = foodInMainland(f) ? s.navInChina : s.navElsewhere;
+  const okCoord = validCoord(f.lat, f.lng);
   const addr = f.address?.trim();
-  if (!addr) return undefined;
   const q = [f.restaurantName?.trim(), addr].filter(Boolean).join(' ');
-  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(q)}`;
+  if (app === 'amap') {
+    if (addr) return searchUrl('amap', q);
+    if (okCoord) return `https://uri.amap.com/marker?position=${f.lng},${f.lat}&name=${encodeURIComponent(f.restaurantName?.trim() || '')}&coordinate=wgs84&callnative=1`;
+    return undefined;
+  }
+  if (okCoord) {
+    if (app === 'apple-maps') return `https://maps.apple.com/?daddr=${f.lat},${f.lng}`;
+    return `https://www.google.com/maps/dir/?api=1&destination=${f.lat},${f.lng}`;
+  }
+  if (!addr) return undefined;
+  return directionsUrl(app, q);
 }

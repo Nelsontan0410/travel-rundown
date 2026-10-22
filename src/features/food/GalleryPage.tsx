@@ -10,6 +10,7 @@ import { cachedThumb, decodedFull, useThumb, watchVisible } from './photos';
 import { boxOf, EASE, flipTiles, heroPose, HERO_REST, INFO_IN, liftBox, measureTiles, reduceMotion, T, Timeline, TYPE_IN, TYPE_OUT, visibleIn, type Box } from './motion';
 import { Icon } from '../../components/Icon';
 import { useFoodEntries } from '../../hooks/food';
+import { useSettings } from '../../hooks/data';
 import { filterFoods, FOOD_CATEGORIES, FOOD_CATEGORY_LABEL, foodNavUrl, type FoodCategory, type FoodEntry } from '../../domain/food';
 import { focusStyle } from '../../domain/guide';
 import { openExternal } from '../../links/openLink';
@@ -23,6 +24,7 @@ const memo: { cat: Cat; scroll: number } = { cat: 'all', scroll: 0 };
 export default function GalleryPage() {
   const nav = useNavigate();
   const foods = useFoodEntries();
+  const settings = useSettings();
   const [cat, setCat] = useState<Cat>(memo.cat);
   const [q, setQ] = useState('');
   const [searching, setSearching] = useState(false);
@@ -335,7 +337,7 @@ export default function GalleryPage() {
     else if (phase === 'expanded') void switchTo(f);
   };
 
-  const navUrl = heroFood ? foodNavUrl(heroFood) : undefined;
+  const navUrl = heroFood ? foodNavUrl(heroFood, settings) : undefined;
   const empty = foods && foods.length === 0;
 
   return (
