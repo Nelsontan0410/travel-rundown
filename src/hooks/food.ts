@@ -1,18 +1,12 @@
-// 2026-10-21 美食专区：读取一份旅程的美食和个人标记
+// 2026-10-23 全站美食册：实时读取（资料库保存后 Gallery 自动更新，不用重开 App）
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/schema';
-import type { FoodMark, FoodSpot } from '../domain/food';
+import { sortFoods, type FoodEntry } from '../domain/food';
 
-export interface FoodData {
-  foods: FoodSpot[];
-  marks: Map<string, FoodMark>;
+export function useFoodEntries(): FoodEntry[] | undefined {
+  return useLiveQuery(async () => sortFoods(await db.foodEntries.toArray()), []);
 }
 
-export function useFoods(tripId: string | null | undefined): FoodData | undefined {
-  return useLiveQuery(async () => {
-    if (!tripId) return { foods: [], marks: new Map() };
-    const [foods, marks] = await Promise.all([db.foods.where('tripId').equals(tripId).toArray(), db.foodMarks.where('tripId').equals(tripId).toArray()]);
-    foods.sort((a, b) => a.order - b.order);
-    return { foods, marks: new Map(marks.map((m) => [m.foodId, m])) };
-  }, [tripId]);
+export function useFoodEntry(id: string | undefined): FoodEntry | null | undefined {
+  return useLiveQuery(async () => (id ? (await db.foodEntries.get(id)) ?? null : null), [id]);
 }

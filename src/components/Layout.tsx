@@ -131,7 +131,7 @@ const TABS: { key: MainKey; label: string; to: string; icon: 'Home' | 'CalendarD
 /** 电脑侧栏里不在底栏上的页面，手机上高亮它们所属的底栏项 */
 const MOBILE_OF: Record<TabKey, MainKey> = {
   trips: 'trips', itinerary: 'itinerary', docs: 'docs', notify: 'notify',
-  story: 'itinerary', highlights: 'itinerary', ledger: 'itinerary', outfits: 'itinerary', food: 'itinerary', settings: 'trips',
+  story: 'itinerary', highlights: 'itinerary', ledger: 'itinerary', outfits: 'itinerary', food: 'trips', settings: 'trips',
 };
 
 /** 2026-10-20：电脑侧栏的完整导航（和旅程页同一个侧栏、同一种样式），标题写清楚每页是做什么的 */
@@ -147,13 +147,14 @@ function deskItems(tripId: string | null | undefined): { key: TabKey; label: str
           { key: 'docs', label: '预订凭证', to: '/docs', icon: 'FileText', group: 'trip' },
           { key: 'ledger', label: '旅行账本', to: t('ledger'), icon: 'Wallet', group: 'trip' },
           { key: 'outfits', label: '穿搭打包', to: t('outfits'), icon: 'StickyNote', group: 'trip' },
-          { key: 'food', label: '美食专区', to: t('food'), icon: 'Utensils', group: 'trip' },
           { key: 'settings', label: '旅程设置', to: t('settings'), icon: 'Settings', group: 'trip' },
         ] as const)
       : ([
           { key: 'itinerary', label: '每日行程', to: '/itinerary', icon: 'CalendarDays', group: 'trip' },
           { key: 'docs', label: '预订凭证', to: '/docs', icon: 'FileText', group: 'trip' },
         ] as const)),
+    // 2026-10-23 美食专区全站共用，不属于某一趟旅程
+    { key: 'food', label: '美食专区', to: '/food', icon: 'Utensils', group: 'end' },
     { key: 'notify', label: '通知', to: '/notifications', icon: 'Bell', group: 'end' },
   ];
 }

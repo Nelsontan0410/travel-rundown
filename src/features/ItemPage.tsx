@@ -38,8 +38,6 @@ import { translateUrl } from '../links/linkLabel';
 import { AddDocSheet } from './AddDoc';
 import SourceSheet from '../components/SourceSheet';
 import type { Item, Place } from '../domain/types';
-import { useFoods } from '../hooks/food';
-import { foodAlternatives } from '../domain/food';
 
 function placeLines(pl: Place, city?: string): string[] {
   const lines: string[] = [];
@@ -80,7 +78,6 @@ export default function ItemPage() {
   const [srcOpen, setSrcOpen] = useState(false);
   const [show, setShow] = useState(false);
   const [addrOpen, setAddrOpen] = useState(false);
-  const foods = useFoods(item?.type === 'meal' ? item.tripId : null);
 
   if (item === null) return <Navigate to="/itinerary" replace />;
   if (!item || !td) return <Screen tab="itinerary" header={<BackHeader title="行程详情" />}>{null}</Screen>;
@@ -215,26 +212,6 @@ export default function ItemPage() {
           <MustDoList title={item.type === 'meal' ? '推荐必吃' : '必逛 / 必体验'} items={item.mustDo} checked={checked} onToggle={toggleCheck} />
         </>
       )}
-
-      {item.type === 'meal' && foods && (() => {
-        // 2026-10-21 美食专区：这一餐吃不成时的备选
-        const near = foodAlternatives(item, day, foods.foods, foods.marks).filter((a) => a.nearby);
-        return (
-          <>
-            <SectionTitle>吃不成？</SectionTitle>
-            <NoteBox>
-              {near.length
-                ? `美食专区里附近有 ${near.length} 家备选：${near.slice(0, 3).map((a) => a.food.name).join('、')}${near.length > 3 ? ' 等' : ''}`
-                : foods.foods.length
-                  ? '美食专区里暂时没有这附近的店。'
-                  : '还没有收录备选美食，可以先让 AI 整理一份清单导入。'}
-            </NoteBox>
-            <Button variant="link" icon="Utensils" onClick={() => nav(`/trip/${td.trip.id}/food${foods.foods.length ? `?for=${item.id}` : ''}`)}>
-              {foods.foods.length ? '换一家吃' : '打开美食专区'}
-            </Button>
-          </>
-        );
-      })()}
 
       {hasBooking && (
         <>
