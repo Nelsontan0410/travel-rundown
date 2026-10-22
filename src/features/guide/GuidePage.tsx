@@ -342,7 +342,7 @@ export default function GuidePage() {
               )}
             </div>
           ) : !edit ? (
-            <ReadHighlights list={shown} dayOf={(h) => h.dayIndex ?? (h.itemId && itemById.get(h.itemId) ? td.dayById.get(itemById.get(h.itemId)!.dayId)?.index : undefined)} />
+            <ReadHighlights list={shown} onPhoto={canEdit ? (id) => setPhotoFor(id) : undefined} dayOf={(h) => h.dayIndex ?? (h.itemId && itemById.get(h.itemId) ? td.dayById.get(itemById.get(h.itemId)!.dayId)?.index : undefined)} />
           ) : (
             <>
               <p className={g.hint}>点一条亮点就能改照片和文字；按住 ⋮⋮ 拖动，或用上下箭头调整顺序。</p>
