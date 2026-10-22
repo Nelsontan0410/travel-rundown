@@ -98,6 +98,8 @@ export interface Item {
   meal?: MealKind;
   /** 景点「必逛 / 必体验」、餐饮「必吃」清单；用户勾选状态存在 ItemState.checked */
   mustDo?: string[];
+  /** 2026-10-22：这一项的预估花费，单位「分」（MYR × 100），全部同行人合计；0 = 免费。实际花费仍在账本里记，用 Expense.itemKey 对应 */
+  budget?: number;
 }
 
 export interface FlightInfo {

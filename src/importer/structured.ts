@@ -208,6 +208,9 @@ function activityFrom(entries: [string, unknown][], warn: (msg: string) => void,
       case '必逛':
         a.fields.push(['必逛', Array.isArray(v) ? v.map(scalar).join('；') : val]);
         break;
+      case '项预算':
+        a.fields.push(['预算', val]);
+        break;
       case undefined:
         a.fields.push([k, val]); // 认不出的字段原样带过去，解析器会放进「其他信息」并在预览列出
         break;

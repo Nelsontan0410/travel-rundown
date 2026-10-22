@@ -49,6 +49,7 @@ function itemLines(it: Item, dayDate: string): string[] {
     f('线路', it.transit.line);
   }
   if (it.mustDo?.length) f(it.type === 'meal' ? '必吃' : '必逛', it.mustDo.map(cell).join('；'));
+  if (it.budget !== undefined) f('预算', (it.budget / 100).toFixed(2).replace(/\.00$/, ''));
   f('订单', it.bookingRef);
   if (it.bookingStatus) f('预订状态', it.bookingStatus === 'confirmed' ? '已确认' : '待确认');
   if (it.fixed) f('固定', '是');

@@ -10,7 +10,7 @@ export type Canon =
   | '入住日期' | '退房日期' | '房型'
   | '方式' | '线路' | '餐别' | '必逛'
   | '日期' | '第几天' | '城市' | '时区' | '当天主题'
-  | '旅程标题' | '出发日期' | '结束日期' | '出发地时区' | '预算' | '人数' | '目的地';
+  | '旅程标题' | '出发日期' | '结束日期' | '出发地时区' | '预算' | '人数' | '目的地' | '项预算';
 
 const ALIASES: Record<Canon, string[]> = {
   标题: ['title', 'name', 'activity', 'activityname', 'event', 'item', '活动', '名称', '项目', '标题'],
@@ -54,6 +54,7 @@ const ALIASES: Record<Canon, string[]> = {
   预算: ['budget', 'totalbudget', '预算', '总预算'],
   人数: ['participants', 'travelers', 'travellers', 'pax', 'people', 'headcount', 'persons', '人数', '参与人数', '同行人数'],
   目的地: ['destination_country', 'country', '目的地', '国家'],
+  项预算: ['itembudget', 'cost', 'estimatedcost', 'price', 'expense', '项预算', '预估费用', '预估花费', '预计花费', '费用', '花费'],
 };
 
 /** 字段名标准化：小写、去掉空格 / 下划线 / 连字符 / 冒号 */

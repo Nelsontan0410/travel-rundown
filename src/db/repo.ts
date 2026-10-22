@@ -88,13 +88,17 @@ export async function saveImport(
     // 2026-10-18：重新导入时，同一项（key 相同或确认改名）沿用原来的 id、同一天沿用原来的 day id，
     // 这样同步时能认出「是同一项改了」而不是「删了一项又加了一项」
     const oldIdByKey = new Map<string, string>();
+    const oldBudgetByKey = new Map<string, number>();
     const oldDayIdByIndex = new Map<number, string>();
     if (existing) {
       const oldDays = await db.days.where('tripId').equals(tripId).toArray();
       for (const d of oldDays) oldDayIdByIndex.set(d.index, d.id);
       await db.days.bulkDelete(oldDays.map((d) => d.id));
       const oldItems = await db.items.where('tripId').equals(tripId).toArray();
-      for (const it of oldItems) oldIdByKey.set(it.key, it.id);
+      for (const it of oldItems) {
+        oldIdByKey.set(it.key, it.id);
+        if (it.budget !== undefined) oldBudgetByKey.set(it.key, it.budget);
+      }
       await db.items.bulkDelete(oldItems.map((i) => i.id));
     }
     const renamedFrom = new Map(Object.entries(renames).map(([o, n]) => [n, o]));
@@ -114,7 +118,9 @@ export async function saveImport(
       const dayId = oldDayIdByIndex.get(d.index) ?? uuid();
       days.push({ id: dayId, tripId, index: d.index, date: d.date, tz: d.tz, city: d.city, title: d.title, note: d.note });
       for (const it of d.items) {
-        items.push({ ...it, id: idFor(it.key), tripId, dayId });
+        // 2026-10-22：导入的行程没写这一项的预算时，沿用本机原来的（例如之前用 AI 补的分项预算），不会因重新导入而丢
+        const keptBudget = it.budget ?? oldBudgetByKey.get(it.key) ?? oldBudgetByKey.get(renamedFrom.get(it.key) ?? '');
+        items.push({ ...it, ...(keptBudget !== undefined ? { budget: keptBudget } : {}), id: idFor(it.key), tripId, dayId });
       }
     }
     await db.trips.put(trip);
@@ -796,7 +802,7 @@ export type ItemPatch = Partial<
   Pick<
     Item,
     | 'type' | 'title' | 'start' | 'end' | 'endDayOffset' | 'timeNote' | 'place' | 'toPlace' | 'bookingRef' | 'bookingStatus'
-    | 'note' | 'alt' | 'fixed' | 'flight' | 'lodging' | 'transit' | 'meal' | 'mustDo' | 'navUrl' | 'meta'
+    | 'note' | 'alt' | 'fixed' | 'flight' | 'lodging' | 'transit' | 'meal' | 'mustDo' | 'navUrl' | 'meta' | 'budget'
   >
 > & { dayId?: string };
 

@@ -106,6 +106,8 @@ function diffFields(a: DiffOldItem, b: DiffNewItem): string[] {
   keys.sort((x, y) => rank(x) - rank(y) || x.localeCompare(y));
   const out: string[] = [];
   for (const k of keys) {
+    // 预算：新导入没写就沿用原来的（saveImport 会保留），不算改动
+    if (k === 'budget' && rb[k] === undefined) continue;
     if (norm(ra[k]) === norm(rb[k])) continue;
     const label = FIELD_LABEL[k] ?? k;
     if (!out.includes(label)) out.push(label);

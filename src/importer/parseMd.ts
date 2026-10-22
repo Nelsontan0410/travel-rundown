@@ -35,6 +35,7 @@ export interface ItemDraft {
   transit?: TransitInfo;
   meal?: MealKind;
   mustDo?: string[];
+  budget?: number; // 分
 }
 
 export interface DayDraft {
@@ -401,6 +402,12 @@ export function parseMd(input: string): ParseResult {
         case '备选':
           it.alt = value;
           break;
+        case '预算': {
+          const v = /^(免费|free|0)$/i.test(value) ? 0 : parseMoney(value.replace(/^[约≈~]\s*/, ''));
+          if (v === null) warnings.push({ line: ln, message: `第 ${ln} 行：行程项的预算只能写数字（单位 MYR），「${value}」已忽略` });
+          else it.budget = v;
+          break;
+        }
         case '固定':
           if (/^(是|true|yes|y)$/i.test(value)) it.fixed = true;
           else if (/^(否|false|no|n)$/i.test(value)) it.fixed = undefined;

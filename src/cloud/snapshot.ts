@@ -188,7 +188,7 @@ export function diffGuide(base: SnapshotGuide | undefined, next: SnapshotGuide |
 export const ITEM_FIELD_LABEL: Record<string, string> = {
   type: '类型', title: '标题', dayId: '日期', start: '开始时间', end: '结束时间', endDayOffset: '跨日', timeNote: '时间说明',
   place: '地点', toPlace: '终点', bookingRef: '预订编号', bookingStatus: '预订状态', note: '备注', alt: '备选方案', fixed: '固定时间',
-  flight: '航班信息', lodging: '住宿信息', transit: '交通信息', meal: '餐别', mustDo: '必逛 / 必吃', navUrl: '导航链接', meta: '其他信息', order: '顺序',
+  flight: '航班信息', lodging: '住宿信息', transit: '交通信息', meal: '餐别', mustDo: '必逛 / 必吃', navUrl: '导航链接', meta: '其他信息', order: '顺序', budget: '预算',
 };
 const TRIP_FIELD_LABEL: Record<string, string> = {
   title: '旅程名称', startDate: '出发日期', endDate: '结束日期', homeTz: '出发地时区', destination: '目的地', budget: '预算',
