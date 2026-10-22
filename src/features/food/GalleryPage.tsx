@@ -440,7 +440,7 @@ export default function GalleryPage() {
                   className={`${g.glassBtn} ${g.navBtn}`}
                   disabled={!navUrl}
                   aria-describedby={navUrl ? undefined : 'food-nav-why'}
-                  onClick={() => navUrl && openExternal(navUrl, `${heroFood.restaurantName} ${heroFood.address}`)}
+                  onClick={() => navUrl && openExternal(navUrl, heroFood.address)}
                 >
                   <Icon name="Navigation" size="sm" />
                   导航
