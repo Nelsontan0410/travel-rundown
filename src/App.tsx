@@ -1,6 +1,7 @@
 import MobileNavigation from './components/MobileNavigation';
-import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
-import { useEffect } from 'react';
+import { Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom';
+import { setLastTrip } from './db/repo';
+import { useEffect, useState } from 'react';
 import { Toast } from './components/Layout';
 import { useCurrentTripTheme, useTrips } from './hooks/data';
 import { AppThemeBase } from './components/TripTheme';
@@ -51,6 +52,17 @@ function CloudBoot() {
   return null;
 }
 
+/** 2026-10-23：美食册按旅程。/trip/<id>/food 先把那份旅程设成当前旅程，再进美食专区 */
+function TripFood() {
+  const { tripId } = useParams();
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    if (!tripId) return setReady(true);
+    void setLastTrip(tripId).finally(() => setReady(true));
+  }, [tripId]);
+  return ready ? <Navigate to="/food" replace /> : null;
+}
+
 function ScrollTop() {
   const { pathname } = useLocation();
   // 2026-10-19 修复：不能写成 useEffect(() => window.scrollTo(0, 0))。新版 Chrome 的 scrollTo 会返回 Promise，
@@ -92,7 +104,7 @@ export default function App() {
         <Route path="/food/database" element={<FoodDatabasePage />} />
         <Route path="/food/database/new" element={<FoodFormPage />} />
         <Route path="/food/database/:foodId" element={<FoodFormPage />} />
-        <Route path="/trip/:tripId/food" element={<Navigate to="/food" replace />} />
+        <Route path="/trip/:tripId/food" element={<TripFood />} />
         <Route path="/today" element={<TodayPage />} />
         <Route path="/trip/:tripId/today" element={<TodayPage />} />
         <Route path="/trip/:tripId/story" element={<StoryPage />} />

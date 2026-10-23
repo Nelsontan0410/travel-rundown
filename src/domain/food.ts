@@ -1,4 +1,4 @@
-// 2026-10-23 全新美食专区：全站共用的一本「美食册」，不属于任何旅程。
+// 2026-10-23 全新美食专区。同日改成「每个旅程一本」：同一份旅程的同伴共用，跟着版本同步、可以提交建议。
 // Gallery（只看）和美食资料库（管理）共用这里的分类、字段规则和纯函数。
 import type { Focus } from './guide';
 import { DEFAULT_SETTINGS, type Settings } from './types';
@@ -29,6 +29,8 @@ export interface FoodBudget {
 
 export interface FoodEntry {
   id: string;
+  /** 2026-10-23：属于哪一份旅程（同伴共用）。旧资料升级时按地址归到对应旅程 */
+  tripId?: string;
   /** 美食名称，例如「南宁老友粉」 */
   name: string;
   category: FoodCategory;
@@ -196,4 +198,22 @@ export function foodNavUrl(f: Pick<FoodEntry, 'restaurantName' | 'address' | 'la
   }
   if (!addr) return undefined;
   return directionsUrl(app, q);
+}
+
+/**
+ * 旧的全站美食（没有 tripId）归到哪一份旅程：地址 / 店名里出现某份旅程的目的地或名称（按逗号、空格切开的词，至少 2 个字）就归那份；
+ * 都对不上就归最近打开的旅程，再不行就第一份。没有任何旅程时返回 undefined。
+ */
+export function pickTripForFood(
+  f: Pick<FoodEntry, 'restaurantName' | 'address'>,
+  trips: { id: string; title: string; destination?: string }[],
+  lastTripId?: string,
+): string | undefined {
+  if (!trips.length) return undefined;
+  const text = norm(`${f.address ?? ''} ${f.restaurantName ?? ''}`);
+  for (const t of trips) {
+    const words = `${t.destination ?? ''},${t.title}`.split(/[,，、\s/·|()（）]+/).map(norm).filter((w) => Array.from(w).length >= 2);
+    if (words.some((w) => text.includes(w))) return t.id;
+  }
+  return trips.find((t) => t.id === lastTripId)?.id ?? trips[0].id;
 }

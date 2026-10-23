@@ -77,6 +77,12 @@ export function DiffList({ diff, empty = '没有改动' }: { diff: SnapshotDiff;
           <span className={p.diffText}>{g}</span>
         </li>
       ))}
+      {(diff.food ?? []).map((f) => (
+        <li key={`f${f}`}>
+          <StatusChip variant="info">美食</StatusChip>
+          <span className={p.diffText}>{f}</span>
+        </li>
+      ))}
       {diff.docs.map((d) => (
         <li key={`doc${d.id}`}>
           <StatusChip variant={d.kind === 'removed' ? 'neutral' : 'info'}>{label[d.kind]}资料</StatusChip>

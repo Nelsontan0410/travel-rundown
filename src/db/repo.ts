@@ -2,6 +2,7 @@ import { validFlightSettings } from '../domain/flightCountdown';
 import { zipSync, unzipSync, strToU8, strFromU8 } from 'fflate';
 import { db, type CloudBase } from './schema';
 import { uuid } from './uuid';
+import { adoptOrphanFood } from './food';
 import type { TripTheme } from '../domain/types';
 import type { ParseResult } from '../importer/parseMd';
 import { importContent, type DiffOldItem } from '../importer/diff';
@@ -474,11 +475,12 @@ async function blobKeysUsedByOthers(tripId: string): Promise<Set<string>> {
   for (const d of await db.docs.toArray()) if (d.tripId !== tripId) add(d.blobKey);
   for (const h of await db.highlights.toArray()) if (h.tripId !== tripId) add(h.photoKey);
   for (const g of await db.guides.toArray()) if (g.tripId !== tripId) for (const d of Object.values(g.days ?? {})) add(d.photoKey);
+  for (const f of await db.foodEntries.toArray()) if (f.tripId !== tripId) add(f.photoKey);
   return used;
 }
 
 export async function deleteTrip(tripId: string): Promise<void> {
-  await db.transaction('rw', [db.trips, db.days, db.items, db.docs, db.blobs, db.itemStates, db.settings, db.expenses, db.outfits, db.packItems, db.packChecks, db.cloudBases, db.guides, db.highlights], async () => {
+  await db.transaction('rw', [db.trips, db.days, db.items, db.docs, db.blobs, db.itemStates, db.settings, db.expenses, db.outfits, db.packItems, db.packChecks, db.cloudBases, db.guides, db.highlights, db.foodEntries], async () => {
     const trip = await db.trips.get(tripId);
     const inUse = await blobKeysUsedByOthers(tripId);
     const dropBlobs = (keys: string[]) => db.blobs.bulkDelete(keys.filter((k) => !inUse.has(k)));
@@ -495,6 +497,13 @@ export async function deleteTrip(tripId: string): Promise<void> {
       await dropBlobs([...gk, ...gk.map((k) => `${k}#thumb`)]);
       await db.highlights.where('tripId').equals(tripId).delete();
       await db.guides.delete(tripId);
+    }
+    // 2026-10-23 美食册跟着旅程删
+    {
+      const fs = await db.foodEntries.where('tripId').equals(tripId).toArray();
+      const fk = fs.flatMap((f) => (f.photoKey ? [f.photoKey, `${f.photoKey}#thumb`] : []));
+      await dropBlobs(fk);
+      await db.foodEntries.bulkDelete(fs.map((f) => f.id));
     }
     const docs = await db.docs.where('tripId').equals(tripId).toArray();
     await dropBlobs([...docs.map((d) => d.blobKey), ...(trip?.coverBlobKey ? [trip.coverBlobKey] : []), flightBackgroundKey(tripId, 'origin'), flightBackgroundKey(tripId, 'destination')]);
@@ -610,6 +619,7 @@ async function tripBlobKeys(tripId: string): Promise<{ keys: string[]; missing: 
     ...garments.flatMap((g) => (g.photoBlobKey ? [g.photoBlobKey] : [])),
     ...(await db.highlights.where('tripId').equals(tripId).toArray()).flatMap((h) => (h.photoKey ? [h.photoKey] : [])),
     ...Object.values((await db.guides.get(tripId))?.days ?? {}).flatMap((d) => (d.photoKey ? [d.photoKey] : [])),
+    ...(await db.foodEntries.where('tripId').equals(tripId).toArray()).flatMap((f) => (f.photoKey ? [f.photoKey, `${f.photoKey}#thumb`] : [])),
   ];
   const present = wanted.length ? ((await db.blobs.where('key').anyOf(wanted).primaryKeys()) as string[]) : [];
   return { keys: present, missing: wanted.length - present.length };
@@ -664,6 +674,7 @@ export async function exportTripPackage(tripId: string, opts: { attachments: boo
       cloudBases: (await db.cloudBases.where('tripId').equals(tripId).toArray()),
       guides: await db.guides.where('tripId').equals(tripId).toArray(),
       highlights: await db.highlights.where('tripId').equals(tripId).toArray(),
+      foodEntries: await db.foodEntries.where('tripId').equals(tripId).toArray(),
     },
     blobs,
   );
@@ -707,6 +718,8 @@ export async function restoreBackupDetailed(file: Blob): Promise<RestoreResult> 
     if (!cur && incoming) await db.settings.put(incoming);
   });
   requestPersist();
+  // 旧备份里的全站美食没有 tripId：归到对应旅程
+  if (json.foodEntries?.some((f) => !f.tripId)) await adoptOrphanFood();
   const keys = json.docs.filter((d) => !isLinkDoc(d)).map((d) => d.blobKey);
   const present = keys.length ? ((await db.blobs.where('key').anyOf(keys).primaryKeys()) as string[]) : [];
   return {

@@ -190,12 +190,17 @@ export function fakeCloud(): FakeCloud {
       watchers.add(cb);
       return () => watchers.delete(cb);
     },
+    // 和 schema.sql 的存储规则一致：<旅程>/<哈希> 只有主用户能上传；<旅程>/s/<用户>/… 是成员自己的建议附件，只有作者和主用户能读
     async upload(path, blob) {
-      if (!isOwner(path.split('/')[0])) throw new Error('只有主用户能上传');
+      const [t, s, u] = path.split('/');
+      const ok = s === 's' ? isMember(t) && u === cur()?.userId : isOwner(t);
+      if (!ok) throw new Error('只有主用户能上传');
       if (!state.files.has(path)) state.files.set(path, blob);
     },
     async download(path) {
-      if (!isMember(path.split('/')[0])) throw new Error('没有权限');
+      const [t, s, u] = path.split('/');
+      const ok = s === 's' ? isMember(t) && (u === cur()?.userId || isOwner(t)) : isMember(t);
+      if (!ok) throw new Error('没有权限');
       const b = state.files.get(path);
       if (!b) throw new Error('Object not found');
       return b;

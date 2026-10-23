@@ -100,6 +100,18 @@ export interface SuggestionChange {
   /** 同伴提交时手上的主用户版本（修改、删除），用来看主用户之后有没有又改过 */
   base?: Item;
   fields?: string[];
+  /** 2026-10-23 共同制作：改的是哪一类内容；没有 = 行程项（旧建议都是行程项） */
+  kind?: 'item' | 'trip' | 'day' | 'doc' | 'guide' | 'highlight' | 'food';
+  /** 行程项以外：内容自己的 id（itemId 这时是「类型:id」，用来记决定） */
+  entityId?: string;
+  /** 行程项以外：改后的完整内容（快照形态） */
+  data?: unknown;
+  /** 行程项以外：提交时手上的主用户版本（修改、删除） */
+  baseData?: unknown;
+  /** 附件（内容哈希）。版本里没有的已上传到 <旅程>/s/<作者>/<哈希> */
+  files?: { hash: string; mime?: string }[];
+  /** 一句话说明改后的样子（界面显示用） */
+  text?: string;
 }
 
 export interface CloudSuggestion {
