@@ -3,12 +3,15 @@ import { useLocation } from 'react-router-dom';
 import { useNavigate } from 'react-router-dom';
 import p from './Page.module.css';
 import { Screen, RootHeader, Menu, Dialog } from '../components/Layout';
-import { Button, SectionTitle } from '../components/Basics';
+import { Button, InfoBanner, SectionTitle } from '../components/Basics';
 import { TripDeck, type DeckTrip } from '../components/TripDeck';
 import { useTripCovers, useTrips } from '../hooks/data';
 import { fmtDateRange, isIsoDate, nowIn } from '../domain/format';
 import { deleteTrip, setLastTrip } from '../db/repo';
 import { toast } from '../store/ui';
+import { useCloud } from '../store/cloud';
+import { hasAccount } from '../cloud/session';
+import { AccountSheet } from './AccountSheet';
 import { restoreFromFile } from './importFlow';
 import { CreateOrJoin, NewUserHome } from './FirstRun';
 import type { Trip } from '../domain/types';
@@ -27,6 +30,8 @@ export default function TripsPage() {
   const trips = useTrips();
   const [menu, setMenu] = useState(false);
   const [about, setAbout] = useState(false);
+  const [account, setAccount] = useState(false);
+  const session = useCloud((s) => s.session);
   const covers = useTripCovers();
   const [toDelete, setToDelete] = useState<DeckTrip | null>(null);
 
@@ -50,6 +55,14 @@ export default function TripsPage() {
     <Screen tab="trips" header={<RootHeader title="我的旅程" icon="MoreHorizontal" iconLabel="更多" onIcon={() => setMenu(true)} />}>
       {trips === undefined ? null : trips.length > 0 ? (
         <>
+          {!hasAccount(session) && (
+            <div className={p.stack}>
+              <InfoBanner variant="warning">旅程现在只存在这台手机上，清缓存就没了。登录账号并开启同步后，换手机或清缓存也能找回。</InfoBanner>
+              <Button variant="outline" onClick={() => setAccount(true)}>
+                登录 / 注册账号
+              </Button>
+            </div>
+          )}
           <SectionTitle first>我的旅程（{trips.length}）</SectionTitle>
           <div className={p.stack}>
             <TripDeck
@@ -75,11 +88,13 @@ export default function TripsPage() {
         open={menu}
         onClose={() => setMenu(false)}
         items={[
+          { label: hasAccount(session) ? '账号与找回旅程' : '登录 / 注册账号', onClick: () => setAccount(true) },
           { label: '恢复备份', onClick: () => restoreFromFile() },
           { label: '示例与模板', onClick: () => nav('/import/template') },
           { label: '关于', onClick: () => setAbout(true) },
         ]}
       />
+      <AccountSheet open={account} onClose={() => setAccount(false)} />
       <Dialog
         open={!!toDelete}
         onClose={() => setToDelete(null)}
