@@ -25,7 +25,7 @@ import UpdatePage from './features/UpdatePage';
 import JoinPage from './features/JoinPage';
 import NotificationsPage from './features/NotificationsPage';
 import { MySuggestPage, ReviewSuggestionPage, SuggestionsPage } from './features/SuggestPages';
-import { initCloud } from './cloud/session';
+import { initCloud, requestPersistentStorage } from './cloud/session';
 import StoryPage from './features/StoryPage';
 import GuidePage from './features/guide/GuidePage';
 import CreditsPage from './features/CreditsPage';
@@ -47,6 +47,7 @@ function ThemeBase() {
 /** 2026-10-18：用过同步的才在启动时恢复同步身份、检查新版本 */
 function CloudBoot() {
   useEffect(() => {
+    requestPersistentStorage();
     void initCloud();
   }, []);
   return null;
