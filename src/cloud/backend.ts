@@ -3,9 +3,25 @@
 import type { TripSnapshot } from './snapshot';
 import type { Item } from '../domain/types';
 
-/** 每台手机一个身份（Supabase 匿名登录），不用邮箱 */
+/**
+ * 同步身份。2026-10-26 起主用户用账号（Google 或邮箱）登录，换手机、清缓存后重新登录就能找回；
+ * 同伴仍可先用匿名身份加入（anonymous = true），之后在「账号」里绑定 Google / 邮箱，不会丢失已加入的旅程。
+ */
 export interface CloudSession {
   userId: string;
+  email?: string;
+  /** 匿名身份（还没绑定账号）：清除网站资料后无法找回 */
+  anonymous?: boolean;
+}
+
+/** 这个账号在云端的旅程（主用户或同伴），用来在新手机上找回 */
+export interface CloudAccountTrip {
+  id: string;
+  title: string;
+  role: 'owner' | 'member';
+  /** 云端最新版本号（0 = 还没发布过） */
+  version: number;
+  ownerName?: string;
 }
 
 export interface CloudTripInfo {
@@ -134,6 +150,15 @@ export interface CloudBackend {
   ensureSession(): Promise<CloudSession>;
   onSessionChange(cb: (s: CloudSession | null) => void): () => void;
 
+  /** 2026-10-26 账号：Google 登录（会跳转到 Google 再回来；当前是匿名身份时是「绑定」，保留已加入的旅程） */
+  signInGoogle(): Promise<void>;
+  /** 邮箱 + 密码注册。needsConfirm = 要先去邮箱点确认链接 */
+  signUpEmail(email: string, password: string): Promise<{ needsConfirm: boolean }>;
+  signInEmail(email: string, password: string): Promise<void>;
+  signOut(): Promise<void>;
+  /** 这个账号在云端的所有旅程（主用户 + 同伴） */
+  myTrips(): Promise<CloudAccountTrip[]>;
+
   createTrip(id: string, title: string, name: string): Promise<void>;
   publish(tripId: string, note: string, important: boolean, snapshot: TripSnapshot, title: string, summary?: PublishSummary): Promise<number>;
   /** 这些旅程在云端的最新版本（只返回自己是成员的） */
@@ -193,6 +218,14 @@ export function cloudErrorText(e: unknown): string {
   if (/Failed to fetch|NetworkError|network/i.test(msg)) return '连不上同步服务，请检查网络后再试';
   if (/rate limit|too many/i.test(msg)) return '请求太频繁，请过几分钟再试';
   if (/anonymous sign-ins are disabled/i.test(msg)) return '同步服务还没打开匿名登录（Supabase → Authentication → Sign In / Providers → Allow anonymous sign-ins）';
+  if (/Invalid login credentials/i.test(msg)) return '邮箱或密码不对';
+  if (/already registered|already been registered|already exists/i.test(msg)) return '这个邮箱已经注册过了，请直接登录';
+  if (/Email not confirmed/i.test(msg)) return '还没确认邮箱：请到邮箱里点确认链接，再回来登录';
+  if (/Password should be at least|weak password/i.test(msg)) return '密码太短：至少 6 位';
+  if (/valid email|invalid format|Unable to validate email/i.test(msg)) return '邮箱格式不对';
+  if (/provider is not enabled|Unsupported provider/i.test(msg)) return 'Google 登录还没在 Supabase 打开（见 docs/sync-setup.md 的「登录方式」）';
+  if (/manual linking is disabled/i.test(msg)) return '绑定账号还没打开：Supabase → Authentication → Sign In / Providers → 打开 Allow manual linking';
+  if (/already linked|identity.*exists|already.*another user/i.test(msg)) return '这个账号已经绑定了别的身份：先退出，再直接用它登录';
   if (/JWT|not authenticated|请先登录/i.test(msg)) return '同步身份失效了，请重新打开 App 再试';
   return msg || '同步失败，请稍后再试';
 }

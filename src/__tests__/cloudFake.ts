@@ -5,6 +5,8 @@ import type { TripSnapshot } from '../cloud/snapshot';
 export interface FakeCloud extends CloudBackend {
   /** 换成某台手机（null = 这台手机还没有同步身份） */
   as(device: string | null): void;
+  /** 2026-10-26：模拟「Google 登录会用哪个 Google 账号」（没设置 = Google 登录没打开） */
+  googleIs(email: string | null): void;
   state: {
     trips: Map<string, { id: string; owner: string; title: string; version: number; note?: string; important: boolean; updatedAt: string }>;
     members: { tripId: string; userId: string; name?: string; role: 'owner' | 'member' }[];
@@ -18,7 +20,10 @@ export interface FakeCloud extends CloudBackend {
 
 export function fakeCloud(): FakeCloud {
   let device: string | null = null;
+  let googleEmail: string | null = null;
   const sessions = new Map<string, CloudSession>();
+  /** 账号：邮箱 → 用户 id（匿名身份绑定账号后 id 不变） */
+  const accounts = new Map<string, { userId: string; password?: string }>();
   const state: FakeCloud['state'] = { trips: new Map(), members: [], invites: [], versions: [], files: new Map(), events: [], suggestions: [] };
   const watchers = new Set<(e: CloudEvent) => void>();
   let eid = 0;
@@ -48,13 +53,57 @@ export function fakeCloud(): FakeCloud {
       device = d;
       for (const l of listeners) l(cur());
     },
+    googleIs(email) {
+      googleEmail = email;
+    },
     async getSession() {
       return cur();
     },
     async ensureSession() {
       if (!device) throw new Error('没有手机');
-      if (!sessions.has(device)) sessions.set(device, { userId: `u:${device}` });
+      if (!sessions.has(device)) sessions.set(device, { userId: `u:${device}`, anonymous: true });
       return sessions.get(device)!;
+    },
+    async signInGoogle() {
+      if (!device) throw new Error('没有手机');
+      if (!googleEmail) throw new Error('provider is not enabled');
+      const prev = sessions.get(device);
+      const acc = accounts.get(googleEmail) ?? { userId: prev?.anonymous ? prev.userId : `acct:${googleEmail}` };
+      accounts.set(googleEmail, acc);
+      sessions.set(device, { userId: acc.userId, email: googleEmail, anonymous: false });
+      for (const l of listeners) l(cur());
+    },
+    async signUpEmail(email, password) {
+      if (!device) throw new Error('没有手机');
+      if (accounts.has(email)) throw new Error('User already registered');
+      const prev = sessions.get(device);
+      const userId = prev?.anonymous ? prev.userId : `acct:${email}`;
+      accounts.set(email, { userId, password });
+      sessions.set(device, { userId, email, anonymous: false });
+      for (const l of listeners) l(cur());
+      return { needsConfirm: false };
+    },
+    async signInEmail(email, password) {
+      if (!device) throw new Error('没有手机');
+      const acc = accounts.get(email);
+      if (!acc || acc.password !== password) throw new Error('Invalid login credentials');
+      sessions.set(device, { userId: acc.userId, email, anonymous: false });
+      for (const l of listeners) l(cur());
+    },
+    async signOut() {
+      if (device) sessions.delete(device);
+      for (const l of listeners) l(null);
+    },
+    async myTrips() {
+      const s = cur();
+      if (!s) return [];
+      return state.members
+        .filter((m) => m.userId === s.userId)
+        .flatMap((m) => {
+          const t = state.trips.get(m.tripId);
+          const owner = state.members.find((x) => x.tripId === m.tripId && x.role === 'owner');
+          return t ? [{ id: t.id, title: t.title, role: m.role, version: t.version, ownerName: owner?.name }] : [];
+        });
     },
     onSessionChange(cb) {
       listeners.add(cb);

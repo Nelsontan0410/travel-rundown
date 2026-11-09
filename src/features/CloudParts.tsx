@@ -1,5 +1,5 @@
 // 2026-10-18 同步的界面：旅程列表里的「和同伴同步」、旅程设置里的「同步与同伴」、发布更新、行程页的新版本提醒、改动清单。
-// 不用邮箱：开启同步的那台手机就是主用户；同伴用主用户分享的邀请码 / 链接加入。
+// 2026-10-26：主用户用账号（Google / 邮箱）开启同步，换手机后重新登录找回；同伴用主用户分享的邀请码 / 链接加入，可先匿名、之后绑定账号。
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import p from './Page.module.css';
@@ -10,7 +10,8 @@ import { Field, SwitchRow, TextInput } from '../components/Form';
 import { useCloud } from '../store/cloud';
 import { toast } from '../store/ui';
 import { backend, cloudErrorText, type CloudInvite, type CloudMember } from '../cloud/backend';
-import { ensureCloudSession, myName, refreshCloud, setMyName } from '../cloud/session';
+import { ensureCloudSession, hasAccount, myName, refreshCloud, setMyName } from '../cloud/session';
+import { AccountSheet } from './AccountSheet';
 import { detachLocal, enableSync, pendingChanges, prettyCode, publishUpdate } from '../cloud/sync';
 import type { SnapshotDiff } from '../cloud/snapshot';
 import type { Trip } from '../domain/types';
@@ -151,6 +152,7 @@ export function SyncSection({ trip }: { trip: Trip }) {
   const [removing, setRemoving] = useState<CloudMember | null>(null);
   const [leaving, setLeaving] = useState(false);
   const [pendingSg, setPendingSg] = useState(0);
+  const [accountOpen, setAccountOpen] = useState(false);
   const role = trip.cloud?.role;
   const isOwner = role === 'owner';
   const localCount = useLocalChangeCount(trip.id, role === 'member');
@@ -190,6 +192,12 @@ export function SyncSection({ trip }: { trip: Trip }) {
   if (!trip.cloud) {
     const start = async () => {
       if (!ownName.trim()) return toast('先填你的名字，同伴会看到');
+      // 2026-10-26：主用户必须用账号，换手机 / 清缓存后才找得回来
+      if (!hasAccount(session)) {
+        setStartOpen(false);
+        setAccountOpen(true);
+        return toast('先登录账号，再开启同步');
+      }
       setBusy(true);
       try {
         setMyName(ownName);
@@ -205,9 +213,10 @@ export function SyncSection({ trip }: { trip: Trip }) {
     };
     return (
       <>
-        <SettingsGroup title="同步与同伴" note="开启后这台手机就是这份旅程的主用户：只有你能修改并发布更新，同伴用你分享的邀请加入。不用注册，也不用邮箱。完成勾选、实际记账、穿搭打包都各自保存，不会同步。">
-          <SettingsRow icon="Upload" label="开启同步（成为主用户）" onClick={() => setStartOpen(true)} />
+        <SettingsGroup title="同步与同伴" note="开启后你的账号就是这份旅程的主用户：只有你能修改并发布更新，同伴用你分享的邀请加入。换手机或清缓存后，重新登录账号就能找回。完成勾选、实际记账、穿搭打包都各自保存，不会同步。">
+          <SettingsRow icon="Upload" label="开启同步（成为主用户）" onClick={() => (hasAccount(session) ? setStartOpen(true) : setAccountOpen(true))} />
         </SettingsGroup>
+        <AccountSheet open={accountOpen} onClose={() => setAccountOpen(false)} />
         <Sheet open={startOpen} onClose={() => setStartOpen(false)} title="开启同步">
           <form
             onSubmit={(e) => {
@@ -216,7 +225,7 @@ export function SyncSection({ trip }: { trip: Trip }) {
             }}
           >
             <NameField value={ownName} onChange={setOwnName} />
-            <InfoBanner variant="warning">主用户身份保存在这台手机的 App 里。删除 App 或清除网站资料后，就不能再发布这份旅程的更新。</InfoBanner>
+            <InfoBanner variant="info">已用账号登录：换手机或清除网站资料后，重新登录同一个账号就能找回并继续发布。</InfoBanner>
             <div className={p.sheetActions}>
               <Button block type="submit" disabled={busy}>
                 {busy ? '开启中…' : '开启并发布第一版'}
@@ -246,7 +255,8 @@ export function SyncSection({ trip }: { trip: Trip }) {
     const others = (members ?? []).filter((m) => m.role === 'member');
     return (
       <>
-        <SettingsGroup title="同步与同伴" note="你是主用户：只有你能修改行程并发布更新。">
+        <SettingsGroup title="同步与同伴" note={session && session.anonymous ? '你是主用户，但现在还是临时身份：清除网站资料后就不能再发布这份旅程。先绑定 Google 或邮箱。' : '你是主用户：只有你能修改行程并发布更新。'}>
+          {session && session.anonymous && <SettingsRow icon="Upload" label="绑定账号（防止丢失）" onClick={() => setAccountOpen(true)} />}
           <SettingsRow icon="CheckCircle2" label="已发布" value={`v${trip.cloud.version}`} arrow={false} />
           <SettingsRow
             icon="Upload"
@@ -306,6 +316,7 @@ export function SyncSection({ trip }: { trip: Trip }) {
           </Card>
         </div>
         <PublishSheet open={publishOpen} onClose={() => setPublishOpen(false)} trip={trip} diff={diff} onDone={() => void load()} />
+        <AccountSheet open={accountOpen} onClose={() => setAccountOpen(false)} />
         <Dialog
           open={!!removing}
           onClose={() => setRemoving(null)}

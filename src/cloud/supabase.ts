@@ -2,7 +2,7 @@
 // 权限全部在数据库的行级权限和函数里检查（supabase/schema.sql），这里用的是可公开的 publishable key。
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { SUPABASE_KEY, SUPABASE_URL } from './config';
-import type { CloudBackend, CloudEvent, CloudInvite, CloudSession, CloudSuggestion } from './backend';
+import type { CloudAccountTrip, CloudBackend, CloudEvent, CloudInvite, CloudSession, CloudSuggestion } from './backend';
 import type { TripSnapshot } from './snapshot';
 
 const BUCKET = 'trip-files';
@@ -12,7 +12,9 @@ function must<T>(r: { data: T; error: { message: string } | null }): T {
   return r.data;
 }
 
-const toSession = (u: { id: string } | null | undefined): CloudSession | null => (u ? { userId: u.id } : null);
+type AuthUser = { id: string; email?: string | null; is_anonymous?: boolean };
+const toSession = (u: AuthUser | null | undefined): CloudSession | null =>
+  u ? { userId: u.id, email: u.email || undefined, anonymous: !!u.is_anonymous } : null;
 
 type EventRow = { id: number; trip_id: string; actor_id: string | null; actor_name: string | null; kind: string; title: string; detail: CloudEvent['detail'] | null; created_at: string };
 const toEvent = (r: EventRow): CloudEvent => ({
@@ -53,9 +55,12 @@ const toInvite = (r: InviteRow): CloudInvite => ({
 
 export function createSupabaseBackend(): CloudBackend {
   const sb: SupabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY, {
-    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, storageKey: 'trip-sync-auth' },
+    // 2026-10-26：Google 登录回来时网址里带授权码（pkce），由这里自动换成登录状态
+    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: 'pkce', storageKey: 'trip-sync-auth' },
   });
   const me = async () => toSession((await sb.auth.getSession()).data.session?.user);
+  const rawUser = async () => (await sb.auth.getSession()).data.session?.user;
+  const back = () => `${window.location.origin}/`;
 
   return {
     getSession: me,
@@ -67,6 +72,49 @@ export function createSupabaseBackend(): CloudBackend {
       const n = toSession(data.user);
       if (!n) throw new Error('同步身份建立失败');
       return n;
+    },
+    async signInGoogle() {
+      const u = await rawUser();
+      // 当前是匿名身份：绑定 Google（user id 不变，已加入的旅程不丢）；否则正常登录
+      const r = u?.is_anonymous
+        ? await sb.auth.linkIdentity({ provider: 'google', options: { redirectTo: back() } })
+        : await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: back() } });
+      if (r.error) throw new Error(r.error.message);
+    },
+    async signUpEmail(email, password) {
+      const u = await rawUser();
+      if (u?.is_anonymous) {
+        // 匿名身份升级成邮箱账号：user id 不变
+        const { error } = await sb.auth.updateUser({ email: email.trim(), password }, { emailRedirectTo: back() });
+        if (error) throw new Error(error.message);
+        return { needsConfirm: true };
+      }
+      const { data, error } = await sb.auth.signUp({ email: email.trim(), password, options: { emailRedirectTo: back() } });
+      if (error) throw new Error(error.message);
+      // 邮箱已注册时 Supabase 不报错，只返回没有 identities 的用户
+      if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) throw new Error('User already registered');
+      return { needsConfirm: !data.session };
+    },
+    async signInEmail(email, password) {
+      const { error } = await sb.auth.signInWithPassword({ email: email.trim(), password });
+      if (error) throw new Error(error.message);
+    },
+    async signOut() {
+      const { error } = await sb.auth.signOut();
+      if (error) throw new Error(error.message);
+    },
+    async myTrips() {
+      const s = await me();
+      if (!s) return [];
+      type Row = { trip_id: string; role: 'owner' | 'member'; cloud_trips: { id: string; title: string; latest_version: number } | { id: string; title: string; latest_version: number }[] | null };
+      const rows = must(await sb.from('trip_members').select('trip_id,role,cloud_trips(id,title,latest_version)').eq('user_id', s.userId)) as unknown as Row[];
+      const ids = rows.map((r) => r.trip_id);
+      const owners = ids.length ? (must(await sb.from('trip_members').select('trip_id,name').in('trip_id', ids).eq('role', 'owner')) as { trip_id: string; name: string | null }[]) : [];
+      const ownerName = new Map(owners.map((o) => [o.trip_id, o.name ?? undefined]));
+      return rows.flatMap((r): CloudAccountTrip[] => {
+        const t = Array.isArray(r.cloud_trips) ? r.cloud_trips[0] : r.cloud_trips;
+        return t ? [{ id: t.id, title: t.title, role: r.role, version: t.latest_version, ownerName: ownerName.get(r.trip_id) }] : [];
+      });
     },
     onSessionChange(cb) {
       const { data } = sb.auth.onAuthStateChange((_e, s) => cb(toSession(s?.user)));
