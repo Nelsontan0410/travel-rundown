@@ -3,11 +3,13 @@
 import { useState } from 'react';
 import g from './Guide.module.css';
 import { GuidePhoto } from './parts';
+import { Icon } from '../../components/Icon';
 import { CATEGORIES, CATEGORY_LABEL, CATEGORY_TITLE, type Highlight, type HighlightCategory } from '../../domain/guide';
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
-export function ReadHighlights({ list, dayOf }: { list: Highlight[]; dayOf: (h: Highlight) => number | undefined }) {
+/** onPhoto：有编辑权限时传入，卡片上就会出现「上传照片 / 换照片」入口（点开选照片并调整位置） */
+export function ReadHighlights({ list, dayOf, onPhoto }: { list: Highlight[]; dayOf: (h: Highlight) => number | undefined; onPhoto?: (id: string) => void }) {
   const [filter, setFilter] = useState<'all' | HighlightCategory>('all');
   const cats = CATEGORIES.filter((c) => list.some((h) => h.category === c));
   const cur = filter !== 'all' && !cats.includes(filter) ? 'all' : filter;
@@ -33,34 +35,76 @@ export function ReadHighlights({ list, dayOf }: { list: Highlight[]; dayOf: (h: 
           <h3 className={g.catTitle}>
             {CATEGORY_TITLE[c][0]} <small>{CATEGORY_TITLE[c][1]}</small>
           </h3>
-          <ol className={c === 'food' ? g.foodRow : g.spotList}>
-            {items.map((h) => {
-              const day = dayOf(h);
-              return (
-                <li key={h.id} className={`${c === 'food' ? g.foodTile : g.spotRow} ${h.photoKey ? '' : g.noPhoto}`} data-hl={h.id}>
-                  {h.photoKey && (
-                    <div className={g.spotMedia}>
-                      <GuidePhoto ratio={c !== 'food'} thumb={c === 'food'} photoKey={h.photoKey} focus={h.focus} alt={h.title} className={g.spotPhoto} fallback={<span>{CATEGORY_LABEL[h.category]}</span>} />
+          {c === 'food' ? (
+            <ol className={g.foodGrid}>
+              {items.map((h, i) => {
+                const day = dayOf(h);
+                return (
+                  <li key={h.id} className={`${g.foodCard} ${i === 0 && items.length > 1 ? g.foodFeature : ''}`} data-hl={h.id}>
+                    <div className={g.foodMedia}>
+                      <GuidePhoto
+                        ratio
+                        thumb
+                        photoKey={h.photoKey}
+                        focus={h.focus}
+                        alt={h.title}
+                        className={g.foodPhoto}
+                        fallback={<Icon name="Utensils" size="lg" />}
+                      />
                       <span className={g.spotNum} aria-hidden>
                         {pad(num.get(h.id) ?? 0)}
                       </span>
+                      {onPhoto && (
+                        <button type="button" className={g.photoUp} onClick={() => onPhoto(h.id)} aria-label={`${h.photoKey ? '更换' : '上传'}「${h.title}」的照片`}>
+                          <Icon name="Camera" size="sm" />
+                          {h.photoKey ? '换照片' : '上传照片'}
+                        </button>
+                      )}
                     </div>
-                  )}
-                  <div className={g.spotText}>
-                    {!h.photoKey && <span className={g.spotNumPlain}>{pad(num.get(h.id) ?? 0)}</span>}
-                    <p className={g.spotMeta}>
-                      {CATEGORY_LABEL[h.category]}
-                      {day !== undefined && <span className={g.dayTag}>DAY {pad(day)}</span>}
-                    </p>
-                    <h4 className={g.spotTitle} data-hl-title>
-                      {h.title}
-                    </h4>
-                    {h.desc && <p className={g.spotDesc}>{h.desc}</p>}
-                  </div>
-                </li>
-              );
-            })}
-          </ol>
+                    <div className={g.foodBody}>
+                      <p className={g.spotMeta}>
+                        {i === 0 && items.length > 1 ? <span className={g.foodPick}>Editor&apos;s pick</span> : CATEGORY_LABEL[h.category]}
+                        {day !== undefined && <span className={g.dayTag}>DAY {pad(day)}</span>}
+                      </p>
+                      <h4 className={g.spotTitle} data-hl-title>
+                        {h.title}
+                      </h4>
+                      {h.desc && <p className={g.spotDesc}>{h.desc}</p>}
+                    </div>
+                  </li>
+                );
+              })}
+            </ol>
+          ) : (
+            <ol className={g.spotList}>
+              {items.map((h) => {
+                const day = dayOf(h);
+                return (
+                  <li key={h.id} className={`${g.spotRow} ${h.photoKey ? '' : g.noPhoto}`} data-hl={h.id}>
+                    {h.photoKey && (
+                      <div className={g.spotMedia}>
+                        <GuidePhoto ratio thumb={false} photoKey={h.photoKey} focus={h.focus} alt={h.title} className={g.spotPhoto} fallback={<span>{CATEGORY_LABEL[h.category]}</span>} />
+                        <span className={g.spotNum} aria-hidden>
+                          {pad(num.get(h.id) ?? 0)}
+                        </span>
+                      </div>
+                    )}
+                    <div className={g.spotText}>
+                      {!h.photoKey && <span className={g.spotNumPlain}>{pad(num.get(h.id) ?? 0)}</span>}
+                      <p className={g.spotMeta}>
+                        {CATEGORY_LABEL[h.category]}
+                        {day !== undefined && <span className={g.dayTag}>DAY {pad(day)}</span>}
+                      </p>
+                      <h4 className={g.spotTitle} data-hl-title>
+                        {h.title}
+                      </h4>
+                      {h.desc && <p className={g.spotDesc}>{h.desc}</p>}
+                    </div>
+                  </li>
+                );
+              })}
+            </ol>
+          )}
         </div>
       ))}
     </>
