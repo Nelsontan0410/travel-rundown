@@ -54,6 +54,7 @@
   transition: color var(--duration) var(--ease), background var(--duration) var(--ease);
 }
 .tab:hover { color: var(--color-on-leather); }
+.tabBtn { background: none; border: 0; font: inherit; cursor: pointer; width: 100%; }
 .tabIcon { position: relative; display: inline-flex; }
 .badge { position: absolute; top: -6px; right: -10px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: var(--color-warning-ink, #a3471f); color: #fff; font-size: 10px; line-height: 16px; font-weight: 700; text-align: center; box-shadow: 0 0 0 1.5px var(--color-leather); }
 .tabOn {

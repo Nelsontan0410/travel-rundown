@@ -135,7 +135,10 @@ const MOBILE_OF: Record<TabKey, MainKey> = {
 };
 
 /** 2026-10-20：电脑侧栏的完整导航（和旅程页同一个侧栏、同一种样式），标题写清楚每页是做什么的 */
-function deskItems(tripId: string | null | undefined): { key: TabKey; label: string; to: string; icon: IconKey; group: 'all' | 'trip' | 'end' }[] {
+// 2026-11-15 侧栏重新分三块：① 这趟旅程（封面 / 亮点 / 每日行程 / 预订凭证）② 旅途助手（美食专区 / 旅行账本 / 穿搭打包）
+// ③ 最下面（通知 / 旅程设置 / 账号）。「我的旅程」放在最上面。
+type Group = 'all' | 'trip' | 'tools' | 'end';
+function deskItems(tripId: string | null | undefined): { key: TabKey; label: string; to: string; icon: IconKey; group: Group }[] {
   const t = tripId ? (path: string) => `/trip/${tripId}/${path}` : null;
   return [
     { key: 'trips', label: '我的旅程', to: '/trips', icon: 'Home', group: 'all' },
@@ -145,17 +148,21 @@ function deskItems(tripId: string | null | undefined): { key: TabKey; label: str
           { key: 'highlights', label: '旅行亮点', to: t('highlights'), icon: 'Mountain', group: 'trip' },
           { key: 'itinerary', label: '每日行程', to: `/itinerary/${tripId}`, icon: 'CalendarDays', group: 'trip' },
           { key: 'docs', label: '预订凭证', to: '/docs', icon: 'FileText', group: 'trip' },
-          { key: 'ledger', label: '旅行账本', to: t('ledger'), icon: 'Wallet', group: 'trip' },
-          { key: 'outfits', label: '穿搭打包', to: t('outfits'), icon: 'StickyNote', group: 'trip' },
-          { key: 'settings', label: '旅程设置', to: t('settings'), icon: 'Settings', group: 'trip' },
         ] as const)
       : ([
           { key: 'itinerary', label: '每日行程', to: '/itinerary', icon: 'CalendarDays', group: 'trip' },
           { key: 'docs', label: '预订凭证', to: '/docs', icon: 'FileText', group: 'trip' },
         ] as const)),
     // 2026-10-23 美食专区全站共用，不属于某一趟旅程
-    { key: 'food', label: '美食专区', to: '/food', icon: 'Utensils', group: 'end' },
+    { key: 'food', label: '美食专区', to: '/food', icon: 'Utensils', group: 'tools' },
+    ...(t
+      ? ([
+          { key: 'ledger', label: '旅行账本', to: t('ledger'), icon: 'Wallet', group: 'tools' },
+          { key: 'outfits', label: '穿搭打包', to: t('outfits'), icon: 'StickyNote', group: 'tools' },
+        ] as const)
+      : []),
     { key: 'notify', label: '通知', to: '/notifications', icon: 'Bell', group: 'end' },
+    ...(t ? ([{ key: 'settings', label: '旅程设置', to: t('settings'), icon: 'Settings', group: 'end' }] as const) : []),
   ];
 }
 
@@ -197,11 +204,12 @@ export function TabBar({ active, header }: { active: TabKey; header?: ReactNode 
       {desk.map((t, i) => {
         const on = t.key === active;
         const badge = badgeOf(t.key);
-        const groupStart = t.group === 'trip' && desk[i - 1]?.group !== 'trip';
+        const groupStart = t.group !== desk[i - 1]?.group;
         return (
           <Fragment key={`d-${t.key}`}>
-            {groupStart && tripTitle && <p className={`${s.navGroup} ${s.deskOnly}`}>{tripTitle}</p>}
-            {t.group === 'end' && <span className={`${s.navGap} ${s.deskOnly}`} aria-hidden />}
+            {groupStart && t.group === 'trip' && tripTitle && <p className={`${s.navGroup} ${s.deskOnly}`}>{tripTitle}</p>}
+            {groupStart && t.group === 'tools' && <p className={`${s.navGroup} ${s.deskOnly}`}>旅途助手</p>}
+            {groupStart && t.group === 'end' && <span className={`${s.navGap} ${s.deskOnly}`} aria-hidden />}
             <Link
               to={t.to}
               className={`${s.tab} ${s.deskOnly} ${on ? s.tabOn : ''}`}
@@ -217,6 +225,13 @@ export function TabBar({ active, header }: { active: TabKey; header?: ReactNode 
           </Fragment>
         );
       })}
+      {/* 账号：登录状态 / 找回旅程 / 退出登录（最下面，和通知、旅程设置排在一起） */}
+      <button type="button" className={`${s.tab} ${s.deskOnly} ${s.tabBtn}`} aria-label="账号" onClick={() => useUI.getState().setAccountOpen(true)}>
+        <span className={s.tabIcon}>
+          <Icon name="UserRound" />
+        </span>
+        账号
+      </button>
       {/* 页面自己的侧栏内容（例如每日行程的「今日行程 / 出发准备」）放在导航下面 */}
       {header && <div className={s.sidebarHeader}>{header}</div>}
     </nav>

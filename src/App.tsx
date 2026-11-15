@@ -26,6 +26,8 @@ import JoinPage from './features/JoinPage';
 import NotificationsPage from './features/NotificationsPage';
 import { MySuggestPage, ReviewSuggestionPage, SuggestionsPage } from './features/SuggestPages';
 import AccountGate from './features/AccountGate';
+import { AccountSheet } from './features/AccountSheet';
+import { useUI } from './store/ui';
 import StoryPage from './features/StoryPage';
 import GuidePage from './features/guide/GuidePage';
 import CreditsPage from './features/CreditsPage';
@@ -63,6 +65,13 @@ function ScrollTop() {
     window.scrollTo(0, 0);
   }, [pathname]);
   return null;
+}
+
+/** 侧栏「账号」打开的弹窗 */
+function GlobalAccountSheet() {
+  const open = useUI((s) => s.accountOpen);
+  const setOpen = useUI((s) => s.setAccountOpen);
+  return <AccountSheet open={open} onClose={() => setOpen(false)} />;
 }
 
 export default function App() {
@@ -111,6 +120,7 @@ export default function App() {
       <MobileNavigation />
       </PageBoundary>
       </AccountGate>
+      <GlobalAccountSheet />
       <Toast />
     </>
   );
