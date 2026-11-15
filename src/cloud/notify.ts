@@ -69,7 +69,7 @@ export async function watchEvents(onPublish: () => void): Promise<void> {
       merge([e]);
       void systemNotify([e]);
       // App 开着时：顶部小提示
-      if (document.visibilityState === 'visible' && e.actorId !== useCloud.getState().session?.userId) toast(`${t.title}：${e.title}`);
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible' && e.actorId !== useCloud.getState().session?.userId) toast(`${t.title}：${e.title}`);
       if (e.kind === 'publish') onPublish();
     })();
   });

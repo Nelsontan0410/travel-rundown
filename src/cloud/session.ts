@@ -5,7 +5,7 @@
 import { db } from '../db/schema';
 import { useCloud } from '../store/cloud';
 import { backend, cloudErrorText, type CloudSession } from './backend';
-import { applyUpdate, checkUpdates } from './sync';
+import { applyUpdate, checkUpdates, enableSync } from './sync';
 import { loadEvents, watchEvents } from './notify';
 import { toast } from '../store/ui';
 
@@ -79,6 +79,7 @@ export async function initCloud(force = false): Promise<void> {
   const be = await backend();
   be.onSessionChange((s) => {
     useCloud.setState({ session: s });
+    if (s && hasAccount(s)) rememberAccount(s);
     if (s) void refreshCloud().then(() => autoRestore());
   });
   await refreshCloud();
@@ -125,6 +126,7 @@ async function afterAuth(): Promise<void> {
   const be = await backend();
   const session = await be.getSession();
   useCloud.setState({ session });
+  if (session && hasAccount(session)) rememberAccount(session);
   await initCloud(true);
   await refreshCloud();
 }
@@ -153,9 +155,13 @@ export async function signInWithEmail(email: string, password: string): Promise<
 }
 
 export async function signOutAccount(): Promise<void> {
+  forgetAccount(); // 退出后马上回到登录页；本机数据隐藏但保留，同一个账号再登录就恢复
   const be = await backend();
-  await be.signOut();
-  useCloud.setState({ session: null, updates: {} });
+  try {
+    await be.signOut();
+  } finally {
+    useCloud.setState({ session: null, updates: {} });
+  }
 }
 
 export interface RestoreResult {
@@ -215,4 +221,130 @@ function autoRestore(): Promise<void> {
     }
   })();
   return restoring;
+}
+
+
+// ———————— 登录门禁（2026-11-15） ————————
+// 登录了才能看到行程。云端只有一份：主用户和同伴登录后看到的都是云端那一份。
+// 本机另存一个「已登录」记号，出国没网时也能打开（离线时 Supabase 没法刷新登录状态）。
+
+const ACCOUNT_KEY = 'trip-account';
+const OWNER_KEY = 'trip-local-owner';
+const AFTER_LOGIN_KEY = 'trip-after-login';
+
+export interface AccountMarker {
+  userId: string;
+  email?: string;
+}
+
+function readMarker(key: string): AccountMarker | null {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const v = JSON.parse(raw) as AccountMarker;
+    return v && typeof v.userId === 'string' ? v : null;
+  } catch {
+    return null;
+  }
+}
+function writeMarker(key: string, v: AccountMarker | null): void {
+  try {
+    if (v) localStorage.setItem(key, JSON.stringify(v));
+    else localStorage.removeItem(key);
+  } catch {
+    /* ignore */
+  }
+}
+
+/** 这台设备上最近登录的账号（退出登录后为空） */
+export const accountMarker = (): AccountMarker | null => readMarker(ACCOUNT_KEY);
+export function rememberAccount(s: CloudSession): void {
+  writeMarker(ACCOUNT_KEY, { userId: s.userId, email: s.email });
+}
+export function forgetAccount(): void {
+  writeMarker(ACCOUNT_KEY, null);
+}
+
+/** 这台设备上的本机数据属于哪个账号（第一次登录时认领） */
+export const localOwner = (): AccountMarker | null => readMarker(OWNER_KEY);
+
+/**
+ * 登录后检查本机数据：还没有主人 → 认领给当前账号；是当前账号的 → 正常；是别的账号的 → 'other'（不显示，让用户选）。
+ */
+export function checkLocalOwner(s: CloudSession): 'ok' | 'other' {
+  const owner = localOwner();
+  if (!owner) {
+    writeMarker(OWNER_KEY, { userId: s.userId, email: s.email });
+    return 'ok';
+  }
+  return owner.userId === s.userId ? 'ok' : 'other';
+}
+
+/** 把这台设备上的本机数据清空，并交给当前账号（私人资料「仅本机」也会一起清掉） */
+export async function clearLocalDataFor(s: CloudSession): Promise<void> {
+  for (const t of db.tables) await t.clear();
+  for (const k of [NAME_KEY]) {
+    try {
+      localStorage.removeItem(k);
+    } catch {
+      /* ignore */
+    }
+  }
+  writeMarker(OWNER_KEY, { userId: s.userId, email: s.email });
+  useCloud.setState({ updates: {}, events: [] });
+}
+
+/** 邀请链接：先登录，登录后回到这个链接 */
+export function rememberAfterLogin(path: string): void {
+  try {
+    sessionStorage.setItem(AFTER_LOGIN_KEY, path);
+    localStorage.setItem(AFTER_LOGIN_KEY, path); // Google 登录会离开本页再回来，sessionStorage 不一定还在
+  } catch {
+    /* ignore */
+  }
+}
+export function takeAfterLogin(): string | null {
+  try {
+    const v = localStorage.getItem(AFTER_LOGIN_KEY) || sessionStorage.getItem(AFTER_LOGIN_KEY);
+    localStorage.removeItem(AFTER_LOGIN_KEY);
+    sessionStorage.removeItem(AFTER_LOGIN_KEY);
+    return v && v.startsWith('/join/') ? v : null;
+  } catch {
+    return null;
+  }
+}
+
+let autoSyncing = false;
+/**
+ * 云端只有一份：登录后，本机还没有上云的行程（旧行程、新导入的）自动发布成云端那一份，当前账号是主用户。
+ * 私人资料（仅本机）不会上传。失败的下次再试（没网、文件太大等）。
+ */
+export async function autoSyncLocalTrips(onStart?: (n: number) => void): Promise<{ done: number; failed: number }> {
+  const out = { done: 0, failed: 0 };
+  if (autoSyncing) return out;
+  autoSyncing = true;
+  try {
+    const be = await backend();
+    const s = await be.getSession();
+    if (!hasAccount(s)) return out;
+    const trips = (await db.trips.toArray()).filter((t) => !t.cloud);
+    if (!trips.length) return out;
+    onStart?.(trips.length);
+    const name = myName() || s!.email?.split('@')[0] || '我';
+    for (const t of trips) {
+      try {
+        await enableSync(t.id, name);
+        out.done++;
+      } catch {
+        out.failed++;
+      }
+    }
+    if (out.done) {
+      markUsed();
+      await refreshCloud();
+    }
+    return out;
+  } finally {
+    autoSyncing = false;
+  }
 }

@@ -203,6 +203,8 @@ export async function addDoc(input: {
   hint?: string;
   /** 2026-10：这是自己保存的二维码 / 票码图片 */
   codeKind?: 'static';
+  /** 2026-11-15：私人资料，只存在这台设备 */
+  localOnly?: boolean;
 }): Promise<string> {
   const id = uuid();
   const blobKey = `doc:${id}`;
@@ -218,6 +220,7 @@ export async function addDoc(input: {
     itemKeys: input.itemKeys,
     ...(sealed ? { lock: sealed.lock } : {}),
     ...(input.codeKind ? { codeKind: input.codeKind } : {}),
+    ...(input.localOnly ? { localOnly: true } : {}),
     addedAt: ts,
     updatedAt: ts,
   };
@@ -238,6 +241,7 @@ export async function addLinkDoc(input: {
   itemKeys: string[];
   dynamic: boolean;
   app?: string;
+  localOnly?: boolean;
 }): Promise<string> {
   const id = uuid();
   const ts = now();
@@ -252,11 +256,21 @@ export async function addLinkDoc(input: {
     url: input.url.trim(),
     ...(input.dynamic ? { codeKind: 'dynamic' as const } : {}),
     ...(input.app?.trim() ? { app: input.app.trim() } : {}),
+    ...(input.localOnly ? { localOnly: true } : {}),
     addedAt: ts,
     updatedAt: ts,
   };
   await db.docs.put(doc);
   return id;
+}
+
+/** 2026-11-15：标记 / 取消「仅保存在这台设备」。标成仅本机后，下次发布时它会从共享版本里拿掉 */
+export async function setDocLocalOnly(docId: string, localOnly: boolean): Promise<void> {
+  const doc = await db.docs.get(docId);
+  if (!doc) return;
+  const { localOnly: _old, ...rest } = doc;
+  void _old;
+  await db.docs.put({ ...rest, ...(localOnly ? { localOnly: true } : {}), updatedAt: now() });
 }
 
 /** 2026-10：标记 / 取消「这是二维码 / 票码图片」 */

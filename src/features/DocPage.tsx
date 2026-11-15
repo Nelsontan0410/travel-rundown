@@ -7,7 +7,7 @@ import { Button } from '../components/Basics';
 import { FileRow } from '../components/Cards';
 import { DocViewer } from '../components/DocViewer';
 import { db } from '../db/schema';
-import { deleteDoc, lockDoc, openLockedDoc, replaceDocBlob, setDocCodeKind, unlockDoc } from '../db/repo';
+import { deleteDoc, lockDoc, openLockedDoc, replaceDocBlob, setDocCodeKind, setDocLocalOnly, unlockDoc } from '../db/repo';
 import { isLinkDoc } from '../domain/bookings';
 import { openExternal } from '../links/openLink';
 import { Icon } from '../components/Icon';
@@ -137,9 +137,20 @@ export default function DocPage() {
       <BackHeader title="预订证明" right={{ icon: 'Download', label: '下载原文件', onClick: download, primary: true }} />
       <div className={p.docFile}>
         <FileRow title={doc.title} mime={doc.mime} blobKey={doc.blobKey} saved={!!blob} locked={locked} />
+        {doc.localOnly && <p className={p.lockNote}>仅本机：不会上传，同伴和其他设备都看不到。清除网站资料会丢失，建议在旅程设置里导出旅行包备份。</p>}
         {blob && (!locked || plain) && (
           <Button variant="link" chevron={false} icon={locked ? 'LockOpen' : 'Lock'} onClick={() => setAsk(locked ? 'remove' : 'set')}>
             {locked ? '移除密码' : '设置密码'}
+          </Button>
+        )}
+        {!doc.fromCloud && (
+          <Button
+            variant="link"
+            chevron={false}
+            icon={doc.localOnly ? 'Upload' : 'Lock'}
+            onClick={() => void setDocLocalOnly(doc.id, !doc.localOnly).then(() => toast(doc.localOnly ? '已改为共享：下次发布会带上它' : '已改为仅本机：不会上传，同伴和其他设备都看不到'))}
+          >
+            {doc.localOnly ? '改为共享（上传）' : '改为仅本机'}
           </Button>
         )}
         {doc.mime.startsWith('image/') && (
