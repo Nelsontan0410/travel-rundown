@@ -64,7 +64,8 @@ async function loadLocal(tripId: string) {
     db.foodEntries.where('tripId').equals(tripId).toArray(),
   ]);
   days.sort((a, b) => a.index - b.index);
-  return { trip, days, items, docs, guide, highlights, food };
+  // 2026-11-15：「仅本机」的私人资料不进发布版本，也不进同伴建议
+  return { trip, days, items, docs: docs.filter((d) => !d.localOnly), guide, highlights, food };
 }
 
 /**
@@ -307,7 +308,8 @@ export async function applyUpdate(
         ];
     const docFrom = new Map(docPick.map((r) => [r.id, r.from]));
     for (const d of localDocs) {
-      const from = docFrom.get(d.id);
+      // 仅本机的私人资料永远保留（只更新关联的行程项）
+      const from = d.localOnly ? ('local' as const) : docFrom.get(d.id);
       if (from === 'local') {
         const keys = d.itemKeys.map(remapLocal).filter((k) => alive.has(k));
         if (keys.join('|') !== d.itemKeys.join('|')) await db.docs.update(d.id, { itemKeys: keys, updatedAt: ts });

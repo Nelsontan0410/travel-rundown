@@ -105,6 +105,7 @@ export function AddDocSheet({
   const [picker, setPicker] = useState(false);
   const [saving, setSaving] = useState(false);
   const [lockOn, setLockOn] = useState(false);
+  const [localOnly, setLocalOnly] = useState(false);
   const [pw, setPw] = useState('');
   const [pw2, setPw2] = useState('');
   const [hint, setHint] = useState('');
@@ -172,6 +173,7 @@ export function AddDocSheet({
         itemKeys: keys,
         ...(lockOn ? { password: pw, hint: hint.trim() || undefined } : {}),
         ...(isCode ? { codeKind: 'static' as const } : {}),
+        ...(localOnly ? { localOnly: true } : {}),
       });
       onClose();
     } finally {
@@ -191,6 +193,7 @@ export function AddDocSheet({
         itemKeys: keys,
         dynamic,
         app: appName,
+        localOnly,
       });
       onClose();
     } finally {
@@ -213,6 +216,7 @@ export function AddDocSheet({
           <SettingsGroup>
             <SwitchRow label="这是动态票码（要在官方 App 现场打开）" on={dynamic} onChange={setDynamic} />
             <SettingsRow label="关联行程项" value={linked} onClick={() => setPicker(true)} />
+            <SwitchRow label="私人资料：只保存在这台设备（不上传，同伴和其他设备都看不到）" on={localOnly} onChange={setLocalOnly} />
           </SettingsGroup>
           {dynamic && (
             <div className={p.mt12}>
@@ -260,6 +264,7 @@ export function AddDocSheet({
                 <SwitchRow label="这是二维码 / 票码（可离线出示）" on={isCode} onChange={setIsCode} />
               )}
               <SwitchRow label="设置密码（防止别人打开）" on={lockOn} onChange={setLockOn} />
+              <SwitchRow label="私人资料：只保存在这台设备（不上传，同伴和其他设备都看不到）" on={localOnly} onChange={setLocalOnly} />
             </SettingsGroup>
           </div>
           {lockOn && (

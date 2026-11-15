@@ -8,7 +8,6 @@ import { TextInput } from '../components/Form';
 import { Icon, Logo } from '../components/Icon';
 import { normalizeCode } from '../cloud/sync';
 import { importFile } from './importFlow';
-import { AccountSheet } from './AccountSheet';
 
 /** 没有选中旅程时：说明这页要旅程才能用，并给两个入口 */
 export function NoTripState({ text }: { text: string }) {
@@ -81,7 +80,7 @@ export function JoinRow() {
         </p>
       ) : (
         <p id="join-hint" className={p.lockNote}>
-          邀请链接直接点开即可；只有邀请码就填在这里，不用注册。
+          邀请链接登录后直接点开即可；只有邀请码就填在这里。
         </p>
       )}
     </form>
@@ -92,7 +91,6 @@ export function JoinRow() {
 export function NewUserHome() {
   const nav = useNavigate();
   const onFile = useFileImport();
-  const [account, setAccount] = useState(false);
   return (
     <div className={p.newHome}>
       <div className={p.newHero}>
@@ -110,13 +108,9 @@ export function NewUserHome() {
         <Button variant="link" onClick={() => nav('/import/template')}>
           查看示例与模板
         </Button>
-        <Button variant="link" onClick={() => setAccount(true)}>
-          已有账号？登录找回旅程
-        </Button>
       </div>
       <JoinRow />
       <p className={p.newFoot}>备份与恢复在右上角「…」里</p>
-      <AccountSheet open={account} onClose={() => setAccount(false)} />
     </div>
   );
 }

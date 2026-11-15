@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { useNavigate } from 'react-router-dom';
 import p from './Page.module.css';
 import { Screen, RootHeader, Menu, Dialog } from '../components/Layout';
-import { Button, InfoBanner, SectionTitle } from '../components/Basics';
+import { Button, SectionTitle } from '../components/Basics';
 import { TripDeck, type DeckTrip } from '../components/TripDeck';
 import { useTripCovers, useTrips } from '../hooks/data';
 import { fmtDateRange, isIsoDate, nowIn } from '../domain/format';
@@ -55,14 +55,6 @@ export default function TripsPage() {
     <Screen tab="trips" header={<RootHeader title="我的旅程" icon="MoreHorizontal" iconLabel="更多" onIcon={() => setMenu(true)} />}>
       {trips === undefined ? null : trips.length > 0 ? (
         <>
-          {!hasAccount(session) && (
-            <div className={p.stack}>
-              <InfoBanner variant="warning">旅程现在只存在这台手机上，清缓存就没了。登录账号并开启同步后，换手机或清缓存也能找回。</InfoBanner>
-              <Button variant="outline" onClick={() => setAccount(true)}>
-                登录 / 注册账号
-              </Button>
-            </div>
-          )}
           <SectionTitle first>我的旅程（{trips.length}）</SectionTitle>
           <div className={p.stack}>
             <TripDeck

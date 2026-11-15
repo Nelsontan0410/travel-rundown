@@ -10,7 +10,8 @@ import { toast } from '../store/ui';
 import { cloudErrorText } from '../cloud/backend';
 import { hasAccount, restoreFromCloud, signInWithEmail, signInWithGoogle, signOutAccount, signUpWithEmail } from '../cloud/session';
 
-export function AccountSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+/** 登录 / 注册 / 找回 / 退出的表单（弹窗和登录页共用） */
+export function AccountForm({ onClose, gate = false }: { onClose: () => void; gate?: boolean }) {
   const session = useCloud((s) => s.session);
   const [mode, setMode] = useState<'in' | 'up'>('in');
   const [email, setEmail] = useState('');
@@ -74,7 +75,7 @@ export function AccountSheet({ open, onClose }: { open: boolean; onClose: () => 
     });
 
   return (
-    <Sheet open={open} onClose={onClose} title="账号">
+    <>
       {signedIn ? (
         <>
           <p className={p.lockNote}>已登录：{session?.email || '账号'}</p>
@@ -93,7 +94,7 @@ export function AccountSheet({ open, onClose }: { open: boolean; onClose: () => 
           {anonymous ? (
             <InfoBanner variant="warning">这台手机现在是临时身份，清除网站资料后就找不回已加入或已发布的旅程。绑定 Google 或邮箱后就不怕了，已有的旅程不受影响。</InfoBanner>
           ) : (
-            <InfoBanner variant="info">登录后，开启同步的旅程存在云端；换手机或清缓存后重新登录就能找回。</InfoBanner>
+            <InfoBanner variant="info">{gate ? '登录后才能看到你的旅程。旅程存在云端，换手机或清缓存后重新登录就能找回。' : '登录后，开启同步的旅程存在云端；换手机或清缓存后重新登录就能找回。'}</InfoBanner>
           )}
           <div className={p.sheetActions}>
             <Button block disabled={busy} onClick={() => void google()}>
@@ -128,6 +129,14 @@ export function AccountSheet({ open, onClose }: { open: boolean; onClose: () => 
           {msg}
         </p>
       )}
+    </>
+  );
+}
+
+export function AccountSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+  return (
+    <Sheet open={open} onClose={onClose} title="账号">
+      <AccountForm onClose={onClose} />
     </Sheet>
   );
 }

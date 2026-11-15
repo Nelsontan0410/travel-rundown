@@ -145,6 +145,8 @@ export interface Doc {
   app?: string;
   /** 2026-10-18：同伴这边从主用户版本收到的共享资料（同步时会跟着主用户更新或删除） */
   fromCloud?: boolean;
+  /** 2026-11-15：私人资料，只保存在这台设备。不进发布版本、不进同伴建议、不上传云端，换手机登录也看不到（旅行包备份仍会带上） */
+  localOnly?: boolean;
   addedAt: string;
   updatedAt: string;
 }
