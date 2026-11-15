@@ -20,6 +20,9 @@ interface UIState {
   setDraft: (d: ImportDraft | null) => void;
   pasteText: string;
   setPasteText: (t: string) => void;
+  /** 2026-11-15：侧栏「账号」打开的账号弹窗（登录状态 / 找回旅程 / 退出登录） */
+  accountOpen: boolean;
+  setAccountOpen: (open: boolean) => void;
   restoreAsk: boolean; // 恢复备份前的确认
   updateSW: (() => void) | null; // 有新版本时的刷新函数
   selectedDay: Record<string, string>; // tripId → dayId
@@ -54,6 +57,8 @@ export const useUI = create<UIState>((set) => ({
   },
   draft: null,
   setDraft: (draft) => set({ draft }),
+  accountOpen: false,
+  setAccountOpen: (accountOpen) => set({ accountOpen }),
   // 2026-10-19：粘贴的草稿存在这台设备上，返回、切换步骤、刷新都不会丢；导入成功后清掉
   pasteText: readDraft(),
   setPasteText: (pasteText) => {
