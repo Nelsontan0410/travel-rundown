@@ -176,6 +176,8 @@ export interface CloudBackend {
   /** 用邀请码加入，返回旅程 id */
   joinWithCode(code: string, name: string): Promise<string>;
   leaveTrip(tripId: string): Promise<void>;
+  /** 2026-11-18 主用户删除云端旅程（连带版本、成员、邀请、建议、通知）；不是主用户时什么都不做 */
+  deleteCloudTrip(tripId: string): Promise<void>;
 
   /** 同伴提交建议，返回建议 id */
   submitSuggestion(tripId: string, baseVersion: number, note: string, changes: SuggestionChange[], summary?: PublishSummary): Promise<string>;

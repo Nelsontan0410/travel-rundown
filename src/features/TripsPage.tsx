@@ -7,10 +7,11 @@ import { Button, SectionTitle } from '../components/Basics';
 import { TripDeck, type DeckTrip } from '../components/TripDeck';
 import { useTripCovers, useTrips } from '../hooks/data';
 import { fmtDateRange, isIsoDate, nowIn } from '../domain/format';
-import { deleteTrip, setLastTrip } from '../db/repo';
+import { setLastTrip } from '../db/repo';
 import { toast } from '../store/ui';
 import { useCloud } from '../store/cloud';
-import { hasAccount } from '../cloud/session';
+import { deleteTripEverywhere, hasAccount } from '../cloud/session';
+import { cloudErrorText } from '../cloud/backend';
 import { AccountSheet } from './AccountSheet';
 import { restoreFromFile } from './importFlow';
 import { CreateOrJoin, NewUserHome } from './FirstRun';
@@ -91,7 +92,7 @@ export default function TripsPage() {
         open={!!toDelete}
         onClose={() => setToDelete(null)}
         title={`删除「${toDelete?.title ?? ''}」？`}
-        text={`将删除这份旅程（${toDelete?.dates ?? ''}）的行程、完成状态、预订证明和账本，删除后无法恢复。其他旅程不受影响。`}
+        text={`将删除这份旅程（${toDelete?.dates ?? ''}）的行程、完成状态、预订证明和账本，删除后无法恢复。其他旅程不受影响。已同步的旅程会同时从云端删除，换手机或重新登录也不会再找回。`}
         actions={
           <>
             <Button variant="outline" onClick={() => setToDelete(null)}>
@@ -102,7 +103,11 @@ export default function TripsPage() {
               onClick={() => {
                 const t = toDelete;
                 setToDelete(null);
-                if (t) void deleteTrip(t.id).then(() => toast(`已删除「${t.title}」`));
+                if (t)
+                  void deleteTripEverywhere(t.id).then(
+                    () => toast(`已删除「${t.title}」`),
+                    (e) => toast(`删除失败：${cloudErrorText(e)}`),
+                  );
               }}
             >
               删除

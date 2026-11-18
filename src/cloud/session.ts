@@ -3,6 +3,7 @@
 // 同伴仍可以先用匿名身份加入（每台手机自动建一个），之后在「账号」里绑定 Google / 邮箱。
 // 没用过同步的人不会加载 Supabase，也不会联网。
 import { db } from '../db/schema';
+import { deleteTrip } from '../db/repo';
 import { useCloud } from '../store/cloud';
 import { backend, cloudErrorText, type CloudSession } from './backend';
 import { applyUpdate, checkUpdates, enableSync } from './sync';
@@ -347,4 +348,22 @@ export async function autoSyncLocalTrips(onStart?: (n: number) => void): Promise
   } finally {
     autoSyncing = false;
   }
+}
+
+/**
+ * 2026-11-18 删除旅程：本机删除前，先处理云端，不然登录后会被「自动找回」重新下载。
+ * 主用户 → 删除云端旅程（所有设备和同伴都看不到了）；同伴 → 退出这份旅程。
+ * 云端失败（没网等）就抛错、本机不删，免得删了又跑回来。没开同步的旅程只删本机。
+ */
+export async function deleteTripEverywhere(tripId: string): Promise<void> {
+  const trip = await db.trips.get(tripId);
+  if (trip?.cloud) {
+    const be = await backend();
+    if (await be.getSession()) {
+      if (trip.cloud.role === 'owner') await be.deleteCloudTrip(tripId);
+      else await be.leaveTrip(tripId);
+    }
+  }
+  await deleteTrip(tripId);
+  if (trip?.cloud) await refreshCloud().catch(() => undefined);
 }

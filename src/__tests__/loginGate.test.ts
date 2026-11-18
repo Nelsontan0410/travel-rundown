@@ -12,6 +12,7 @@ import {
   autoSyncLocalTrips,
   checkLocalOwner,
   clearLocalDataFor,
+  deleteTripEverywhere,
   forgetAccount,
   localOwner,
   rememberAccount,
@@ -227,5 +228,43 @@ describe('云端只有一份：登录后自动备份本机行程', () => {
     await signInWithEmail('nelson@example.com', 'secret1');
     expect((await restoreFromCloud()).restored).toHaveLength(1);
     expect((await db.trips.get(tripId))!.cloud?.role).toBe('owner');
+  });
+});
+
+describe('删除旅程（2026-11-18）：删了不会再被自动找回', () => {
+  it('主用户删除 → 云端也删，重新登录找不回；同伴删除 → 退出，找不回', async () => {
+    cloud.as('phone-a');
+    await signUpWithEmail('nelson@example.com', 'secret1');
+    const tripId = await saveImport(parseMd(md), md);
+    await enableSync(tripId, 'Nelson');
+    const code = await cloud.createInvite(tripId, '小明');
+    const mateDump: Record<string, unknown[]> = {};
+    await wipe();
+    cloud.as('mate');
+    await signUpWithEmail('mate@example.com', 'secret2');
+    await joinWithCode(code, '小明');
+    // 同伴删除 = 退出
+    await deleteTripEverywhere(tripId);
+    expect(await db.trips.get(tripId)).toBeUndefined();
+    expect((await restoreFromCloud()).restored).toEqual([]);
+    expect(await db.trips.get(tripId)).toBeUndefined();
+    for (const t of db.tables) mateDump[t.name] = await t.toArray();
+    // 主用户换手机找回，再删除 → 云端没了
+    await wipe();
+    cloud.as('phone-b');
+    await signInWithEmail('nelson@example.com', 'secret1');
+    await restoreFromCloud();
+    expect(await db.trips.get(tripId)).toBeTruthy();
+    await deleteTripEverywhere(tripId);
+    expect(cloud.state.trips.has(tripId)).toBe(false);
+    await wipe();
+    expect((await restoreFromCloud()).restored).toEqual([]);
+    expect(await db.trips.get(tripId)).toBeUndefined();
+  });
+
+  it('没开同步的旅程只删本机，不需要登录', async () => {
+    const tripId = await saveImport(parseMd(md), md);
+    await deleteTripEverywhere(tripId);
+    expect(await db.trips.get(tripId)).toBeUndefined();
   });
 });
