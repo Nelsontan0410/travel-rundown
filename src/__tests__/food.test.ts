@@ -64,3 +64,27 @@ describe('高德：用店名搜索、手机直接开 App', () => {
     expect(mobileOs('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)', 5)).toBe('ios');
   });
 });
+
+describe('高德：行程里的地点也用「城市 + 准确店名」搜（2026-11-19）', () => {
+  const place = { name: '甘家界柠檬鸭（三街两巷水街店）', localName: '甘家界柠檬鸭', address: '南宁 · 中国' };
+  const kw = (u: string | undefined) => new URL(u!).searchParams.get('keyword');
+  it('取带分店名的那个，全角括号换半角，城市从「南宁 · 中国」读出', async () => {
+    const { navLink, placeLink, amapPlaceQuery, cityOfAddress } = await import('../links/maps');
+    expect(amapPlaceQuery(place)).toBe('南宁 甘家界柠檬鸭(三街两巷水街店)');
+    expect(kw(navLink({ type: 'meal', title: '晚餐：甘家界柠檬鸭', place }, 'Asia/Shanghai'))).toBe('南宁 甘家界柠檬鸭(三街两巷水街店)');
+    expect(kw(placeLink(place, 'Asia/Shanghai'))).toBe('南宁 甘家界柠檬鸭(三街两巷水街店)');
+    expect(cityOfAddress('南宁，中国')).toBe('南宁');
+    expect(cityOfAddress('广西壮族自治区南宁市西乡塘区永宁街华兴里1-4号')).toBe('南宁');
+    expect(cityOfAddress('中山路 12 号')).toBeUndefined();
+  });
+  it('交通终点同样；英文店名退回原来的搜索词；Google 不受影响', async () => {
+    const { navLink, amapPlaceQuery } = await import('../links/maps');
+    const u = navLink({ type: 'transit', title: '去吃饭', place: { name: '酒店' }, toPlace: place }, 'Asia/Shanghai');
+    expect(kw(u)).toBe('南宁 甘家界柠檬鸭(三街两巷水街店)');
+    expect(amapPlaceQuery({ name: 'Ichiran Shibuya', address: 'Tokyo' })).toBe('Ichiran Shibuya Tokyo');
+    const { DEFAULT_SETTINGS } = await import('../domain/types');
+    const g = navLink({ type: 'meal', title: 'x', place }, 'Asia/Shanghai', { ...DEFAULT_SETTINGS, navInChina: 'google-maps' })!;
+    expect(g).toContain('google.com/maps');
+    expect(decodeURIComponent(g)).toContain('query=甘家界柠檬鸭');
+  });
+});
