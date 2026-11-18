@@ -268,3 +268,34 @@ describe('删除旅程（2026-11-18）：删了不会再被自动找回', () => 
     expect(await db.trips.get(tripId)).toBeUndefined();
   });
 });
+
+describe('按邮箱邀请（2026-11-18）', () => {
+  it('主用户邀请邮箱 → 对方用这个邮箱登录就自动加入并下载；别的邮箱拿不到', async () => {
+    cloud.as('phone-a');
+    await signUpWithEmail('nelson@example.com', 'secret1');
+    const tripId = await saveImport(parseMd(md), md);
+    await enableSync(tripId, 'Nelson');
+    await cloud.inviteEmail(tripId, ' Mate@Example.com ', '小明');
+    await expect(cloud.inviteEmail(tripId, 'nelson@example.com', '')).rejects.toThrow('不能邀请自己');
+    await expect(cloud.inviteEmail(tripId, 'not-an-email', '')).rejects.toThrow('邮箱格式不对');
+    expect((await cloud.tripInvites(tripId)).map((i) => i.email)).toEqual(['mate@example.com']);
+
+    // 别的邮箱：什么都拿不到
+    await wipe();
+    cloud.as('stranger');
+    await signUpWithEmail('other@example.com', 'secret3');
+    expect((await restoreFromCloud()).restored).toEqual([]);
+
+    // 被邀请的邮箱：登录后找回时自动加入，身份是同伴
+    await wipe();
+    cloud.as('mate');
+    await signUpWithEmail('mate@example.com', 'secret2');
+    expect((await restoreFromCloud()).restored.length).toBe(1);
+    const t = (await db.trips.get(tripId))!;
+    expect(t.cloud?.role).toBe('member');
+    expect(cloud.state.members.filter((m) => m.tripId === tripId).map((m) => m.role).sort()).toEqual(['member', 'owner']);
+    // 邀请已用掉，主用户那边不再显示「还没加入」
+    cloud.as('phone-a');
+    expect((await cloud.tripInvites(tripId)).filter((i) => !i.acceptedAt)).toEqual([]);
+  });
+});

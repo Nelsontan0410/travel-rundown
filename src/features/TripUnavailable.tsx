@@ -1,15 +1,15 @@
 // 2026-10-19：打开某份旅程的链接，但这台设备上没有这份旅程时显示（以前会直接跳到「还没有旅程」，看不出原因）。
 // 原因：行程保存在每台设备自己的本机数据库里；网址只是「这台设备上的这份旅程」，不是分享链接。
-// 分几种情况说明：链接格式不对 / 没网 / 这台设备用过同步且是成员（可以直接下载）/ 其他（需要邀请码）。
+// 分几种情况说明：链接格式不对 / 没网 / 这台设备用过同步且是成员（可以直接下载）/ 其他（需要主用户按邮箱邀请）。
 // 不会为了检查而新建同步身份，也不会公开任何行程。
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import p from './Page.module.css';
 import { Screen, BackHeader } from '../components/Layout';
 import { Button, Card, EmptyState, InfoBanner } from '../components/Basics';
-import { Field, TextInput } from '../components/Form';
 import { backend, cloudErrorText } from '../cloud/backend';
-import { applyUpdate, normalizeCode } from '../cloud/sync';
+import { applyUpdate } from '../cloud/sync';
+import { JoinRow } from './FirstRun';
 import { refreshCloud } from '../cloud/session';
 import { toast } from '../store/ui';
 import type { TabKey } from '../components/Layout';
@@ -22,8 +22,6 @@ export default function TripUnavailable({ tripId, tab, title = '旅程' }: { tri
   const nav = useNavigate();
   const [state, setState] = useState<State>('checking');
   const [err, setErr] = useState('');
-  const [code, setCode] = useState('');
-  const [codeErr, setCodeErr] = useState('');
   const [busy, setBusy] = useState(false);
 
   const check = async () => {
@@ -62,13 +60,6 @@ export default function TripUnavailable({ tripId, tab, title = '旅程' }: { tri
       setBusy(false);
     }
   };
-  const join = () => {
-    const c = normalizeCode(code);
-    if (!c) return setCodeErr('请填主用户给你的邀请码');
-    if (c.length < 6) return setCodeErr('邀请码太短了，请检查一下（一般是 10 位，例如 ABCDE-FGHJK）');
-    nav(`/join/${c}`);
-  };
-
   return (
     <Screen tab={tab} header={tab ? undefined : <BackHeader title={title} />}>
       {state === 'checking' ? (
@@ -92,7 +83,7 @@ export default function TripUnavailable({ tripId, tab, title = '旅程' }: { tri
         <div className={p.stack}>
           <EmptyState
             title="这台设备上没有这份旅程"
-            text="行程保存在加入过的设备里，直接复制网址不能分享。如果有人邀请你，请输入邀请码加入，加入后会打开这份行程。"
+            text="行程保存在加入过的设备里，直接复制网址不能分享。如果有人邀请你，请主用户邀请你登录用的邮箱，登录后旅程会自动出现。"
             compact
           />
           {state === 'offline' && <InfoBanner variant="warning">现在没有网络，暂时无法确认或加入。联网后再试。</InfoBanner>}
@@ -109,29 +100,7 @@ export default function TripUnavailable({ tripId, tab, title = '旅程' }: { tri
             </InfoBanner>
           )}
           <Card className={p.cloudCard}>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                join();
-              }}
-            >
-              <Field label="邀请码" hint="主用户在「旅程设置 → 同步与同伴」生成后发给你" error={codeErr || undefined}>
-                <TextInput
-                  value={code}
-                  autoCapitalize="characters"
-                  placeholder="例如 ABCDE-FGHJK"
-                  onChange={(e) => {
-                    setCode(e.target.value);
-                    setCodeErr('');
-                  }}
-                />
-              </Field>
-              <div className={p.sheetActions}>
-                <Button block type="submit">
-                  用邀请码加入
-                </Button>
-              </div>
-            </form>
+            <JoinRow />
           </Card>
           <Button variant="outline" onClick={() => nav('/trips')}>
             去我的旅程

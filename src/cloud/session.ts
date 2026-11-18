@@ -87,7 +87,7 @@ export async function initCloud(force = false): Promise<void> {
   void autoRestore();
   if (typeof document === 'undefined') return; // 没有页面（自动测试）就不挂定时检查
   const tick = () => {
-    if (document.visibilityState === 'visible' && navigator.onLine !== false) void refreshCloud();
+    if (document.visibilityState === 'visible' && navigator.onLine !== false) void refreshCloud().then(() => autoRestore());
   };
   document.addEventListener('visibilitychange', tick);
   window.addEventListener('online', tick);
@@ -180,6 +180,14 @@ export async function restoreFromCloud(onProgress?: (title: string) => void): Pr
   const session = await be.getSession();
   const out: RestoreResult = { restored: [], failed: [] };
   if (!session) return out;
+  // 2026-11-18：先领取发给我邮箱的邀请，新加入的旅程下面一起下载
+  if (hasAccount(session)) {
+    try {
+      await be.claimInvites(myName() || session.email?.split('@')[0] || '');
+    } catch {
+      /* 数据库还没更新等：不影响找回自己的旅程 */
+    }
+  }
   const mine = await be.myTrips();
   const local = new Map((await db.trips.toArray()).map((t) => [t.id, t]));
   for (const t of mine) {
@@ -366,4 +374,11 @@ export async function deleteTripEverywhere(tripId: string): Promise<void> {
   }
   await deleteTrip(tripId);
   if (trip?.cloud) await refreshCloud().catch(() => undefined);
+}
+
+/** 2026-11-18「检查邀请」按钮：领取发给我邮箱的邀请并下载 */
+export async function checkInvites(): Promise<RestoreResult> {
+  const r = await restoreFromCloud();
+  if (r.restored.length) markUsed();
+  return r;
 }

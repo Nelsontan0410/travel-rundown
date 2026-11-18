@@ -12,17 +12,15 @@ import { toast } from '../store/ui';
 import { backend, cloudErrorText, type CloudInvite, type CloudMember } from '../cloud/backend';
 import { ensureCloudSession, hasAccount, myName, refreshCloud, setMyName } from '../cloud/session';
 import { AccountSheet } from './AccountSheet';
-import { detachLocal, enableSync, pendingChanges, prettyCode, publishUpdate } from '../cloud/sync';
+import { detachLocal, enableSync, pendingChanges, publishUpdate } from '../cloud/sync';
 import type { SnapshotDiff } from '../cloud/snapshot';
 import type { Trip } from '../domain/types';
 import { copyText } from '../lib/files';
 import { useLocalChangeCount } from './SuggestPages';
 
-export const inviteLink = (code: string) => `${location.origin}/join/${code}`;
-
-/** 分享邀请：手机上用系统分享（WhatsApp、微信…），不支持就复制 */
-export async function shareInvite(code: string, tripTitle: string, inviter?: string): Promise<void> {
-  const text = `${inviter ? `${inviter} ` : ''}邀请你一起看「${tripTitle}」的行程。打开链接加入：${inviteLink(code)}\n已经装了 App 的话，也可以在「旅程」页输入邀请码：${prettyCode(code)}`;
+/** 2026-11-18 分享邮箱邀请：告诉同伴用哪个邮箱登录。手机上用系统分享（WhatsApp、微信…），不支持就复制 */
+export async function shareInvite(email: string, tripTitle: string, inviter?: string): Promise<void> {
+  const text = `${inviter ? `${inviter} ` : ''}邀请你一起看「${tripTitle}」的行程。\n打开 ${location.origin} ，用 ${email} 登录（Google 或邮箱都可以），登录后行程会自动出现。`;
   const nav = navigator as Navigator & { share?: (d: { title?: string; text?: string }) => Promise<void> };
   if (nav.share) {
     try {
@@ -32,7 +30,7 @@ export async function shareInvite(code: string, tripTitle: string, inviter?: str
       if ((e as Error)?.name === 'AbortError') return;
     }
   }
-  toast((await copyText(text)) ? '已复制邀请，可以贴给同伴' : '复制失败，请手动抄下邀请码');
+  toast((await copyText(text)) ? '已复制邀请，可以贴给同伴' : '复制失败，请直接告诉同伴用这个邮箱登录');
 }
 
 /** 填自己的名字（开启同步 / 加入时用） */
@@ -145,6 +143,7 @@ export function SyncSection({ trip }: { trip: Trip }) {
   const [members, setMembers] = useState<CloudMember[] | null>(null);
   const [invites, setInvites] = useState<CloudInvite[]>([]);
   const [mateName, setMateName] = useState('');
+  const [mateEmail, setMateEmail] = useState('');
   const [ownName, setOwnName] = useState(myName());
   const [startOpen, setStartOpen] = useState(false);
   const [publishOpen, setPublishOpen] = useState(false);
@@ -241,13 +240,16 @@ export function SyncSection({ trip }: { trip: Trip }) {
 
   if (isOwner) {
     const invite = async () => {
+      const email = mateEmail.trim().toLowerCase();
       const name = mateName.trim();
-      if (!name) return toast('填同伴的名字，方便你分辨');
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return toast('填同伴登录用的邮箱');
       try {
-        const code = await (await backend()).createInvite(trip.id, name);
+        await (await backend()).inviteEmail(trip.id, email, name);
         setMateName('');
+        setMateEmail('');
         await load();
-        await shareInvite(code, trip.title, trip.cloud?.ownerName ?? myName());
+        toast(`已邀请 ${email}：对方用这个邮箱登录后会自动加入`);
+        await shareInvite(email, trip.title, trip.cloud?.ownerName ?? myName());
       } catch (err) {
         toast(cloudErrorText(err));
       }
@@ -274,7 +276,7 @@ export function SyncSection({ trip }: { trip: Trip }) {
         <div className={p.mt12}>
           <Card className={p.cloudCard}>
             <p className={p.cloudTitle}>同伴</p>
-            {others.length === 0 && invites.length === 0 && <p className={p.lockNote}>还没有同伴。填同伴的名字，生成邀请后用 WhatsApp / 微信发给他。</p>}
+            {others.length === 0 && invites.length === 0 && <p className={p.lockNote}>还没有同伴。填同伴登录用的邮箱，对方用这个邮箱登录后会自动加入。</p>}
             {others.map((m) => (
               <div key={m.userId} className={p.inviteRow}>
                 <div className={p.inviteText}>
@@ -286,13 +288,13 @@ export function SyncSection({ trip }: { trip: Trip }) {
                 </Button>
               </div>
             ))}
-            {invites.map((i) => (
+            {invites.filter((i) => i.email).map((i) => (
               <div key={i.id} className={p.inviteRow}>
                 <div className={p.inviteText}>
-                  <p className={p.inviteTitle}>{i.name || '同伴'}</p>
-                  <p className={p.lockNote}>还没加入 · 邀请码 {prettyCode(i.code)}</p>
+                  <p className={p.inviteTitle}>{i.name || i.email}</p>
+                  <p className={p.lockNote}>还没加入 · {i.email}</p>
                 </div>
-                <Button size="sm" variant="outline" onClick={() => void shareInvite(i.code, trip.title, trip.cloud?.ownerName ?? myName())}>
+                <Button size="sm" variant="outline" onClick={() => void shareInvite(i.email!, trip.title, trip.cloud?.ownerName ?? myName())}>
                   分享
                 </Button>
                 <Button size="sm" variant="outline" onClick={() => void backend().then((b) => b.revokeInvite(i.id)).then(load)}>
@@ -307,12 +309,13 @@ export function SyncSection({ trip }: { trip: Trip }) {
                 void invite();
               }}
             >
-              <TextInput placeholder="同伴的名字" maxLength={20} value={mateName} onChange={(e) => setMateName(e.target.value)} aria-label="同伴的名字" />
+              <TextInput type="email" inputMode="email" autoCapitalize="none" autoComplete="off" placeholder="同伴的邮箱" value={mateEmail} onChange={(e) => setMateEmail(e.target.value)} aria-label="同伴的邮箱" />
+              <TextInput placeholder="名字（可不填）" maxLength={20} value={mateName} onChange={(e) => setMateName(e.target.value)} aria-label="同伴的名字" />
               <Button size="sm" type="submit">
-                生成邀请
+                邀请
               </Button>
             </form>
-            <p className={p.lockNote}>每个邀请只能给一台手机用。同伴换手机的话，移除后再生成一个新的。</p>
+            <p className={p.lockNote}>同伴用这个邮箱登录（Google 或邮箱密码）后会自动加入；换手机只要重新登录同一个邮箱。App 不会自动发邮件，邀请后用 WhatsApp / 微信告诉对方。</p>
           </Card>
         </div>
         <PublishSheet open={publishOpen} onClose={() => setPublishOpen(false)} trip={trip} diff={diff} onDone={() => void load()} />
