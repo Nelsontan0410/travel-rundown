@@ -1,6 +1,6 @@
 // 修订 2026-10 · ISSUE-002 倒计时 / ISSUE-003 打卡排序
 import { describe, expect, it } from 'vitest';
-import { departureOf, remaining, zonedToUtc } from '../domain/countdown';
+import { departureLabel, departureOf, departureOfTrip, remaining, zonedToUtc } from '../domain/countdown';
 import { checklistOrder } from '../domain/checklist';
 
 describe('出发倒计时', () => {
@@ -49,5 +49,28 @@ describe('每日打卡排序', () => {
     expect(r.open.map((i) => i.key)).toEqual(['b', 'c', 'd']);
     st.a = 'todo';
     expect(checklistOrder(items, (k) => st[k] ?? 'todo').open.map((i) => i.key)).toEqual(['a', 'b', 'c', 'd']);
+  });
+});
+
+describe('出发时间跟随机票（2026-11-18）', () => {
+  const days = [{ id: 'd1', date: '2027-01-10', index: 0 }, { id: 'd2', date: '2027-01-11', index: 1 }];
+  const items = [
+    { dayId: 'd2', type: 'flight' as const, start: '08:00' },
+    { dayId: 'd1', type: 'spot' as const, start: '06:00' },
+    { dayId: 'd1', type: 'flight' as const, start: '14:35' },
+  ];
+  const base = { startDate: '2027-01-10', homeTz: 'Asia/Singapore' };
+  it('填了机票倒数：用机票的起飞时刻和时区，优先于手动时间', () => {
+    const departureAt = Date.UTC(2027, 0, 10, 1, 5); // 新加坡 09:05
+    const fc = { origin: 'SG', destination: 'JP', departureAt, returnAt: departureAt + 86400000 * 9, departureTz: 'Asia/Singapore', returnTz: 'Asia/Tokyo' };
+    const d = departureOfTrip({ trip: { ...base, departTime: '21:45', flightCountdown: fc }, days, items });
+    expect(d).toMatchObject({ at: departureAt, time: '09:05', tz: 'Asia/Singapore', source: 'flight', assumed: false });
+    expect(departureLabel(d)).toBe('跟随机票：09:05（Asia/Singapore）');
+  });
+  it('没机票倒数：手动时间 > 第一天航班 > 00:00', () => {
+    expect(departureOfTrip({ trip: { ...base, departTime: '21:45' }, days, items }).source).toBe('manual');
+    const d = departureOfTrip({ trip: base, days, items });
+    expect(d).toMatchObject({ time: '14:35', source: 'item', assumed: false, at: Date.UTC(2027, 0, 10, 6, 35) });
+    expect(departureOfTrip({ trip: base, days, items: items.slice(0, 2) }).source).toBe('assumed');
   });
 });

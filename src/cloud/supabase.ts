@@ -43,11 +43,12 @@ const toSuggestion = (r: SuggestionRow): CloudSuggestion => ({
   decidedAt: r.decided_at ?? undefined,
 });
 
-type InviteRow = { id: string; trip_id: string; code: string | null; name: string | null; accepted_at: string | null; created_at: string };
+type InviteRow = { id: string; trip_id: string; code: string | null; email: string | null; name: string | null; accepted_at: string | null; created_at: string };
 const toInvite = (r: InviteRow): CloudInvite => ({
   id: r.id,
   tripId: r.trip_id,
   code: r.code ?? '',
+  email: r.email ?? undefined,
   name: r.name ?? undefined,
   acceptedAt: r.accepted_at ?? undefined,
   createdAt: r.created_at,
@@ -147,11 +148,18 @@ export function createSupabaseBackend(): CloudBackend {
       return rows.map((r) => ({ userId: r.user_id, name: r.name ?? undefined, role: r.role }));
     },
     async tripInvites(tripId) {
-      const rows = must(await sb.from('trip_invites').select('id,trip_id,code,name,accepted_at,created_at').eq('trip_id', tripId).not('code', 'is', null).order('created_at')) as InviteRow[];
+      const rows = must(await sb.from('trip_invites').select('id,trip_id,code,email,name,accepted_at,created_at').eq('trip_id', tripId).order('created_at')) as InviteRow[];
       return rows.map(toInvite);
     },
     async createInvite(tripId, name) {
       return must(await sb.rpc('create_invite', { p_trip: tripId, p_name: name })) as string;
+    },
+    async inviteEmail(tripId, email, name) {
+      must(await sb.rpc('create_email_invite', { p_trip: tripId, p_email: email, p_name: name }));
+    },
+    async claimInvites(name) {
+      const rows = must(await sb.rpc('claim_email_invites', { p_name: name })) as unknown;
+      return Array.isArray(rows) ? rows.map((r) => (typeof r === 'string' ? r : String(Object.values(r as object)[0]))) : [];
     },
     async revokeInvite(inviteId) {
       must(await sb.from('trip_invites').delete().eq('id', inviteId));

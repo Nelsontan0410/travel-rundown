@@ -6,7 +6,7 @@ import { statusOf, type TripData } from '../hooks/data';
 import { exportBackup } from '../db/repo';
 import { downloadBlob } from '../lib/files';
 import { docsForItem } from '../domain/rules';
-import { departureOf } from '../domain/countdown';
+import { departureLabel, departureOfTrip } from '../domain/countdown';
 import { Countdown } from './Countdown';
 
 /** 01 顶部的阶段提示：出发前 / 已结束显示；旅行中不显示 */
@@ -14,13 +14,13 @@ export default function PhaseCard({ td, now, hideDepartureCountdown = false }: {
   const phase = tripPhase(td.days, now);
   // 倒计时按出发地时间算：目的地时区更早进入行程日时，出发前仍然显示倒计时
   const beforeDeparture = (() => {
-    const at = departureOf(td.trip).at;
+    const at = departureOfTrip(td).at;
     return at !== undefined && now.getTime() < at;
   })();
   if (phase.kind === 'during' && !beforeDeparture) return null;
 
   if (phase.kind === 'before' || beforeDeparture) {
-    const dep = departureOf(td.trip);
+    const dep = departureOfTrip(td);
     const need = td.items.filter((i) => i.type === 'flight' || i.type === 'lodging');
     const done = need.filter((i) => docsForItem(td.docs, i.key).length > 0).length;
     const dayOf = (id: string) => td.dayById.get(id);
@@ -33,7 +33,7 @@ export default function PhaseCard({ td, now, hideDepartureCountdown = false }: {
     );
     return (
       <Card className={s.wrap}>
-        {!hideDepartureCountdown && <Countdown at={dep.at} note={dep.assumed ? `按出发日 00:00（${dep.tz}）倒数，可在旅程设置里填准确的出发时间` : `出发时间 ${dep.time}（${dep.tz}）`} />}
+        {!hideDepartureCountdown && <Countdown at={dep.at} note={dep.assumed ? `按出发日 00:00（${dep.tz}）倒数，填了机票倒数会自动用起飞时间` : `出发时间 ${departureLabel(dep)}`} />}
         <p className={s.sub}>
           {need.length ? `航班和住宿已关联证明 ${done} / ${need.length}` : '这份行程里没有航班或住宿'}
           {issues.length ? `${need.length ? '，' : ''}还有 ${issues.length} 条准备提醒（旅程设置里查看）` : ''}

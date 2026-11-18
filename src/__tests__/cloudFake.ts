@@ -154,6 +154,34 @@ export function fakeCloud(): FakeCloud {
       state.invites.push({ id: id(), tripId: tid, code, name: name || undefined, inviterName, createdAt: ts() });
       return code;
     },
+    async inviteEmail(tid, email, name) {
+      const s = need();
+      if (!isOwner(tid)) throw new Error('只有主用户可以邀请');
+      const e = email.trim().toLowerCase();
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) throw new Error('邮箱格式不对');
+      if (e === s.email?.toLowerCase()) throw new Error('不能邀请自己');
+      const inviterName = state.members.find((m) => m.tripId === tid && m.userId === s.userId)?.name;
+      const old = state.invites.find((i) => i.tripId === tid && i.email === e && !i.acceptedBy);
+      if (old) old.name = name || old.name;
+      else state.invites.push({ id: id(), tripId: tid, code: '', email: e, name: name || undefined, inviterName, createdAt: ts() });
+    },
+    async claimInvites(name) {
+      const s = cur();
+      if (!s || s.anonymous || !s.email) return [];
+      const e = s.email.toLowerCase();
+      const out: string[] = [];
+      for (const inv of state.invites.filter((i) => i.email === e && !i.acceptedBy)) {
+        if (isOwner(inv.tripId)) continue;
+        inv.acceptedBy = s.userId;
+        inv.acceptedAt = ts();
+        if (!state.members.some((m) => m.tripId === inv.tripId && m.userId === s.userId)) {
+          state.members.push({ tripId: inv.tripId, userId: s.userId, name: name || inv.name, role: 'member' });
+          log(inv.tripId, 'join', `${name || inv.name || '有人'} 加入了旅程`);
+        }
+        out.push(inv.tripId);
+      }
+      return out;
+    },
     async revokeInvite(iid) {
       state.invites = state.invites.filter((i) => !(i.id === iid && isOwner(i.tripId)));
     },

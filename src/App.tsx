@@ -22,7 +22,6 @@ import FoodFormPage from './features/food/FoodFormPage';
 import TodayPage from './features/TodayPage';
 import ItemEditPage from './features/ItemEditPage';
 import UpdatePage from './features/UpdatePage';
-import JoinPage from './features/JoinPage';
 import NotificationsPage from './features/NotificationsPage';
 import { MySuggestPage, ReviewSuggestionPage, SuggestionsPage } from './features/SuggestPages';
 import AccountGate from './features/AccountGate';
@@ -92,7 +91,8 @@ export default function App() {
         <Route path="/item/:itemId/edit" element={<ItemEditPage />} />
         <Route path="/trip/:tripId/add" element={<ItemEditPage />} />
         <Route path="/trip/:tripId/update" element={<UpdatePage />} />
-        <Route path="/join/:code" element={<JoinPage />} />
+        {/* 2026-11-18 邀请码已取消：旧的邀请链接带到「收到邀请」说明 */}
+        <Route path="/join/:code" element={<Navigate to="/trips#join" replace />} />
         <Route path="/notifications" element={<NotificationsPage />} />
         <Route path="/trip/:tripId/suggest" element={<MySuggestPage />} />
         <Route path="/trip/:tripId/suggestions" element={<SuggestionsPage />} />

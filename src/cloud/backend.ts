@@ -47,11 +47,13 @@ export interface CloudMember {
   role: 'owner' | 'member';
 }
 
-/** 主用户生成的邀请码 */
+/** 主用户发出的邀请（2026-11-18 起按邮箱；旧的邀请码记录 code 有值、email 为空） */
 export interface CloudInvite {
   id: string;
   tripId: string;
   code: string;
+  /** 被邀请的邮箱 */
+  email?: string;
   /** 给谁的（主用户填的名字） */
   name?: string;
   acceptedAt?: string;
@@ -168,8 +170,12 @@ export interface CloudBackend {
 
   members(tripId: string): Promise<CloudMember[]>;
   tripInvites(tripId: string): Promise<CloudInvite[]>;
-  /** 生成邀请码，返回邀请码 */
+  /** 生成邀请码，返回邀请码（旧方式，App 里不再使用） */
   createInvite(tripId: string, name: string): Promise<string>;
+  /** 2026-11-18 主用户按邮箱邀请 */
+  inviteEmail(tripId: string, email: string, name: string): Promise<void>;
+  /** 2026-11-18 领取发给「我的邮箱」的邀请，返回新加入的旅程 id */
+  claimInvites(name: string): Promise<string[]>;
   revokeInvite(inviteId: string): Promise<void>;
   removeMember(tripId: string, userId: string): Promise<void>;
   peekInvite(code: string): Promise<InvitePeek | null>;

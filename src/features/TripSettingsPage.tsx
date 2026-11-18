@@ -19,7 +19,9 @@ import { SyncSection } from './CloudParts';
 import { toast } from '../store/ui';
 import { deleteTripEverywhere } from '../cloud/session';
 import { cloudErrorText } from '../cloud/backend';
-import { downloadBlob, pickFile, prepareFile } from '../lib/files';
+import { copyText, downloadBlob, pickFile, prepareFile } from '../lib/files';
+import { tripToMd } from '../importer/serialize';
+import { buildEditPrompt } from '../importer/editPrompt';
 import { restoreFromFile } from './importFlow';
 import { ChoiceSheet } from './Sheets';
 import { useUI } from '../store/ui';
@@ -27,6 +29,7 @@ import { useStorageInfo } from '../hooks/storage';
 import CheckList from '../components/CheckList';
 import { checkTrip } from '../domain/check';
 import { docsForItem } from '../domain/rules';
+import { departureLabel, departureOfTrip } from '../domain/countdown';
 import { DEFAULT_SETTINGS, type TranslateLang } from '../domain/types';
 
 /** 05 旅程设置（从 01 的设置图标进入） */
@@ -149,8 +152,12 @@ export default function TripSettingsPage() {
         <SettingsRow
           icon="CalendarDays"
           label="出发时间"
-          value={trip.departTime ? `${trip.departTime}（${trip.homeTz}）` : `未设置，按 00:00（${trip.homeTz}）倒数`}
+          value={departureLabel(departureOfTrip(td))}
           onClick={() => {
+            if (departureOfTrip(td).source === 'flight') {
+              toast('出发时间跟随机票倒数，请在「概览」的机票倒数里修改');
+              return;
+            }
             setFactVal(trip.departTime ?? '');
             setFactSheet('time');
           }}
@@ -240,6 +247,24 @@ export default function TripSettingsPage() {
           onClick={() => {
             setPaste(trip.sourceMd);
             nav(`/import/paste?trip=${trip.id}`);
+          }}
+        />
+        <SettingsRow
+          icon="Copy"
+          label="复制给 AI 修改"
+          onClick={() => {
+            const { md } = tripToMd(td.trip, td.days, td.items);
+            void copyText(buildEditPrompt(md)).then((ok) =>
+              toast(ok ? '已复制：贴到 ChatGPT / Claude，写上要怎么改；改好后点「重新导入行程」贴回来' : '复制失败，请改用「下载行程原文」'),
+            );
+          }}
+        />
+        <SettingsRow
+          icon="FileText"
+          label="下载行程原文（.md）"
+          onClick={() => {
+            const { md } = tripToMd(td.trip, td.days, td.items);
+            downloadBlob(new Blob([md], { type: 'text/markdown;charset=utf-8' }), `${trip.title.replace(/[\\/:*?"<>|]/g, '_')}.md`);
           }}
         />
         <SettingsRow icon="Trash2" label="删除这个旅程" danger onClick={() => setConfirmDel(true)} />
