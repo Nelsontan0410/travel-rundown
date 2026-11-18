@@ -15,6 +15,40 @@ export function placeQuery(p: Place): string {
   return [p.name, p.address].filter(Boolean).join(' ');
 }
 
+const hasCjk = (s?: string): s is string => !!s && /[\u4e00-\u9fff]/.test(s);
+
+/**
+ * 从地址里读城市名（不带「市」）。认两种写法：
+ * - 完整地址：「广西壮族自治区南宁市西乡塘区…」「北京市朝阳区…」→ 南宁 / 北京
+ * - 简写：「南宁 · 中国」「南宁，中国」→ 南宁
+ * 读不到返回 undefined。
+ */
+export function cityOfAddress(addr: string | undefined): string | undefined {
+  const rest = (addr ?? '').trim().replace(/^.{2,9}?(省|自治区|特别行政区)/, '');
+  return rest.match(/^([^市区县\s,，]{2,5})市/)?.[1] ?? rest.match(/^([^\s·,，、0-9]{2,5})\s*[·,，、]/)?.[1];
+}
+
+/** 高德里的店名一律是半角括号：把全角括号换掉，搜出来才是同一条 */
+export const amapText = (t: string) => t.replace(/（/g, '(').replace(/）/g, ')').trim();
+
+/**
+ * 高德专用搜索词：用「城市 + 准确店名」。
+ * 名字里有中文的取最长的那个（带分店名的最准，当地短名「甘家界柠檬鸭」会搜出全国所有分店）；
+ * 城市从地址里读，店名里已经有就不重复；店名没有中文就退回原来的搜索词。
+ */
+export function amapPlaceQuery(p: Place): string {
+  const shop = [p.name, p.localName].map((x) => x?.trim()).filter(hasCjk).sort((a, b) => b.length - a.length)[0];
+  if (!shop) return placeQuery(p);
+  const name = amapText(shop);
+  const city = cityOfAddress(p.localAddress) ?? cityOfAddress(p.address);
+  return city && !name.includes(city) ? `${city} ${name}` : name;
+}
+
+/** 按地图 App 选搜索词：高德用 amapPlaceQuery，其他沿用当地语言优先的 placeQuery */
+export function placeQueryFor(app: NavApp, p: Place): string {
+  return app === 'amap' ? amapPlaceQuery(p) : placeQuery(p);
+}
+
 export function searchUrl(app: NavApp, query: string): string {
   const q = encodeURIComponent(query);
   if (app === 'amap') return `https://uri.amap.com/search?keyword=${q}&callnative=1`;
@@ -45,16 +79,17 @@ export function navLink(item: Pick<Item, 'type' | 'title' | 'place' | 'toPlace' 
   const app = appFor(tz, settings);
   if (item.type === 'note') return item.navUrl;
   if (item.type === 'transit' && item.toPlace) {
-    return directionsUrl(app, placeQuery(item.toPlace), item.place ? placeQuery(item.place) : undefined, 'transit');
+    return directionsUrl(app, placeQueryFor(app, item.toPlace), item.place ? placeQueryFor(app, item.place) : undefined, 'transit');
   }
   const p = item.place ?? (item.type === 'spot' || item.type === 'lodging' ? { name: item.title } : undefined);
-  if (p) return searchUrl(app, placeQuery(p));
+  if (p) return searchUrl(app, placeQueryFor(app, p));
   return item.navUrl;
 }
 
 /** 地点卡上的「在地图中打开」 */
 export function placeLink(p: Place, tz: string, settings?: Settings): string {
-  return searchUrl(appFor(tz, settings), placeQuery(p));
+  const app = appFor(tz, settings);
+  return searchUrl(app, placeQueryFor(app, p));
 }
 
 export type MobileOs = 'android' | 'ios' | 'other';

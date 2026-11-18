@@ -2,7 +2,7 @@
 // Gallery（只看）和美食资料库（管理）共用这里的分类、字段规则和纯函数。
 import type { Focus } from './guide';
 import { DEFAULT_SETTINGS, type Settings } from './types';
-import { directionsUrl, searchUrl } from '../links/maps';
+import { amapText, cityOfAddress, directionsUrl, searchUrl } from '../links/maps';
 
 export type FoodCategory = 'main' | 'snack' | 'drink' | 'supper';
 
@@ -176,11 +176,7 @@ export function foodInMainland(f: Pick<FoodEntry, 'restaurantName' | 'address' |
   return validCoord(f.lat, f.lng) ? coordInMainland(f.lat!, f.lng!) : false;
 }
 
-/** 从中国大陆地址里取城市名（不带「市」）：「广西壮族自治区南宁市西乡塘区…」→「南宁」；取不到返回 undefined */
-export function cityOfAddress(addr: string | undefined): string | undefined {
-  const rest = (addr ?? '').trim().replace(/^.{2,9}?(省|自治区|特别行政区)/, '');
-  return rest.match(/^([^市区县\s,，]{2,5})市/)?.[1];
-}
+export { cityOfAddress };
 
 /**
  * 导航链接：按「店在哪里」选地图（中国大陆用设置里的中国导航，默认高德；其他地方用另一项），与用户人在哪、当前哪个行程无关。
@@ -200,7 +196,8 @@ export function foodNavUrl(f: Pick<FoodEntry, 'restaurantName' | 'address' | 'la
   if (app === 'amap') {
     if (shop && addr) {
       const city = cityOfAddress(addr);
-      return searchUrl('amap', city && !shop.includes(city) ? `${city} ${shop}` : shop);
+      const name = amapText(shop);
+      return searchUrl('amap', city && !name.includes(city) ? `${city} ${name}` : name);
     }
     if (addr) return searchUrl('amap', addr);
     if (okCoord) return `https://uri.amap.com/marker?position=${f.lng},${f.lat}&name=${encodeURIComponent(shop || '')}&coordinate=wgs84&callnative=1`;
