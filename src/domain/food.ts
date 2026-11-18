@@ -176,9 +176,18 @@ export function foodInMainland(f: Pick<FoodEntry, 'restaurantName' | 'address' |
   return validCoord(f.lat, f.lng) ? coordInMainland(f.lat!, f.lng!) : false;
 }
 
+/** 从中国大陆地址里取城市名（不带「市」）：「广西壮族自治区南宁市西乡塘区…」→「南宁」；取不到返回 undefined */
+export function cityOfAddress(addr: string | undefined): string | undefined {
+  const rest = (addr ?? '').trim().replace(/^.{2,9}?(省|自治区|特别行政区)/, '');
+  return rest.match(/^([^市区县\s,，]{2,5})市/)?.[1];
+}
+
 /**
  * 导航链接：按「店在哪里」选地图（中国大陆用设置里的中国导航，默认高德；其他地方用另一项），与用户人在哪、当前哪个行程无关。
- * 高德一律只用「地址」搜索（加店名会让高德搜不准；也避免 WGS-84 / GCJ-02 坐标偏移）。手机上由 openExternal 直接拉起高德 App。
+ * 高德：2026-11-19 起用「店名」搜索（用户填的是高德上的准确店名，搜出来第一条就是这家店，不用再在一堆地址里选）；
+ *   地址里能读出城市就放在店名前面（连锁店、重名店不会搜到别的城市）；没填店名才退回用地址搜。
+ *   之前只用地址搜，会出现一排门牌和附近的店，用户还得自己再选一次。没有地址时：有坐标用 marker 直接标点，坐标也没有就不导航（界面禁用按钮）。
+ *   只有坐标（没有店名、没有地址）时用 marker（WGS-84 → 高德），避免坐标偏移。手机上由 openExternal 直接拉起高德 App。
  * Google 有有效坐标用坐标，否则用「店名 + 地址」。地址和坐标都没有就返回 undefined，界面据此禁用导航。
  */
 export function foodNavUrl(f: Pick<FoodEntry, 'restaurantName' | 'address' | 'lat' | 'lng'>, settings?: Settings): string | undefined {
@@ -186,10 +195,15 @@ export function foodNavUrl(f: Pick<FoodEntry, 'restaurantName' | 'address' | 'la
   const app = foodInMainland(f) ? s.navInChina : s.navElsewhere;
   const okCoord = validCoord(f.lat, f.lng);
   const addr = f.address?.trim();
-  const q = [f.restaurantName?.trim(), addr].filter(Boolean).join(' ');
+  const shop = f.restaurantName?.trim();
+  const q = [shop, addr].filter(Boolean).join(' ');
   if (app === 'amap') {
+    if (shop && addr) {
+      const city = cityOfAddress(addr);
+      return searchUrl('amap', city && !shop.includes(city) ? `${city} ${shop}` : shop);
+    }
     if (addr) return searchUrl('amap', addr);
-    if (okCoord) return `https://uri.amap.com/marker?position=${f.lng},${f.lat}&name=${encodeURIComponent(f.restaurantName?.trim() || '')}&coordinate=wgs84&callnative=1`;
+    if (okCoord) return `https://uri.amap.com/marker?position=${f.lng},${f.lat}&name=${encodeURIComponent(shop || '')}&coordinate=wgs84&callnative=1`;
     return undefined;
   }
   if (okCoord) {

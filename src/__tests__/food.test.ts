@@ -25,11 +25,22 @@ describe('美食导航按店的位置选地图', () => {
   });
 });
 
-describe('高德：只用地址搜索、手机直接开 App', () => {
-  it('高德搜索词只有地址，不带店名', async () => {
+describe('高德：用店名搜索、手机直接开 App', () => {
+  it('高德搜索词 = 城市 + 店名（不再用地址搜出一排门牌）', async () => {
     const { foodNavUrl } = await import('../domain/food');
-    const u = foodNavUrl({ restaurantName: '舒记老友粉', address: '南宁市兴宁区中山路' })!;
-    expect(new URL(u).searchParams.get('keyword')).toBe('南宁市兴宁区中山路');
+    const u = foodNavUrl({ restaurantName: '甘家界柠檬鸭(三街两巷水街店)', address: '广西壮族自治区南宁市西乡塘区永宁街华兴里1-4号' })!;
+    expect(new URL(u).searchParams.get('keyword')).toBe('南宁 甘家界柠檬鸭(三街两巷水街店)');
+    expect(foodNavUrl({ restaurantName: '舒记老友粉', address: '南宁市兴宁区中山路' })).toContain(encodeURIComponent('南宁 舒记老友粉'));
+  });
+  it('店名里已经有城市就不重复；没店名退回地址；没地址没坐标不导航', async () => {
+    const { foodNavUrl, cityOfAddress } = await import('../domain/food');
+    expect(new URL(foodNavUrl({ restaurantName: '南宁老友粉', address: '南宁市兴宁区中山路' })!).searchParams.get('keyword')).toBe('南宁老友粉');
+    expect(new URL(foodNavUrl({ restaurantName: '', address: '南宁市兴宁区中山路' })!).searchParams.get('keyword')).toBe('南宁市兴宁区中山路');
+    expect(foodNavUrl({ restaurantName: '舒记老友粉', address: '' })).toBeUndefined();
+    expect(cityOfAddress('广西壮族自治区南宁市西乡塘区永宁街华兴里1-4号')).toBe('南宁');
+    expect(cityOfAddress('北京市朝阳区建国路')).toBe('北京');
+    expect(cityOfAddress('广东省广州市天河区')).toBe('广州');
+    expect(cityOfAddress('中山路 12 号')).toBeUndefined();
   });
   it('Android → intent 拉起高德 App，没装就回网页版', async () => {
     const { amapAppUrl } = await import('../links/maps');
