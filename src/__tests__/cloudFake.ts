@@ -203,6 +203,16 @@ export function fakeCloud(): FakeCloud {
       state.events.push(e);
       for (const w of watchers) w(e);
     },
+    async deleteCloudTrip(tid) {
+      need();
+      if (!isOwner(tid)) return;
+      state.trips.delete(tid);
+      state.members = state.members.filter((m) => m.tripId !== tid);
+      state.invites = state.invites.filter((i) => i.tripId !== tid);
+      state.versions = state.versions.filter((v) => v.tripId !== tid);
+      state.events = state.events.filter((e) => e.tripId !== tid);
+      state.suggestions = state.suggestions.filter((x) => x.tripId !== tid);
+    },
     async submitSuggestion(tid, baseVersion, note, changes, summary) {
       const s = need();
       if (!isMember(tid) || isOwner(tid)) throw new Error('只有同伴可以提交建议');

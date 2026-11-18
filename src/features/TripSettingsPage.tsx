@@ -12,11 +12,13 @@ import { readiness, useAppShellReady, useBlobUrl, useSettings, useTripData, useT
 import { addDays, daysBetween, fmtDate, fmtDateRange, fmtDaysDest, fmtMoney } from '../domain/format';
 import { TRANSLATE_LANGS } from '../links/linkLabel';
 import { NAV_APP_NAME } from '../importer/promptTemplate';
-import { deleteTrip, exportBackup, exportTripPackage, updateTripInfo, setCover, setDepartTime, setParticipants, setTranslateTo, setTripTheme, shiftTripStart } from '../db/repo';
+import { exportBackup, exportTripPackage, updateTripInfo, setCover, setDepartTime, setParticipants, setTranslateTo, setTripTheme, shiftTripStart } from '../db/repo';
 import { THEME_LABEL } from '../components/TripTheme';
 import { seasonOf, SEASONS } from '../domain/theme';
 import { SyncSection } from './CloudParts';
 import { toast } from '../store/ui';
+import { deleteTripEverywhere } from '../cloud/session';
+import { cloudErrorText } from '../cloud/backend';
 import { downloadBlob, pickFile, prepareFile } from '../lib/files';
 import { restoreFromFile } from './importFlow';
 import { ChoiceSheet } from './Sheets';
@@ -264,7 +266,7 @@ export default function TripSettingsPage() {
         open={confirmDel}
         onClose={() => setConfirmDel(false)}
         title="删除这个旅程？"
-        text="行程、证明文件和完成状态都会从本机删除，无法恢复。建议先导出备份。"
+        text="行程、证明文件和完成状态都会从本机删除，无法恢复。已同步的旅程会同时从云端删除。建议先导出备份。"
         actions={
           <>
             <Button variant="outline" onClick={() => setConfirmDel(false)}>
@@ -274,7 +276,12 @@ export default function TripSettingsPage() {
               variant="danger"
               onClick={async () => {
                 setConfirmDel(false);
-                await deleteTrip(trip.id);
+                try {
+                  await deleteTripEverywhere(trip.id);
+                } catch (e) {
+                  toast(`删除失败：${cloudErrorText(e)}`);
+                  return;
+                }
                 nav('/trips', { replace: true });
               }}
             >

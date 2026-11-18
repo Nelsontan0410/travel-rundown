@@ -172,6 +172,12 @@ export function createSupabaseBackend(): CloudBackend {
       if (!s) return;
       must(await sb.from('trip_members').delete().eq('trip_id', tripId).eq('user_id', s.userId));
     },
+    async deleteCloudTrip(tripId) {
+      const s = await me();
+      if (!s) return;
+      // 行级权限只允许主用户删；其他表 on delete cascade 一起删
+      must(await sb.from('cloud_trips').delete().eq('id', tripId).eq('owner_id', s.userId));
+    },
 
     async submitSuggestion(tripId, baseVersion, note, changes, summary) {
       return must(await sb.rpc('submit_suggestion', { p_trip: tripId, p_base: baseVersion, p_note: note, p_changes: changes, p_summary: summary ?? null })) as string;
