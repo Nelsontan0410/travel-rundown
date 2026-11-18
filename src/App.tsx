@@ -1,7 +1,7 @@
 import MobileNavigation from './components/MobileNavigation';
-import { Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation, useNavigationType, useParams } from 'react-router-dom';
 import { setLastTrip } from './db/repo';
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Toast } from './components/Layout';
 import { useCurrentTripTheme, useTrips } from './hooks/data';
 import { AppThemeBase } from './components/TripTheme';
@@ -56,13 +56,49 @@ function TripFood() {
   return ready ? <Navigate to="/food" replace /> : null;
 }
 
+/** 2026-11-18：每一页（按浏览记录里的位置）各自记住滚动位置。点进去是新页 → 回到顶部；点「返回」→ 回到离开时的位置。 */
+const scrollMemory = new Map<string, number>();
+
 function ScrollTop() {
-  const { pathname } = useLocation();
+  const { pathname, key } = useLocation();
+  const navType = useNavigationType();
+  const keyRef = useRef(key);
+  useLayoutEffect(() => {
+    keyRef.current = key; // 先于浏览器的滚动事件切换，免得新页面被夹住的滚动值写进旧页面
+  }, [key]);
+  useEffect(() => {
+    try {
+      window.history.scrollRestoration = 'manual';
+    } catch {
+      /* 不支持就算了 */
+    }
+    const save = () => scrollMemory.set(keyRef.current, window.scrollY);
+    window.addEventListener('scroll', save, { passive: true });
+    return () => window.removeEventListener('scroll', save);
+  }, []);
   // 2026-10-19 修复：不能写成 useEffect(() => window.scrollTo(0, 0))。新版 Chrome 的 scrollTo 会返回 Promise，
   // React 会把它当成清理函数在换页时调用 → "n is not a function"，整个 App 卸载 → 换页白屏。
   useEffect(() => {
-    window.scrollTo(0, 0);
-  }, [pathname]);
+    const target = navType === 'POP' ? scrollMemory.get(key) ?? 0 : 0;
+    window.scrollTo(0, target);
+    if (target <= 0) return;
+    // 行程内容是异步读出来的，刚回来时页面还没撑到那么高：等内容出来再滚（最多约 1.5 秒；用户自己动手滚了就不抢）
+    let frames = 0;
+    let raf = 0;
+    const stop = () => cancelAnimationFrame(raf);
+    const tick = () => {
+      if (Math.abs(window.scrollY - target) > 1) window.scrollTo(0, target);
+      if (Math.abs(window.scrollY - target) > 1 && ++frames < 90) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    window.addEventListener('touchstart', stop, { once: true, passive: true });
+    window.addEventListener('wheel', stop, { once: true, passive: true });
+    return () => {
+      stop();
+      window.removeEventListener('touchstart', stop);
+      window.removeEventListener('wheel', stop);
+    };
+  }, [pathname]); // eslint-disable-line react-hooks/exhaustive-deps
   return null;
 }
 
