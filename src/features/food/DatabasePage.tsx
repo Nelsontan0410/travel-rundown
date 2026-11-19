@@ -58,6 +58,9 @@ export default function DatabasePage() {
               新增
             </Button>
           </div>
+          <button type="button" className={d.aiLink} onClick={() => nav('/food/ai-import')}>
+            <Icon name="Copy" size="sm" /> 让 AI 批量添加美食
+          </button>
           <FilterChips
             options={[{ value: 'all' as Cat, label: '全部' }, ...FOOD_CATEGORIES.map((c) => ({ value: c.key as Cat, label: c.label }))]}
             value={cat}
@@ -68,8 +71,11 @@ export default function DatabasePage() {
               <Icon name="Utensils" size="lg" />
               <p className={d.emptyTitle}>还没有美食</p>
               <p className={d.emptyText}>新增第一道美食：上传照片、填写店名和地址，就会出现在美食专区的照片墙上。</p>
-              <Button icon="Plus" onClick={() => nav('/food/database/new')}>
-                新增美食
+              <Button icon="Plus" onClick={() => nav('/food/ai-import')}>
+                让 AI 批量添加
+              </Button>
+              <Button variant="outline" icon="Plus" onClick={() => nav('/food/database/new')}>
+                手动新增一道
               </Button>
             </div>
           ) : (

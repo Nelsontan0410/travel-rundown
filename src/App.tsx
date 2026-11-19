@@ -18,6 +18,7 @@ import LedgerPage from './features/LedgerPage';
 import OutfitsPage from './features/OutfitsPage';
 import FoodGalleryPage from './features/food/GalleryPage';
 import FoodDatabasePage from './features/food/DatabasePage';
+import FoodImportPage from './features/food/FoodImportPage';
 import FoodFormPage from './features/food/FoodFormPage';
 import TodayPage from './features/TodayPage';
 import ItemEditPage from './features/ItemEditPage';
@@ -139,6 +140,7 @@ export default function App() {
         <Route path="/trip/:tripId/outfits" element={<OutfitsPage />} />
         <Route path="/food" element={<FoodGalleryPage />} />
         <Route path="/food/database" element={<FoodDatabasePage />} />
+        <Route path="/food/ai-import" element={<FoodImportPage />} />
         <Route path="/food/database/new" element={<FoodFormPage />} />
         <Route path="/food/database/:foodId" element={<FoodFormPage />} />
         <Route path="/trip/:tripId/food" element={<TripFood />} />
