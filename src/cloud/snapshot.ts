@@ -51,7 +51,7 @@ export interface SnapshotFood extends Omit<FoodEntry, 'photoKey' | 'tripId' | 'u
 
 export interface TripSnapshot {
   schema: 1;
-  trip: Pick<Trip, 'title' | 'startDate' | 'endDate' | 'homeTz' | 'destination' | 'budget' | 'participants' | 'departTime' | 'translate'> & {
+  trip: Pick<Trip, 'title' | 'startDate' | 'endDate' | 'homeTz' | 'destination' | 'budget' | 'participants' | 'departTime' | 'translate' | 'flightCountdown'> & {
     coverHash?: string;
     coverMime?: string;
   };
@@ -116,6 +116,8 @@ export function buildSnapshot(
       participants: trip.participants,
       departTime: trip.departTime,
       translate: trip.translate,
+      // 2026-11-19 启程倒计时的航班时间跟着版本发布，同伴不用自己再设
+      ...(trip.flightCountdown ? { flightCountdown: trip.flightCountdown } : {}),
       ...(coverHash ? { coverHash } : {}),
     },
     days: [...days].sort((a, b) => a.index - b.index).map((d) => ({ ...d, tripId: trip.id })),
@@ -243,7 +245,7 @@ export const ITEM_FIELD_LABEL: Record<string, string> = {
 };
 const TRIP_FIELD_LABEL: Record<string, string> = {
   title: '旅程名称', startDate: '出发日期', endDate: '结束日期', homeTz: '出发地时区', destination: '目的地', budget: '预算',
-  participants: '人数', departTime: '出发时间', translate: '翻译语言', coverHash: '封面',
+  participants: '人数', departTime: '出发时间', translate: '翻译语言', coverHash: '封面', flightCountdown: '航班时间',
 };
 
 export interface ItemChange {

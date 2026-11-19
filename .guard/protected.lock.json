@@ -43,6 +43,7 @@
   "src/__tests__/repo.test.ts": "55c0dc14bf1c24753980207ab848171cbdcea89d80ec0a33e55fb72902012c95",
   "src/__tests__/rules.test.ts": "facdd8a8d7ca24cb2ef241c5d95ea526d93453dc7ea18031f27dfd5927c2e7bd",
   "src/__tests__/serialize.test.ts": "69981d92f7b0ad0c42ab87b1db9e9030ded28fe8629d1aa4afc2fc28804cb4bc",
+  "src/__tests__/syncFlight.test.ts": "a1a01659375b603c570609a7fe3e8dac244722fb1f07f047a919481ee5b9979b",
   "src/__tests__/themes.test.ts": "9c80d8541e7b3fbde48c58928ed81ae2655eb4faebe5c3b0faac06239efed2f4",
   "src/__tests__/today.test.ts": "7af84799d78b1fb96bdbaada5725b8826e86e0616d78235ffd43f12e30b35544",
   "src/__tests__/v2.test.ts": "1a0d423064496339f04d358bc0dffb67be3895a74871a9a62bcefe2d2ecd0f16",

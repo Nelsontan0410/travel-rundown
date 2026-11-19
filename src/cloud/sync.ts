@@ -261,6 +261,8 @@ export async function applyUpdate(
       budget: t.budget,
       participants: t.participants,
       departTime: t.departTime,
+      // 主用户设了航班时间就跟主用户；没设的话保留自己手机上的
+      flightCountdown: t.flightCountdown ?? existing?.flightCountdown,
       translate: t.translate ?? existing?.translate ?? DEFAULT_TRANSLATE,
       coverBlobKey: t.coverHash ? cloudBlobKey(t.coverHash) : existing?.coverBlobKey?.startsWith('cloud:') ? undefined : existing?.coverBlobKey,
       cloud: { role: 'member', version: v.version, ownerName: meta.ownerName ?? existing?.cloud?.ownerName, syncedAt: ts },
@@ -276,6 +278,7 @@ export async function applyUpdate(
       }
     }
     if (!trip.coverBlobKey) delete trip.coverBlobKey;
+    if (!trip.flightCountdown) delete trip.flightCountdown;
 
     for (const f of fetched) await db.blobs.put(f);
 
