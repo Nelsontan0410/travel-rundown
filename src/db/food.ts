@@ -40,6 +40,29 @@ export async function addFoodEntry(tripId: string, draft: Partial<FoodDraft>, ph
   return id;
 }
 
+/**
+ * AI 批量添加：一次写入多道美食（一个事务）。校验比手动表单宽松：
+ * 只要美食名称和分类；店名没写用美食名称，地址可以空（之后再补）。返回写入的数量。
+ */
+export async function addFoodEntries(tripId: string, drafts: Partial<FoodDraft>[]): Promise<number> {
+  if (!tripId) throw new Error('请先导入或选择一份旅程');
+  const cleaned = drafts.map((raw) => {
+    const d = cleanFoodDraft({ ...raw, restaurantName: raw.restaurantName?.trim() || raw.name, address: raw.address?.trim() || 'x' });
+    const errs = validateFood(d);
+    if (errs.name || errs.category || errs.phone || errs.budget) throw new Error(Object.values(errs)[0]);
+    return { ...d, restaurantName: d.restaurantName ?? raw.name ?? '', address: raw.address?.trim() ? d.address ?? '' : '' } as FoodDraft;
+  });
+  if (!cleaned.length) return 0;
+  await db.transaction('rw', db.foodEntries, async () => {
+    const all = await db.foodEntries.where('tripId').equals(tripId).toArray();
+    if (all.length + cleaned.length > FOOD_LIMITS.entries) throw new Error(`每个旅程的美食最多 ${FOOD_LIMITS.entries} 道`);
+    let order = all.reduce((m, f) => Math.max(m, f.order), -1) + 1;
+    const ts = now();
+    for (const d of cleaned) await db.foodEntries.put({ ...d, id: uuid(), tripId, order: order++, createdAt: ts, updatedAt: ts });
+  });
+  return cleaned.length;
+}
+
 /** 整份替换表单内容（表单里清空的字段会被清掉）；照片按 PhotoChange 处理，旧照片一并删除 */
 export async function updateFoodEntry(id: string, draft: Partial<FoodDraft>, photo?: PhotoChange): Promise<void> {
   const d = assertValid(draft);
